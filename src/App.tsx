@@ -1,104 +1,104 @@
-import { Routes, Route } from 'react-router-dom'
-import ProtectedRoute from './components/ProtectedRoute'
-import DashboardLayout from './layouts/DashboardLayout'
-import AuthLayout from './layouts/AuthLayout'
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ExternalRedirect from "./components/ExternalRedirect";
 
-// Auth pages
-import LoginPage from './pages/auth/LoginPage'
-import SignupPage from './pages/auth/SignupPage'
+// pages (assumed to exist in your project)
+import { FounderDashboard } from "./pages/founder/FounderDashboard";
+import { TRLAssessment } from "./pages/founder/TRLAssessment";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { ReviewerDashboard } from "./pages/reviewer/ReviewerDashboard";
+import { AssessmentReview } from "./pages/reviewer/AssessmentReview";
+import { ArrowRight, Layout, ShieldCheck, UserCheck } from "lucide-react";
 
-// Dashboard
-import DashboardPage from './pages/DashboardPage'
-
-// Supplier pages
-import SupplierListPage from './pages/suppliers/SupplierListPage'
-import SupplierDetailPage from './pages/suppliers/SupplierDetailPage'
-import SupplierComparePage from './pages/suppliers/SupplierComparePage'
-
-// Lab pages
-import TestLabListPage from './pages/labs/TestLabListPage'
-import TestLabDetailPage from './pages/labs/TestLabDetailPage'
-import TestLabBookingPage from './pages/labs/TestLabBookingPage'
-
-// Facility pages
-import FacilityListPage from './pages/facilities/FacilityListPage'
-import FacilityDetailPage from './pages/facilities/FacilityDetailPage'
-import FacilityBookingPage from './pages/facilities/FacilityBookingPage'
-
-// Mentor pages
-import MentorListPage from './pages/mentors/MentorListPage'
-import MentorDetailPage from './pages/mentors/MentorDetailPage'
-import MentorBookingPage from './pages/mentors/MentorBookingPage'
-
-// Software pages
-import SoftwareListPage from './pages/software/SoftwareListPage'
-import SoftwareDetailPage from './pages/software/SoftwareDetailPage'
-import SoftwareRequestStatusPage from './pages/software/SoftwareRequestStatusPage'
-
-// Knowledge AI
-import KnowledgeAIAssistantPage from './pages/knowledge/KnowledgeAIAssistantPage'
-
-// Utility pages
-import ProfilePage from './pages/ProfilePage'
-import NotificationsPage from './pages/NotificationsPage'
-import NotFoundPage from './pages/NotFoundPage'
-
-function App() {
+function RoleSelection() {
   return (
-    <Routes>
-      {/* Auth routes */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-      </Route>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            ARTPark TRL Platform
+          </h1>
+          <p className="text-slate-400 text-lg">
+            Select your role to enter the portal
+          </p>
+        </div>
 
-      {/* Protected dashboard routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/" element={<DashboardPage />} />
-        
-        {/* Suppliers */}
-        <Route path="/suppliers" element={<SupplierListPage />} />
-        <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
-        <Route path="/suppliers/compare" element={<SupplierComparePage />} />
-        
-        {/* Test Labs */}
-        <Route path="/labs" element={<TestLabListPage />} />
-        <Route path="/labs/:id" element={<TestLabDetailPage />} />
-        <Route path="/labs/:id/booking" element={<TestLabBookingPage />} />
-        
-        {/* Facilities */}
-        <Route path="/facilities" element={<FacilityListPage />} />
-        <Route path="/facilities/:id" element={<FacilityDetailPage />} />
-        <Route path="/facilities/:id/booking" element={<FacilityBookingPage />} />
-        
-        {/* Mentors */}
-        <Route path="/mentors" element={<MentorListPage />} />
-        <Route path="/mentors/:id" element={<MentorDetailPage />} />
-        <Route path="/mentors/:id/booking" element={<MentorBookingPage />} />
-        
-        {/* Software */}
-        <Route path="/software" element={<SoftwareListPage />} />
-        <Route path="/software/:id" element={<SoftwareDetailPage />} />
-        <Route path="/software/requests" element={<SoftwareRequestStatusPage />} />
-        
-        {/* Knowledge AI */}
-        <Route path="/knowledge-ai" element={<KnowledgeAIAssistantPage />} />
-        
-        {/* Utility */}
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
-  )
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <a href="/founder/dashboard" className="group">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <Layout className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Founder</h2>
+              <p className="text-slate-300 mb-8 flex-1">
+                Manage your startup, track TRL progress, and access resources.
+              </p>
+              <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
+                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
+
+          <a href="/admin/dashboard" className="group">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Admin</h2>
+              <p className="text-slate-300 mb-8 flex-1">
+                Oversee portfolio, manage resources, and track ecosystem health.
+              </p>
+              <div className="flex items-center text-purple-400 font-semibold group-hover:text-purple-300">
+                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
+
+          <a href="/reviewer/dashboard" className="group">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <UserCheck className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
+              <p className="text-slate-300 mb-8 flex-1">
+                Evaluate assessments, provide feedback, and validate TRL levels.
+              </p>
+              <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
+                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export default App
+export function App() {
+  const externalFacilitiesUrl = "https://art-park-os-54xc.vercel.app";
 
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<RoleSelection />} />
+
+        {/* Client-side redirect route: clicking /founder/facilities (NavLink from Sidebar) lands here */}
+        <Route
+          path="/founder/facilities"
+          element={<ExternalRedirect url={externalFacilitiesUrl} />}
+        />
+
+        {/* Founder Routes */}
+        <Route path="/founder/dashboard" element={<FounderDashboard />} />
+        <Route path="/founder/assessment" element={<TRLAssessment />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+        {/* Reviewer Routes */}
+        <Route path="/reviewer/dashboard" element={<ReviewerDashboard />} />
+        <Route path="/reviewer/review/:id" element={<AssessmentReview />} />
+      </Routes>
+    </Router>
+  );
+}
