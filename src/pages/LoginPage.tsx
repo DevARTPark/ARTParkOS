@@ -24,19 +24,39 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (credentials[userId] && credentials[userId].password === password) {
-      // Save minimal auth info (replace with real auth later)
-      const auth = { userId, role: userId };
-      localStorage.setItem("artpark_user", JSON.stringify(auth));
-
-      // Prefer the redirect param (explicit), else role-based default
-      const target = redirect === "/" ? credentials[userId].redirect : redirect;
-      navigate(target);
-    } else {
+    // Verify user credentials exist and password matches
+    const userCred = credentials[userId];
+    if (!userCred || userCred.password !== password) {
       setError(
         "Invalid credentials. Try: user_id/password = founder/12345 (or admin/reviewer...)"
       );
+      return;
     }
+
+    // Determine role implied by redirect (if any)
+    const getRoleFromPath = (path: string) => {
+      if (!path || !path.startsWith("/")) return null;
+      const segs = path.split("/").filter(Boolean);
+      return segs.length ? segs[0] : null;
+    };
+
+    const desiredRole = getRoleFromPath(redirect); // e.g. "founder" or null
+
+    // If the redirect requests a different role than the one logging in, block it
+    if (desiredRole && desiredRole !== userId) {
+      setError(
+        `This page requires a ${desiredRole} account. Please login with the ${desiredRole} credentials.`
+      );
+      return;
+    }
+
+    // All good: persist minimal auth and navigate
+    const auth = { userId, role: userId };
+    localStorage.setItem("artpark_user", JSON.stringify(auth));
+
+    // If redirect is root "/" or not provided, use role-based default; otherwise follow redirect
+    const target = redirect === "/" ? userCred.redirect : redirect;
+    navigate(target);
   };
 
   return (

@@ -19,6 +19,20 @@ import {
 } from "lucide-react";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SupplierDashboard from "./pages/supplier/SupplierDashboard";
+import ProfileEditPage from "./pages/supplier/ProfileEditPage";
+import ProfilePage from "./pages/supplier/ProfilePage";
+import ListingsPage from "./pages/supplier/ListingsPage";
+import ListingFormPage from "./pages/supplier/ListingFormPage";
+
+// App.tsx (add after imports)
+import { seedMockSupplierData } from "./data/mockSupplierData";
+
+// Seed mock data in development/local demo only
+if (import.meta.env.MODE !== "production") {
+  // safe: seeds only if keys missing
+  seedMockSupplierData();
+}
 
 function RoleSelection() {
   return (
@@ -89,9 +103,10 @@ function RoleSelection() {
           </a>
           {/* Suppliers */}
           <a
-            href="/supplier/dashboard"
+            href={`/login?redirect=${encodeURIComponent(
+              "/supplier/dashboard"
+            )}`}
             className="group"
-            aria-label="Suppliers"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
@@ -107,7 +122,10 @@ function RoleSelection() {
             </div>
           </a>
           {/* Mentors */}
-          <a href="/mentor/dashboard" className="group" aria-label="Mentors">
+          <a
+            href={`/login?redirect=${encodeURIComponent("/mentor/dashboard")}`}
+            className="group"
+          >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <Calendar className="w-8 h-8 text-white" />
@@ -123,9 +141,10 @@ function RoleSelection() {
           </a>
           {/* Lab Facility Owners */}
           <a
-            href="/lab/dashboard"
+            href={`/login?redirect=${encodeURIComponent(
+              "/reviewer/dashboard"
+            )}`}
             className="group"
-            aria-label="Lab facility owners"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
@@ -202,6 +221,48 @@ export function App() {
           element={
             <ProtectedRoute>
               <AssessmentReview />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/supplier/dashboard"
+          element={
+            <ProtectedRoute>
+              <SupplierDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/supplier/profile/edit"
+          element={
+            <ProtectedRoute>
+              <ProfileEditPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/supplier/profile" element={<ProfilePage />} />
+        <Route
+          path="/supplier/listings"
+          element={
+            <ProtectedRoute>
+              <ListingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/supplier/listings/new"
+          element={
+            <ProtectedRoute>
+              <ListingFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/supplier/listings/:id/edit"
+          element={
+            <ProtectedRoute>
+              <ListingFormPage />
             </ProtectedRoute>
           }
         />

@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { motion } from "framer-motion";
 interface CardProps {
   children: React.ReactNode;
   className?: string;
@@ -8,20 +8,33 @@ interface CardProps {
 }
 export function Card({
   children,
-  className = '',
+  className = "",
   onClick,
-  hoverEffect = false
+  hoverEffect = false,
 }: CardProps) {
-  return <motion.div whileHover={hoverEffect && onClick ? {
-    y: -2,
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-  } : {}} className={`bg-white rounded-lg border border-gray-100 shadow-sm ${onClick ? 'cursor-pointer' : ''} ${className}`} onClick={onClick}>
+  return (
+    <motion.div
+      whileHover={
+        hoverEffect && onClick
+          ? {
+              y: -2,
+              boxShadow:
+                "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+            }
+          : {}
+      }
+      className={`bg-white rounded-lg border border-gray-100 shadow-sm ${
+        onClick ? "cursor-pointer" : ""
+      } ${className}`}
+      onClick={onClick}
+    >
       {children}
-    </motion.div>;
+    </motion.div>
+  );
 }
 export function CardHeader({
   children,
-  className = ''
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
@@ -30,21 +43,32 @@ export function CardHeader({
 }
 export function CardTitle({
   children,
-  className = ''
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>
+  return (
+    <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>
       {children}
-    </h3>;
+    </h3>
+  );
 }
 export function CardContent({
   children,
-  className = ''
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
   return <div className={`p-6 pt-3 ${className}`}>{children}</div>;
+}
+export function CardDescription({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <p className={`text-sm text-slate-500 ${className}`}>{children}</p>;
 }
