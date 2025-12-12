@@ -17,6 +17,8 @@ import {
   Calendar,
   Building2,
 } from "lucide-react";
+import LoginPage from "./pages/LoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function RoleSelection() {
   return (
@@ -32,7 +34,10 @@ function RoleSelection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <a href="/founder/dashboard" className="group">
+          <a
+            href={`/login?redirect=${encodeURIComponent("/founder/dashboard")}`}
+            className="group"
+          >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <Layout className="w-8 h-8 text-white" />
@@ -46,7 +51,10 @@ function RoleSelection() {
               </div>
             </div>
           </a>
-          <a href="/admin/dashboard" className="group">
+          <a
+            href={`/login?redirect=${encodeURIComponent("/admin/dashboard")}`}
+            className="group"
+          >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <ShieldCheck className="w-8 h-8 text-white" />
@@ -60,7 +68,12 @@ function RoleSelection() {
               </div>
             </div>
           </a>
-          <a href="/reviewer/dashboard" className="group">
+          <a
+            href={`/login?redirect=${encodeURIComponent(
+              "/reviewer/dashboard"
+            )}`}
+            className="group"
+          >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <UserCheck className="w-8 h-8 text-white" />
@@ -86,9 +99,7 @@ function RoleSelection() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Suppliers</h2>
               <p className="text-slate-300 mb-6 flex-1">
-                Create profile, list offerings with price & MOQ, show
-                capabilities, contact & location, and display customer ratings &
-                feedback.
+                List your offerings and capabilities.
               </p>
               <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
                 Go to Suppliers <ArrowRight className="ml-2 w-4 h-4" />
@@ -103,8 +114,7 @@ function RoleSelection() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Mentors</h2>
               <p className="text-slate-300 mb-6 flex-1">
-                Set available times for meetings, view scheduled calls, and
-                upload meeting notes for startups.
+                Set available times for meetings and view scheduled calls.
               </p>
               <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300">
                 Go to Mentors <ArrowRight className="ml-2 w-4 h-4" />
@@ -121,10 +131,10 @@ function RoleSelection() {
               <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <Building2 className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">
-                Lab Facility Owners
-              </h2>
-              <p className="text-slate-300 mb-6 flex-1"></p>
+              <h2 className="text-2xl font-bold text-white mb-2">Lab Owners</h2>
+              <p className="text-slate-300 mb-6 flex-1">
+                List your Lab testing facilities and capabilities.
+              </p>
               <div className="flex items-center text-rose-400 font-semibold group-hover:text-rose-300">
                 Go to Labs <ArrowRight className="ml-2 w-4 h-4" />
               </div>
@@ -143,23 +153,58 @@ export function App() {
     <Router>
       <Routes>
         <Route path="/" element={<RoleSelection />} />
+        <Route path="/login" element={<LoginPage />} />
 
-        {/* Client-side redirect route: clicking /founder/facilities (NavLink from Sidebar) lands here */}
         <Route
           path="/founder/facilities"
           element={<ExternalRedirect url={externalFacilitiesUrl} />}
         />
 
         {/* Founder Routes */}
-        <Route path="/founder/dashboard" element={<FounderDashboard />} />
-        <Route path="/founder/assessment" element={<TRLAssessment />} />
+        <Route
+          path="/founder/dashboard"
+          element={
+            <ProtectedRoute>
+              <FounderDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/founder/assessment"
+          element={
+            <ProtectedRoute>
+              <TRLAssessment />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Admin Routes */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Reviewer Routes */}
-        <Route path="/reviewer/dashboard" element={<ReviewerDashboard />} />
-        <Route path="/reviewer/review/:id" element={<AssessmentReview />} />
+        <Route
+          path="/reviewer/dashboard"
+          element={
+            <ProtectedRoute>
+              <ReviewerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/review/:id"
+          element={
+            <ProtectedRoute>
+              <AssessmentReview />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );
