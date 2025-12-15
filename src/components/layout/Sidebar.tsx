@@ -16,6 +16,7 @@ import {
   UserCircle,
   ChevronLeft,
   ChevronRight,
+  FilesIcon,
 } from "lucide-react";
 import { Role } from "../../types";
 
@@ -79,8 +80,10 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/admin/dashboard",
           },
           { icon: PieChart, label: "Portfolio", path: "/admin/portfolio" },
-          { icon: FileText, label: "Reviews", path: "/admin/reviews" },
-          { icon: Building2, label: "Resources", path: "/admin/resources" },
+          { icon: Coins, label: "Financials", path: "/admin/financials" },
+          { icon: FileText, label: "Impact & Reports", path: "/admin/reports" },
+          { icon: Users, label: "Network & Ecosystem", path: "/admin/network" },
+          { icon: FilesIcon, label: "Reviews & Resources", path: "/admin/reviews-resources" },
           { icon: Users, label: "Users", path: "/admin/users" },
         ];
       case "reviewer":

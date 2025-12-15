@@ -39,6 +39,13 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 // --- ADMIN PAGES ---
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminPortfolio } from "./pages/admin/AdminPortfolio";
+import { AdminFinancials } from "./pages/admin/AdminFinancials";
+import { AdminReports } from "./pages/admin/AdminReports";
+import { AdminNetwork } from "./pages/admin/AdminNetwork";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminSettings } from "./pages/admin/AdminSettings";
+import { AdminReviewsResources } from "./pages/admin/AdminReviewsResources";
 
 // --- REVIEWER PAGES ---
 import { ReviewerDashboard } from "./pages/reviewer/ReviewerDashboard";
@@ -404,6 +411,62 @@ export function App() {
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/portfolio"
+          element={
+            <ProtectedRoute>
+              <AdminPortfolio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/financials"
+          element={
+            <ProtectedRoute>
+              <AdminFinancials />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute>
+              <AdminReports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/network"
+          element={
+            <ProtectedRoute>
+              <AdminNetwork />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute>
+              <AdminSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reviews-resources"
+          element={
+            <ProtectedRoute>
+              <AdminReviewsResources />
             </ProtectedRoute>
           }
         />
