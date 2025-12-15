@@ -11,6 +11,7 @@ import {
   LogOut,
   Building2,
   PieChart,
+  Coins,
 } from "lucide-react";
 import { Role } from "../../types";
 
@@ -30,13 +31,14 @@ export function Sidebar({ role }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "TRL Assessment",
+            label: "AIRL Assessment",
             path: "/founder/assessment",
           },
           { icon: FolderKanban, label: "Projects", path: "/founder/projects" },
           { icon: Building2, label: "Facilities", path: "/founder/facilities" }, // route handled by ExternalRedirect
-          { icon: Users, label: "Mentors", path: "/founder/mentors" },
+          { icon: Coins, label: "Finance", path: "/founder/finance" },
           { icon: FileText, label: "Reviews", path: "/founder/reviews" },
+          { icon: Users, label: "My Team", path: "/founder/my-team" },
         ];
       case "admin":
         return [
@@ -62,6 +64,10 @@ export function Sidebar({ role }: SidebarProps) {
             label: "Assigned Reviews",
             path: "/reviewer/reviews",
           },
+          { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
+          { icon: FileText, label: "Reviews", path: "/reviewer/reviews" },
+          { icon: Building2, label: "Resources", path: "/reviewer/resources" },
+          { icon: Users, label: "Users", path: "/reviewer/users" },
           { icon: Calendar, label: "Calendar", path: "/reviewer/calendar" },
         ];
       default:
