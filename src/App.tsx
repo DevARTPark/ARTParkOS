@@ -8,6 +8,10 @@ import { TRLAssessment } from "./pages/founder/TRLAssessment";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { ReviewerDashboard } from "./pages/reviewer/ReviewerDashboard";
 import { AssessmentReview } from "./pages/reviewer/AssessmentReview";
+import { FounderProjects } from "./pages/founder/FounderProjects";
+import { FounderFinance } from "./pages/founder/FounderFinance";
+import { FounderTeam } from "./pages/founder/FounderTeam";
+import { FounderReviews } from "./pages/founder/FounderReviews";
 import {
   ArrowRight,
   Layout,
@@ -180,22 +184,12 @@ export function App() {
         />
 
         {/* Founder Routes */}
-        <Route
-          path="/founder/dashboard"
-          element={
-            <ProtectedRoute>
-              <FounderDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/founder/assessment"
-          element={
-            <ProtectedRoute>
-              <TRLAssessment />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/founder/dashboard" element={<FounderDashboard />} />
+        <Route path="/founder/assessment" element={<TRLAssessment />} />
+        <Route path="/founder/projects" element={<FounderProjects />} />
+        <Route path="/founder/finance" element={<FounderFinance />} />
+        <Route path="/founder/my-team" element={<FounderTeam />} />
+        <Route path="/founder/reviews" element={<FounderReviews />} />
 
         {/* Admin Routes */}
         <Route

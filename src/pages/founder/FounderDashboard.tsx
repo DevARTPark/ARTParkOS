@@ -64,11 +64,11 @@ export function FounderDashboard() {
       </div>
 
       <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* TRL Status Widget */}
+        {/* AIRL Status Widget */}
         <motion.div variants={item}>
           <Card className="h-full">
             <CardHeader>
-              <CardTitle>TRL Status Overview</CardTitle>
+              <CardTitle>AIRL Status Overview</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row items-center">
@@ -83,14 +83,14 @@ export function FounderDashboard() {
                     <div className="relative pl-6">
                       <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-green-500 border-2 border-white"></div>
                       <p className="text-sm font-medium text-gray-900">
-                        TRL 3 Achieved
+                        AIRL 3 Achieved
                       </p>
                       <p className="text-xs text-gray-500">Oct 12, 2023</p>
                     </div>
                     <div className="relative pl-6">
                       <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-blue-500 border-2 border-white"></div>
                       <p className="text-sm font-medium text-gray-900">
-                        TRL 2 Verified
+                        AIRL 2 Verified
                       </p>
                       <p className="text-xs text-gray-500">Sep 01, 2023</p>
                     </div>
