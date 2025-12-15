@@ -44,6 +44,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           { icon: Building2, label: "Facilities", path: "/founder/facilities" },
           { icon: Coins, label: "Finance", path: "/founder/finance" },
           { icon: Users, label: "My Team", path: "/founder/my-team" },
+          { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
           { icon: FileText, label: "Reviews", path: "/founder/reviews" },
         ];
       case "admin":
@@ -67,8 +68,8 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "Assigned Reviews",
-            path: "/reviewer/reviews",
+            label: "Assigned Tasks", // <--- CHANGED LABEL
+            path: "/reviewer/tasks", // <--- CHANGED PATH
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
           { icon: Building2, label: "Resources", path: "/reviewer/resources" },
@@ -95,6 +96,12 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
   };
 
   const navItems = getNavItems();
+  const getSettingsPath = (role: Role) => {
+    if (role === 'founder') return '/founder/settings';
+    if (role === 'reviewer') return '/reviewer/settings';
+    if (role === 'admin') return '/admin/settings';
+    return '/settings';
+  };
 
   return (
     <div
@@ -179,6 +186,10 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         </ul>
       </nav>
 
+      <div className="p-4 border-t border-slate-800">
+        <NavLink 
+          to={getSettingsPath(role)}
+          className={({ isActive }) => 
       {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
         {isCollapsed && (
@@ -211,6 +222,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             Settings
           </span>
         </NavLink>
+        
 
         <button
           onClick={() => {
