@@ -39,6 +39,7 @@ export function Sidebar({ role }: SidebarProps) {
           { icon: Coins, label: "Finance", path: "/founder/finance" },
           { icon: FileText, label: "Reviews", path: "/founder/reviews" },
           { icon: Users, label: "My Team", path: "/founder/my-team" },
+          { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
         ];
       case "admin":
         return [
@@ -61,12 +62,10 @@ export function Sidebar({ role }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "Assigned Reviews",
-            path: "/reviewer/reviews",
+            label: "Assigned Tasks", // <--- CHANGED LABEL
+            path: "/reviewer/tasks", // <--- CHANGED PATH
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
-          { icon: FileText, label: "Reviews", path: "/reviewer/reviews" },
-          { icon: Building2, label: "Resources", path: "/reviewer/resources" },
           { icon: Users, label: "Users", path: "/reviewer/users" },
           { icon: Calendar, label: "Calendar", path: "/reviewer/calendar" },
         ];
@@ -76,6 +75,12 @@ export function Sidebar({ role }: SidebarProps) {
   };
 
   const navItems = getNavItems();
+  const getSettingsPath = (role: Role) => {
+    if (role === 'founder') return '/founder/settings';
+    if (role === 'reviewer') return '/reviewer/settings';
+    if (role === 'admin') return '/admin/settings';
+    return '/settings';
+  };
 
   return (
     <div className="w-64 bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 z-20">
@@ -115,7 +120,7 @@ export function Sidebar({ role }: SidebarProps) {
 
       <div className="p-4 border-t border-slate-800">
         <NavLink 
-          to="/founder/settings"
+          to={getSettingsPath(role)}
           className={({ isActive }) => 
             `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
               isActive 
@@ -128,7 +133,6 @@ export function Sidebar({ role }: SidebarProps) {
           <span className="font-medium text-sm">Settings</span>
         </NavLink>
         
-        {/* Logout button remains below... */}
         <button
           onClick={() => (window.location.href = "/")}
           className="flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1"

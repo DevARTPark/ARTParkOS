@@ -13,6 +13,13 @@ import { FounderFinance } from "./pages/founder/FounderFinance";
 import { FounderTeam } from "./pages/founder/FounderTeam";
 import { FounderReviews } from "./pages/founder/FounderReviews";
 import { FounderSettings } from "./pages/founder/FounderSettings";
+import { ReviewerTasks } from "./pages/reviewer/ReviewerTasks";
+import { ReviewerPortfolio } from "./pages/reviewer/ReviewerPortfolio";
+import { ReviewerStartupDetail } from "./pages/reviewer/ReviewerStartupDetail";
+import { FounderOtherStartups } from "./pages/founder/FounderOtherStartups";
+import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
+import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
+import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 import {
   ArrowRight,
   Layout,
@@ -192,6 +199,7 @@ export function App() {
         <Route path="/founder/my-team" element={<FounderTeam />} />
         <Route path="/founder/reviews" element={<FounderReviews />} />
         <Route path="/founder/settings" element={<FounderSettings />} />
+        <Route path="/founder/ecosystem" element={<FounderOtherStartups />} />
 
         {/* Admin Routes */}
         <Route
@@ -213,10 +221,58 @@ export function App() {
           }
         />
         <Route
+          path="/reviewer/tasks"
+          element={
+            <ProtectedRoute>
+              <ReviewerTasks />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/reviewer/review/:id"
           element={
             <ProtectedRoute>
               <AssessmentReview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/portfolio"
+          element={
+            <ProtectedRoute>
+              <ReviewerPortfolio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/portfolio/:id"
+          element={
+            <ProtectedRoute>
+              <ReviewerStartupDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/users"
+          element={
+            <ProtectedRoute>
+              <ReviewerUsers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/calendar"
+          element={
+            <ProtectedRoute>
+              <ReviewerCalendar />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/settings"
+          element={
+            <ProtectedRoute>
+              <ReviewerSettings />
             </ProtectedRoute>
           }
         />
