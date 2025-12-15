@@ -17,9 +17,11 @@ import { FounderProjects } from "./pages/founder/FounderProjects";
 import { FounderFinance } from "./pages/founder/FounderFinance";
 import { FounderTeam } from "./pages/founder/FounderTeam";
 import { FounderReviews } from "./pages/founder/FounderReviews";
+import { FounderSettings } from "./pages/founder/FounderSettings";
+import { FounderOtherStartups } from "./pages/founder/FounderOtherStartups";
 
 // --- NEW PORTAL PAGES ---
-import FacilitiesHub from "./pages/founder/facilities/FacilitiesHub"; // New Hub Page
+import FacilitiesHub from "./pages/founder/facilities/FacilitiesHub";
 import TestLabListPage from "./pages/founder/labs/TestLabListPage";
 import TestLabDetailPage from "./pages/founder/labs/TestLabDetailPage";
 import TestLabBookingPage from "./pages/founder/labs/TestLabBookingPage";
@@ -33,6 +35,7 @@ import SoftwareDetailPage from "./pages/founder/software/SoftwareDetailPage";
 import SupplierListPage from "./pages/founder/suppliers/SupplierListPage";
 import SupplierDetailPage from "./pages/founder/suppliers/SupplierDetailPage";
 import KnowledgeAIAssistantPage from "./pages/founder/knowledge/KnowledgeAIAssistantPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // --- ADMIN PAGES ---
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
@@ -40,6 +43,12 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 // --- REVIEWER PAGES ---
 import { ReviewerDashboard } from "./pages/reviewer/ReviewerDashboard";
 import { AssessmentReview } from "./pages/reviewer/AssessmentReview";
+import { ReviewerTasks } from "./pages/reviewer/ReviewerTasks";
+import { ReviewerPortfolio } from "./pages/reviewer/ReviewerPortfolio";
+import { ReviewerStartupDetail } from "./pages/reviewer/ReviewerStartupDetail";
+import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
+import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
+import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -49,14 +58,6 @@ import ListingsPage from "./pages/supplier/ListingsPage";
 import ListingFormPage from "./pages/supplier/ListingFormPage";
 
 // Icons for RoleSelection
-import { FounderSettings } from "./pages/founder/FounderSettings";
-import { ReviewerTasks } from "./pages/reviewer/ReviewerTasks";
-import { ReviewerPortfolio } from "./pages/reviewer/ReviewerPortfolio";
-import { ReviewerStartupDetail } from "./pages/reviewer/ReviewerStartupDetail";
-import { FounderOtherStartups } from "./pages/founder/FounderOtherStartups";
-import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
-import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
-import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 import {
   ArrowRight,
   Layout,
@@ -88,6 +89,7 @@ function RoleSelection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Founder */}
           <a
             href={`/login?redirect=${encodeURIComponent("/founder/dashboard")}`}
             className="group"
@@ -105,6 +107,8 @@ function RoleSelection() {
               </div>
             </div>
           </a>
+
+          {/* Admin */}
           <a
             href={`/login?redirect=${encodeURIComponent("/admin/dashboard")}`}
             className="group"
@@ -122,6 +126,8 @@ function RoleSelection() {
               </div>
             </div>
           </a>
+
+          {/* Reviewer */}
           <a
             href={`/login?redirect=${encodeURIComponent(
               "/reviewer/dashboard"
@@ -141,6 +147,67 @@ function RoleSelection() {
               </div>
             </div>
           </a>
+
+          {/* Suppliers */}
+          <a
+            href={`/login?redirect=${encodeURIComponent(
+              "/supplier/dashboard"
+            )}`}
+            className="group"
+          >
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Suppliers</h2>
+              <p className="text-slate-300 mb-6 flex-1">
+                List your offerings and capabilities.
+              </p>
+              <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
+                Go to Suppliers <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
+
+          {/* Mentors */}
+          <a
+            href={`/login?redirect=${encodeURIComponent("/mentor/dashboard")}`}
+            className="group"
+          >
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <Calendar className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Mentors</h2>
+              <p className="text-slate-300 mb-6 flex-1">
+                Set available times for meetings and view scheduled calls.
+              </p>
+              <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300">
+                Go to Mentors <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
+
+          {/* Lab Facility Owners */}
+          <a
+            href={`/login?redirect=${encodeURIComponent(
+              "/reviewer/dashboard"
+            )}`}
+            className="group"
+          >
+            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Lab Owners</h2>
+              <p className="text-slate-300 mb-6 flex-1">
+                List your Lab testing facilities and capabilities.
+              </p>
+              <div className="flex items-center text-rose-400 font-semibold group-hover:text-rose-300">
+                Go to Labs <ArrowRight className="ml-2 w-4 h-4" />
+              </div>
+            </div>
+          </a>
         </div>
       </div>
     </div>
@@ -153,7 +220,6 @@ export function App() {
       <Routes>
         <Route path="/" element={<RoleSelection />} />
         <Route path="/login" element={<LoginPage />} />
-
         {/* --- FOUNDER ROUTES --- */}
         <Route
           path="/founder/dashboard"
@@ -203,9 +269,23 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/founder/settings"
+          element={
+            <ProtectedRoute>
+              <FounderSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/founder/ecosystem"
+          element={
+            <ProtectedRoute>
+              <FounderOtherStartups />
+            </ProtectedRoute>
+          }
+        />
         {/* --- FACILITIES HUB --- */}
-        {/* The main Facilities link now points here */}
         <Route
           path="/founder/facilities"
           element={
@@ -214,17 +294,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-        {/* Founder Routes */}
-        <Route path="/founder/dashboard" element={<FounderDashboard />} />
-        <Route path="/founder/assessment" element={<TRLAssessment />} />
-        <Route path="/founder/projects" element={<FounderProjects />} />
-        <Route path="/founder/finance" element={<FounderFinance />} />
-        <Route path="/founder/my-team" element={<FounderTeam />} />
-        <Route path="/founder/reviews" element={<FounderReviews />} />
-        <Route path="/founder/settings" element={<FounderSettings />} />
-        <Route path="/founder/ecosystem" element={<FounderOtherStartups />} />
-
-        {/* In-House Facilities (Nested under facilities) */}
         <Route
           path="/founder/facilities/in-house"
           element={
@@ -249,8 +318,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Test Labs */}
         <Route
           path="/founder/labs"
           element={
@@ -275,8 +342,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Mentors */}
         <Route
           path="/founder/mentors"
           element={
@@ -293,8 +358,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Software */}
         <Route
           path="/founder/software"
           element={
@@ -311,8 +374,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Suppliers */}
         <Route
           path="/founder/suppliers"
           element={
@@ -329,8 +390,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Knowledge AI */}
         <Route
           path="/founder/knowledge-ai"
           element={
@@ -339,7 +398,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
         {/* --- ADMIN ROUTES --- */}
         <Route
           path="/admin/dashboard"
@@ -349,7 +407,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
         {/* --- REVIEWER ROUTES --- */}
         <Route
           path="/reviewer/dashboard"
@@ -364,14 +421,6 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerTasks />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reviewer/review/:id"
-          element={
-            <ProtectedRoute>
-              <AssessmentReview />
             </ProtectedRoute>
           }
         />
@@ -392,6 +441,15 @@ export function App() {
           }
         />
         <Route
+          path="/reviewer/resources"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />{" "}
+        {/* Fallback to admin dash for resources for now */}
+        <Route
           path="/reviewer/users"
           element={
             <ProtectedRoute>
@@ -408,6 +466,14 @@ export function App() {
           }
         />
         <Route
+          path="/reviewer/review/:id"
+          element={
+            <ProtectedRoute>
+              <AssessmentReview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/reviewer/settings"
           element={
             <ProtectedRoute>
@@ -415,7 +481,6 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
         {/* --- SUPPLIER ROUTES --- */}
         <Route
           path="/supplier/dashboard"
@@ -465,9 +530,8 @@ export function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 404 not found */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );

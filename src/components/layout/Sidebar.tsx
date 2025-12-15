@@ -40,12 +40,36 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             label: "TRL Assessment",
             path: "/founder/assessment",
           },
-          { icon: FolderKanban, label: "Projects", path: "/founder/projects" },
-          { icon: Building2, label: "Facilities", path: "/founder/facilities" },
-          { icon: Coins, label: "Finance", path: "/founder/finance" },
-          { icon: Users, label: "My Team", path: "/founder/my-team" },
-          { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
-          { icon: FileText, label: "Reviews", path: "/founder/reviews" },
+          {
+            icon: FolderKanban,
+            label: "Projects",
+            path: "/founder/projects",
+          },
+          {
+            icon: Building2,
+            label: "Facilities",
+            path: "/founder/facilities",
+          },
+          {
+            icon: Coins,
+            label: "Finance",
+            path: "/founder/finance",
+          },
+          {
+            icon: Users,
+            label: "My Team",
+            path: "/founder/my-team",
+          },
+          {
+            icon: Users,
+            label: "Other Startups",
+            path: "/founder/ecosystem",
+          },
+          {
+            icon: FileText,
+            label: "Reviews",
+            path: "/founder/reviews",
+          },
         ];
       case "admin":
         return [
@@ -68,8 +92,8 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "Assigned Tasks", // <--- CHANGED LABEL
-            path: "/reviewer/tasks", // <--- CHANGED PATH
+            label: "Assigned Tasks",
+            path: "/reviewer/tasks",
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
           { icon: Building2, label: "Resources", path: "/reviewer/resources" },
@@ -90,17 +114,37 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/supplier/profile",
           },
         ];
+      case "mentor":
+        // New Mentor Role Sidebar Items
+        return [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            path: "/mentor/dashboard", // Note: Ensure you route this in App.tsx if needed, currently redirects to generic or requires new page
+          },
+          {
+            icon: Calendar,
+            label: "My Schedule",
+            path: "/mentor/schedule",
+          },
+          {
+            icon: UserCircle,
+            label: "Profile",
+            path: "/mentor/profile",
+          },
+        ];
       default:
         return [];
     }
   };
 
   const navItems = getNavItems();
+
   const getSettingsPath = (role: Role) => {
-    if (role === 'founder') return '/founder/settings';
-    if (role === 'reviewer') return '/reviewer/settings';
-    if (role === 'admin') return '/admin/settings';
-    return '/settings';
+    if (role === "founder") return "/founder/settings";
+    if (role === "reviewer") return "/reviewer/settings";
+    if (role === "admin") return "/admin/settings";
+    return "/settings";
   };
 
   return (
@@ -116,8 +160,19 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             isCollapsed ? "justify-center w-full" : "space-x-3"
           }`}
         >
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/20">
-            <span className="font-bold text-lg">A</span>
+          {/* LOGO SECTION - Replaces the blue box with 'A' */}
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+            <img
+              src="/artpark_in_logo.jpg"
+              alt="AP"
+              className="w-full h-full object-contain p-1"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.parentElement!.innerText = "A";
+                e.currentTarget.parentElement!.className +=
+                  " text-blue-600 font-bold text-lg";
+              }}
+            />
           </div>
 
           <div
@@ -134,6 +189,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           </div>
         </div>
 
+        {/* Toggle Button */}
         {!isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -186,12 +242,9 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
-        <NavLink 
-          to={getSettingsPath(role)}
-          className={({ isActive }) => 
       {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        {/* Toggle Button for Collapsed State */}
         {isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -202,7 +255,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         )}
 
         <NavLink
-          to="/founder/settings"
+          to={getSettingsPath(role)}
           className={({ isActive }) =>
             `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
               isActive
@@ -213,7 +266,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
           <span
-            className={`font-medium text-sm transition-all duration-300 ${
+            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
               isCollapsed
                 ? "w-0 opacity-0 overflow-hidden"
                 : "w-auto opacity-100"
@@ -222,7 +275,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             Settings
           </span>
         </NavLink>
-        
 
         <button
           onClick={() => {
@@ -235,7 +287,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
           <span
-            className={`font-medium text-sm transition-all duration-300 ${
+            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
               isCollapsed
                 ? "w-0 opacity-0 overflow-hidden"
                 : "w-auto opacity-100"
