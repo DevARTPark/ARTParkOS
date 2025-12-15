@@ -1,0 +1,47 @@
+[
+  {
+    "id": "lab-1",
+    "name": "ARTPark Robotics Test Lab",
+    "location": "Bangalore, India",
+    "testTypes": ["Durability Testing", "Performance Testing", "Safety Testing", "Environmental Testing"],
+    "description": "State-of-the-art robotics testing facility with advanced equipment for comprehensive product validation.",
+    "facilities": ["Test Chambers", "Motion Capture", "Force Sensors", "Environmental Controls"],
+    "availability": "Available",
+    "rating": 4.8,
+    "image": "https://images.unsplash.com/photo-1581093588401-fbb07366f955?auto=format&fit=crop&q=80&w=400&h=300",
+    "contact": {
+      "email": "lab@artpark.in",
+      "phone": "+91-80-1111-2222"
+    }
+  },
+  {
+    "id": "lab-2",
+    "name": "AI Hardware Validation Center",
+    "location": "Hyderabad, India",
+    "testTypes": ["ML Model Testing", "Hardware-in-Loop", "Edge Computing Tests", "Power Analysis"],
+    "description": "Specialized facility for AI hardware validation and ML model testing on edge devices.",
+    "facilities": ["GPU Clusters", "Edge Test Rigs", "Power Analyzers", "Thermal Chambers"],
+    "availability": "Available",
+    "rating": 4.7,
+    "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400&h=300",
+    "contact": {
+      "email": "validation@artpark.in",
+      "phone": "+91-40-3333-4444"
+    }
+  },
+  {
+    "id": "lab-3",
+    "name": "Sensor Calibration Lab",
+    "location": "Pune, India",
+    "testTypes": ["Sensor Calibration", "Accuracy Testing", "Noise Analysis", "Environmental Testing"],
+    "description": "Precision sensor calibration and testing facility with traceable standards.",
+    "facilities": ["Calibration Equipment", "Test Benches", "Environmental Chambers", "Data Loggers"],
+    "availability": "Limited",
+    "rating": 4.9,
+    "image": "https://images.unsplash.com/photo-1582735689369-4fe89db236ea?auto=format&fit=crop&q=80&w=400&h=300",
+    "contact": {
+      "email": "sensors@artpark.in",
+      "phone": "+91-20-5555-6666"
+    }
+  }
+]

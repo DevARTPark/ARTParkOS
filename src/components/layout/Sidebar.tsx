@@ -12,14 +12,20 @@ import {
   Building2,
   PieChart,
   Coins,
+  Package,
+  UserCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Role } from "../../types";
 
 interface SidebarProps {
   role: Role;
+  isCollapsed: boolean;
+  toggleSidebar: () => void;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
   const getNavItems = () => {
     switch (role) {
       case "founder":
@@ -31,15 +37,15 @@ export function Sidebar({ role }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "AIRL Assessment",
+            label: "TRL Assessment",
             path: "/founder/assessment",
           },
           { icon: FolderKanban, label: "Projects", path: "/founder/projects" },
-          { icon: Building2, label: "Facilities", path: "/founder/facilities" }, // route handled by ExternalRedirect
+          { icon: Building2, label: "Facilities", path: "/founder/facilities" },
           { icon: Coins, label: "Finance", path: "/founder/finance" },
-          { icon: FileText, label: "Reviews", path: "/founder/reviews" },
           { icon: Users, label: "My Team", path: "/founder/my-team" },
           { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
+          { icon: FileText, label: "Reviews", path: "/founder/reviews" },
         ];
       case "admin":
         return [
@@ -66,8 +72,23 @@ export function Sidebar({ role }: SidebarProps) {
             path: "/reviewer/tasks", // <--- CHANGED PATH
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
+          { icon: Building2, label: "Resources", path: "/reviewer/resources" },
           { icon: Users, label: "Users", path: "/reviewer/users" },
           { icon: Calendar, label: "Calendar", path: "/reviewer/calendar" },
+        ];
+      case "supplier":
+        return [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            path: "/supplier/dashboard",
+          },
+          { icon: Package, label: "My Listings", path: "/supplier/listings" },
+          {
+            icon: UserCircle,
+            label: "Company Profile",
+            path: "/supplier/profile",
+          },
         ];
       default:
         return [];
@@ -83,35 +104,82 @@ export function Sidebar({ role }: SidebarProps) {
   };
 
   return (
-    <div className="w-64 bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 z-20">
-      <div className="p-6 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+    <div
+      className={`bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 z-20 transition-all duration-300 ease-in-out border-r border-slate-800 ${
+        isCollapsed ? "w-20" : "w-64"
+      }`}
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between h-20">
+        <div
+          className={`flex items-center transition-all duration-300 ${
+            isCollapsed ? "justify-center w-full" : "space-x-3"
+          }`}
+        >
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/20">
             <span className="font-bold text-lg">A</span>
           </div>
-          <span className="font-bold text-xl tracking-tight">ARTPark</span>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+            }`}
+          >
+            <span className="font-bold text-xl tracking-tight block whitespace-nowrap">
+              ARTPark
+            </span>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
+              {role} Portal
+            </p>
+          </div>
         </div>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-medium">
-          {role} Portal
-        </p>
+
+        {!isCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4">
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 custom-scrollbar">
         <ul className="space-y-1 px-3">
           {navItems.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
                     isActive
-                      ? "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
                       : "text-slate-400 hover:text-white hover:bg-slate-800"
-                  }`
+                  } ${isCollapsed ? "justify-center px-2" : ""}`
                 }
               >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium text-sm">{item.label}</span>
+                <item.icon
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    isCollapsed ? "mx-auto" : ""
+                  }`}
+                />
+
+                <span
+                  className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+                    isCollapsed
+                      ? "w-0 opacity-0 overflow-hidden"
+                      : "w-auto opacity-100"
+                  }`}
+                >
+                  {item.label}
+                </span>
+
+                {isCollapsed && (
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
+                    {item.label}
+                  </div>
+                )}
               </NavLink>
             </li>
           ))}
@@ -122,23 +190,59 @@ export function Sidebar({ role }: SidebarProps) {
         <NavLink 
           to={getSettingsPath(role)}
           className={({ isActive }) => 
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        {isCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="w-full flex justify-center mb-4 p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
+
+        <NavLink
+          to="/founder/settings"
+          className={({ isActive }) =>
             `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? "bg-slate-800 text-white" 
+              isActive
+                ? "bg-slate-800 text-white"
                 : "text-slate-400 hover:text-white hover:bg-slate-800"
-            }`
+            } ${isCollapsed ? "justify-center" : ""}`
           }
         >
-          <Settings className="w-5 h-5" />
-          <span className="font-medium text-sm">Settings</span>
+          <Settings className="w-5 h-5 flex-shrink-0" />
+          <span
+            className={`font-medium text-sm transition-all duration-300 ${
+              isCollapsed
+                ? "w-0 opacity-0 overflow-hidden"
+                : "w-auto opacity-100"
+            }`}
+          >
+            Settings
+          </span>
         </NavLink>
         
+
         <button
-          onClick={() => (window.location.href = "/")}
-          className="flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1"
+          onClick={() => {
+            localStorage.removeItem("artpark_user");
+            window.location.href = "/login";
+          }}
+          className={`flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1 ${
+            isCollapsed ? "justify-center" : ""
+          }`}
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium text-sm">Logout</span>
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <span
+            className={`font-medium text-sm transition-all duration-300 ${
+              isCollapsed
+                ? "w-0 opacity-0 overflow-hidden"
+                : "w-auto opacity-100"
+            }`}
+          >
+            Logout
+          </span>
         </button>
       </div>
     </div>

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "supplier-1",
+    "name": "RoboTech Solutions",
+    "category": "Robotics Components",
+    "description": "Leading supplier of precision robotics components including actuators, sensors, and control systems.",
+    "location": "Bangalore, India",
+    "capabilities": ["Actuators", "Sensors", "Control Systems", "Custom Assembly"],
+    "contact": {
+      "email": "contact@robotech.com",
+      "phone": "+91-80-1234-5678",
+      "website": "https://robotech.com"
+    },
+    "rating": 4.8,
+    "projectsCompleted": 150,
+    "image": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=300&h=200"
+  },
+  {
+    "id": "supplier-2",
+    "name": "AI Hardware Pro",
+    "category": "AI Computing",
+    "description": "Specialized in AI/ML hardware including GPUs, TPUs, and edge computing devices.",
+    "location": "Hyderabad, India",
+    "capabilities": ["GPUs", "TPUs", "Edge Computing", "ML Infrastructure"],
+    "contact": {
+      "email": "sales@aihardware.com",
+      "phone": "+91-40-9876-5432",
+      "website": "https://aihardware.com"
+    },
+    "rating": 4.6,
+    "projectsCompleted": 89,
+    "image": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=300&h=200"
+  },
+  {
+    "id": "supplier-3",
+    "name": "Precision Manufacturing Co.",
+    "category": "Manufacturing",
+    "description": "High-precision manufacturing services for robotics and automation components.",
+    "location": "Pune, India",
+    "capabilities": ["CNC Machining", "3D Printing", "Prototyping", "Quality Control"],
+    "contact": {
+      "email": "info@precisionmfg.com",
+      "phone": "+91-20-5555-1234",
+      "website": "https://precisionmfg.com"
+    },
+    "rating": 4.7,
+    "projectsCompleted": 203,
+    "image": "https://images.unsplash.com/photo-1565514020176-db793777a83d?auto=format&fit=crop&q=80&w=300&h=200"
+  },
+  {
+    "id": "supplier-4",
+    "name": "Sensor Systems Ltd",
+    "category": "Sensors & Electronics",
+    "description": "Comprehensive sensor solutions for robotics, IoT, and automation applications.",
+    "location": "Chennai, India",
+    "capabilities": ["LiDAR", "IMU Sensors", "Vision Systems", "IoT Sensors"],
+    "contact": {
+      "email": "support@sensorsys.com",
+      "phone": "+91-44-2222-3333",
+      "website": "https://sensorsys.com"
+    },
+    "rating": 4.9,
+    "projectsCompleted": 312,
+    "image": "https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&q=80&w=300&h=200"
+  },
+  {
+    "id": "supplier-5",
+    "name": "Power Systems Inc",
+    "category": "Power & Energy",
+    "description": "Battery and power management solutions for mobile robotics and autonomous systems.",
+    "location": "Delhi, India",
+    "capabilities": ["Battery Packs", "Power Management", "Charging Systems", "Energy Storage"],
+    "contact": {
+      "email": "sales@powersys.com",
+      "phone": "+91-11-4444-5678",
+      "website": "https://powersys.com"
+    },
+    "rating": 4.5,
+    "projectsCompleted": 127,
+    "image": "https://images.unsplash.com/photo-1620288627223-53302f4e8c3a?auto=format&fit=crop&q=80&w=300&h=200"
+  }
+]
