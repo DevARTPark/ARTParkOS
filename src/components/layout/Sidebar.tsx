@@ -14,10 +14,13 @@ import {
   Coins,
   Package,
   UserCircle,
+  Video,
   ChevronLeft,
   ChevronRight,
+  Store,
 } from "lucide-react";
 import { Role } from "../../types";
+import artparkLogo from "../../public/artpark_logo.png";
 
 interface SidebarProps {
   role: Role;
@@ -40,36 +43,12 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             label: "TRL Assessment",
             path: "/founder/assessment",
           },
-          {
-            icon: FolderKanban,
-            label: "Projects",
-            path: "/founder/projects",
-          },
-          {
-            icon: Building2,
-            label: "Facilities",
-            path: "/founder/facilities",
-          },
-          {
-            icon: Coins,
-            label: "Finance",
-            path: "/founder/finance",
-          },
-          {
-            icon: Users,
-            label: "My Team",
-            path: "/founder/my-team",
-          },
-          {
-            icon: Users,
-            label: "Other Startups",
-            path: "/founder/ecosystem",
-          },
-          {
-            icon: FileText,
-            label: "Reviews",
-            path: "/founder/reviews",
-          },
+          { icon: FolderKanban, label: "Projects", path: "/founder/projects" },
+          { icon: Building2, label: "Facilities", path: "/founder/facilities" },
+          { icon: Coins, label: "Finance", path: "/founder/finance" },
+          { icon: Users, label: "My Team", path: "/founder/my-team" },
+          { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
+          { icon: FileText, label: "Reviews", path: "/founder/reviews" },
         ];
       case "admin":
         return [
@@ -115,22 +94,33 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
         ];
       case "mentor":
-        // New Mentor Role Sidebar Items
         return [
           {
             icon: LayoutDashboard,
             label: "Dashboard",
-            path: "/mentor/dashboard", // Note: Ensure you route this in App.tsx if needed, currently redirects to generic or requires new page
+            path: "/mentor/dashboard",
+          },
+          { icon: Calendar, label: "My Schedule", path: "/mentor/schedule" },
+          { icon: Video, label: "My Sessions", path: "/mentor/sessions" },
+          { icon: UserCircle, label: "Profile", path: "/mentor/profile" },
+        ];
+      case "lab_owner":
+        return [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            path: "/lab-owner/dashboard",
+          },
+          { icon: Calendar, label: "Bookings", path: "/lab-owner/bookings" },
+          {
+            icon: Building2,
+            label: "Assets & Services",
+            path: "/lab-owner/services",
           },
           {
-            icon: Calendar,
-            label: "My Schedule",
-            path: "/mentor/schedule",
-          },
-          {
-            icon: UserCircle,
-            label: "Profile",
-            path: "/mentor/profile",
+            icon: Settings,
+            label: "Lab Settings",
+            path: "/lab-owner/settings",
           },
         ];
       default:
@@ -140,10 +130,13 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
 
   const navItems = getNavItems();
 
+  // Helper to determine where the 'Settings' button in footer points to
   const getSettingsPath = (role: Role) => {
     if (role === "founder") return "/founder/settings";
     if (role === "reviewer") return "/reviewer/settings";
     if (role === "admin") return "/admin/settings";
+    if (role === "lab_owner") return "/lab-owner/settings"; // <--- ADDED THIS
+    if (role === "mentor") return "/mentor/profile/edit";
     return "/settings";
   };
 
@@ -160,7 +153,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             isCollapsed ? "justify-center w-full" : "space-x-3"
           }`}
         >
-          {/* LOGO SECTION - Replaces the blue box with 'A' */}
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
             <img
               src="/artpark_in_logo.jpg"
@@ -168,13 +160,14 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
               className="w-full h-full object-contain p-1"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
-                e.currentTarget.parentElement!.innerText = "A";
-                e.currentTarget.parentElement!.className +=
-                  " text-blue-600 font-bold text-lg";
+                if (e.currentTarget.parentElement) {
+                  e.currentTarget.parentElement.innerText = "A";
+                  e.currentTarget.parentElement.className =
+                    "w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg font-bold text-lg";
+                }
               }}
             />
           </div>
-
           <div
             className={`overflow-hidden transition-all duration-300 ${
               isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
@@ -188,8 +181,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             </p>
           </div>
         </div>
-
-        {/* Toggle Button */}
         {!isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -220,7 +211,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
                     isCollapsed ? "mx-auto" : ""
                   }`}
                 />
-
                 <span
                   className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
                     isCollapsed
@@ -230,7 +220,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
                 >
                   {item.label}
                 </span>
-
                 {isCollapsed && (
                   <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
                     {item.label}
@@ -244,7 +233,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
 
       {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        {/* Toggle Button for Collapsed State */}
         {isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -253,7 +241,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
-
         <NavLink
           to={getSettingsPath(role)}
           className={({ isActive }) =>
@@ -275,7 +262,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             Settings
           </span>
         </NavLink>
-
         <button
           onClick={() => {
             localStorage.removeItem("artpark_user");

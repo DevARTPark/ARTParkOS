@@ -57,6 +57,20 @@ import ProfilePage from "./pages/supplier/ProfilePage";
 import ListingsPage from "./pages/supplier/ListingsPage";
 import ListingFormPage from "./pages/supplier/ListingFormPage";
 
+// --- MENTOR PAGES (Imported & Aliased) ---
+import MentorDashboard from "./pages/mentor/MentorDashboard";
+import SchedulePage from "./pages/mentor/SchedulePage";
+import SessionListPage from "./pages/mentor/SessionListPage";
+import SessionDetailPage from "./pages/mentor/SessionDetailPage";
+import MentorProfilePage from "./pages/mentor/ProfilePage"; // Aliased to avoid conflict
+import MentorProfileEditPage from "./pages/mentor/ProfileEditPage"; // Aliased
+
+// --- LAB-OWNER PAGES ---
+import LabOwnerDashboard from "./pages/lab-owner/LabOwnerDashboard";
+import LabServicesPage from "./pages/lab-owner/LabServicesPage";
+import LabBookingsPage from "./pages/lab-owner/LabBookingsPage";
+import LabSettings from "./pages/lab-owner/LabSettings";
+
 // Icons for RoleSelection
 import {
   ArrowRight,
@@ -191,20 +205,20 @@ function RoleSelection() {
           {/* Lab Facility Owners */}
           <a
             href={`/login?redirect=${encodeURIComponent(
-              "/reviewer/dashboard"
+              "/lab-owner/dashboard"
             )}`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+              <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
                 <Building2 className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Lab Owners</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Lab Owner</h2>
               <p className="text-slate-300 mb-6 flex-1">
-                List your Lab testing facilities and capabilities.
+                Manage facility equipment, bookings, and utilization.
               </p>
-              <div className="flex items-center text-rose-400 font-semibold group-hover:text-rose-300">
-                Go to Labs <ArrowRight className="ml-2 w-4 h-4" />
+              <div className="flex items-center text-orange-400 font-semibold group-hover:text-orange-300">
+                Go to Lab Portal <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
           </a>
@@ -447,8 +461,7 @@ export function App() {
               <AdminDashboard />
             </ProtectedRoute>
           }
-        />{" "}
-        {/* Fallback to admin dash for resources for now */}
+        />
         <Route
           path="/reviewer/users"
           element={
@@ -530,6 +543,90 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        {/* --- MENTOR ROUTES --- */}
+        <Route
+          path="/mentor/dashboard"
+          element={
+            <ProtectedRoute>
+              <MentorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentor/schedule"
+          element={
+            <ProtectedRoute>
+              <SchedulePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentor/sessions"
+          element={
+            <ProtectedRoute>
+              <SessionListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentor/sessions/:id"
+          element={
+            <ProtectedRoute>
+              <SessionDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentor/profile"
+          element={
+            <ProtectedRoute>
+              <MentorProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentor/profile/edit"
+          element={
+            <ProtectedRoute>
+              <MentorProfileEditPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- LAB OWNER ROUTES --- */}
+        <Route
+          path="/lab-owner/dashboard"
+          element={
+            <ProtectedRoute>
+              <LabOwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lab-owner/services"
+          element={
+            <ProtectedRoute>
+              <LabServicesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lab-owner/bookings"
+          element={
+            <ProtectedRoute>
+              <LabBookingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lab-owner/settings"
+          element={
+            <ProtectedRoute>
+              <LabSettings />
+            </ProtectedRoute>
+          }
+        />
+
         {/* 404 not found */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

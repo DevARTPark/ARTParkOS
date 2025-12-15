@@ -1,4 +1,4 @@
-export type Role = 'founder' | 'admin' | 'reviewer' | 'supplier' | 'mentor';
+export type Role = 'founder' | 'admin' | 'reviewer' | 'supplier' | 'mentor' | 'lab_owner';
 export type TRLCategory = 'Technology' | 'Product Engineering' | 'Market Research' | 'Organisation Structure' | 'Target Market Engagement';
 export interface User {
   id: string;

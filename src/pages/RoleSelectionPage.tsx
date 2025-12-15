@@ -24,7 +24,7 @@ export default function RoleSelectionPage() {
       <div className="max-w-4xl w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            ARTPark TRL Platform
+            ARTPark Portal
           </h1>
           <p className="text-slate-400 text-lg">
             Select your role to enter the portal

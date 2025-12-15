@@ -10,14 +10,38 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Dummy role-based credentials
-  const credentials: Record<string, { password: string; redirect: string }> = {
-    founder: { password: "12345", redirect: "/founder/dashboard" },
-    admin: { password: "12345", redirect: "/admin/dashboard" },
-    reviewer: { password: "12345", redirect: "/reviewer/dashboard" },
-    supplier: { password: "12345", redirect: "/supplier/dashboard" },
-    mentor: { password: "12345", redirect: "/mentor/dashboard" },
-    lab: { password: "12345", redirect: "/lab/dashboard" },
+  // 1. Updated keys to match URL path segments exactly (e.g., 'lab-owner')
+  // 2. Added explicit 'role' field to map to internal system roles (e.g., 'lab_owner')
+  const credentials: Record<
+    string,
+    { password: string; redirect: string; role: string }
+  > = {
+    founder: {
+      password: "12345",
+      redirect: "/founder/dashboard",
+      role: "founder",
+    },
+    admin: { password: "12345", redirect: "/admin/dashboard", role: "admin" },
+    reviewer: {
+      password: "12345",
+      redirect: "/reviewer/dashboard",
+      role: "reviewer",
+    },
+    supplier: {
+      password: "12345",
+      redirect: "/supplier/dashboard",
+      role: "supplier",
+    },
+    mentor: {
+      password: "12345",
+      redirect: "/mentor/dashboard",
+      role: "mentor",
+    },
+    "lab-owner": {
+      password: "12345",
+      redirect: "/lab-owner/dashboard",
+      role: "lab_owner",
+    }, // Key matches URL, Role matches Sidebar
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -27,9 +51,7 @@ export default function LoginPage() {
     // Verify user credentials exist and password matches
     const userCred = credentials[userId];
     if (!userCred || userCred.password !== password) {
-      setError(
-        "Invalid credentials. Try: user_id/password = founder/12345 (or admin/reviewer...)"
-      );
+      setError("Invalid credentials. Check the User ID and Password below.");
       return;
     }
 
@@ -40,21 +62,27 @@ export default function LoginPage() {
       return segs.length ? segs[0] : null;
     };
 
-    const desiredRole = getRoleFromPath(redirect); // e.g. "founder" or null
+    const desiredPathSegment = getRoleFromPath(redirect); // e.g. "lab-owner"
 
-    // If the redirect requests a different role than the one logging in, block it
-    if (desiredRole && desiredRole !== userId) {
-      setError(
-        `This page requires a ${desiredRole} account. Please login with the ${desiredRole} credentials.`
-      );
-      return;
+    // If the redirect requests a different path segment than the user ID, block it
+    // We compare userId (e.g. "lab-owner") with path segment (e.g. "lab-owner")
+    if (desiredPathSegment && desiredPathSegment !== userId) {
+      // Special case: if redirect is root or generic, we might skip this,
+      // but for deep links, we enforce the match.
+      // We only enforce if the desired segment is a known role key.
+      if (credentials[desiredPathSegment]) {
+        setError(
+          `This page requires a ${desiredPathSegment} account. Please login with '${desiredPathSegment}'.`
+        );
+        return;
+      }
     }
 
-    // All good: persist minimal auth and navigate
-    const auth = { userId, role: userId };
+    // All good: persist using the MAPPED role (e.g., lab_owner)
+    const auth = { userId, role: userCred.role };
     localStorage.setItem("artpark_user", JSON.stringify(auth));
 
-    // If redirect is root "/" or not provided, use role-based default; otherwise follow redirect
+    // Navigate
     const target = redirect === "/" ? userCred.redirect : redirect;
     navigate(target);
   };
@@ -74,7 +102,7 @@ export default function LoginPage() {
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              placeholder="e.g. founder, admin, reviewer"
+              placeholder="e.g. founder, lab-owner"
               className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-slate-300 outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
@@ -100,11 +128,24 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-sm text-slate-400 mt-4">
-          Demo accounts:{" "}
-          <strong>founder/admin/reviewer/supplier/mentor/lab</strong> — password{" "}
-          <strong>12345</strong>
-        </p>
+        <div className="text-sm text-slate-400 mt-6 bg-black/20 p-4 rounded-lg">
+          <p className="font-semibold mb-2 text-white">Demo Credentials:</p>
+          <ul className="space-y-1 list-disc list-inside">
+            <li>
+              User ID: <strong>founder</strong> / <strong>admin</strong> /{" "}
+              <strong>reviewer</strong>
+            </li>
+            <li>
+              User ID: <strong>supplier</strong> / <strong>mentor</strong>
+            </li>
+            <li>
+              User ID: <strong>lab-owner</strong> (Not 'lab')
+            </li>
+            <li className="mt-2 text-white">
+              Password: <strong>12345</strong> (for all)
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
