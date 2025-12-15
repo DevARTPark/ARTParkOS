@@ -12,6 +12,7 @@ import { FounderProjects } from "./pages/founder/FounderProjects";
 import { FounderFinance } from "./pages/founder/FounderFinance";
 import { FounderTeam } from "./pages/founder/FounderTeam";
 import { FounderReviews } from "./pages/founder/FounderReviews";
+import { FounderSettings } from "./pages/founder/FounderSettings";
 import {
   ArrowRight,
   Layout,
@@ -190,6 +191,7 @@ export function App() {
         <Route path="/founder/finance" element={<FounderFinance />} />
         <Route path="/founder/my-team" element={<FounderTeam />} />
         <Route path="/founder/reviews" element={<FounderReviews />} />
+        <Route path="/founder/settings" element={<FounderSettings />} />
 
         {/* Admin Routes */}
         <Route

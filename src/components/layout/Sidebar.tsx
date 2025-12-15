@@ -114,10 +114,21 @@ export function Sidebar({ role }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <button className="flex items-center space-x-3 text-slate-400 hover:text-white w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors">
+        <NavLink 
+          to="/founder/settings"
+          className={({ isActive }) => 
+            `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
+              isActive 
+                ? "bg-slate-800 text-white" 
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`
+          }
+        >
           <Settings className="w-5 h-5" />
           <span className="font-medium text-sm">Settings</span>
-        </button>
+        </NavLink>
+        
+        {/* Logout button remains below... */}
         <button
           onClick={() => (window.location.href = "/")}
           className="flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1"
