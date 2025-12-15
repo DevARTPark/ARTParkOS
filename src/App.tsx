@@ -49,6 +49,7 @@ import ListingsPage from "./pages/supplier/ListingsPage";
 import ListingFormPage from "./pages/supplier/ListingFormPage";
 
 // Icons for RoleSelection
+import { FounderSettings } from "./pages/founder/FounderSettings";
 import {
   ArrowRight,
   Layout,
@@ -206,6 +207,14 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        {/* Founder Routes */}
+        <Route path="/founder/dashboard" element={<FounderDashboard />} />
+        <Route path="/founder/assessment" element={<TRLAssessment />} />
+        <Route path="/founder/projects" element={<FounderProjects />} />
+        <Route path="/founder/finance" element={<FounderFinance />} />
+        <Route path="/founder/my-team" element={<FounderTeam />} />
+        <Route path="/founder/reviews" element={<FounderReviews />} />
+        <Route path="/founder/settings" element={<FounderSettings />} />
 
         {/* In-House Facilities (Nested under facilities) */}
         <Route

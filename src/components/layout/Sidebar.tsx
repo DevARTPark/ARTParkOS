@@ -40,31 +40,11 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             label: "TRL Assessment",
             path: "/founder/assessment",
           },
-          {
-            icon: FolderKanban,
-            label: "Projects",
-            path: "/founder/projects",
-          },
-          {
-            icon: Building2, // Single entry for all resources
-            label: "Facilities",
-            path: "/founder/facilities",
-          },
-          {
-            icon: Coins,
-            label: "Finance",
-            path: "/founder/finance",
-          },
-          {
-            icon: Users,
-            label: "My Team",
-            path: "/founder/my-team",
-          },
-          {
-            icon: FileText,
-            label: "Reviews",
-            path: "/founder/reviews",
-          },
+          { icon: FolderKanban, label: "Projects", path: "/founder/projects" },
+          { icon: Building2, label: "Facilities", path: "/founder/facilities" },
+          { icon: Coins, label: "Finance", path: "/founder/finance" },
+          { icon: Users, label: "My Team", path: "/founder/my-team" },
+          { icon: FileText, label: "Reviews", path: "/founder/reviews" },
         ];
       case "admin":
         return [
@@ -102,11 +82,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             label: "Dashboard",
             path: "/supplier/dashboard",
           },
-          {
-            icon: Package,
-            label: "My Listings",
-            path: "/supplier/listings",
-          },
+          { icon: Package, label: "My Listings", path: "/supplier/listings" },
           {
             icon: UserCircle,
             label: "Company Profile",
@@ -151,7 +127,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           </div>
         </div>
 
-        {/* Toggle Button */}
         {!isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -193,7 +168,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
                   {item.label}
                 </span>
 
-                {/* Tooltip for collapsed state */}
                 {isCollapsed && (
                   <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
                     {item.label}
@@ -207,7 +181,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
 
       {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        {/* Toggle Button for Collapsed State */}
         {isCollapsed && (
           <button
             onClick={toggleSidebar}
@@ -217,14 +190,19 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           </button>
         )}
 
-        <button
-          className={`flex items-center space-x-3 text-slate-400 hover:text-white w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors ${
-            isCollapsed ? "justify-center" : ""
-          }`}
+        <NavLink
+          to="/founder/settings"
+          className={({ isActive }) =>
+            `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
+              isActive
+                ? "bg-slate-800 text-white"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            } ${isCollapsed ? "justify-center" : ""}`
+          }
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
           <span
-            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+            className={`font-medium text-sm transition-all duration-300 ${
               isCollapsed
                 ? "w-0 opacity-0 overflow-hidden"
                 : "w-auto opacity-100"
@@ -232,7 +210,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           >
             Settings
           </span>
-        </button>
+        </NavLink>
 
         <button
           onClick={() => {
@@ -245,7 +223,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
           <span
-            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+            className={`font-medium text-sm transition-all duration-300 ${
               isCollapsed
                 ? "w-0 opacity-0 overflow-hidden"
                 : "w-auto opacity-100"
