@@ -1,13 +1,19 @@
-import React from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { TRLDistributionChart } from '../../components/charts/TRLDistributionChart';
-import { startups } from '../../data/mockData';
-import { Filter, Download, MoreHorizontal } from 'lucide-react';
+import React from "react";
+import { DashboardLayout } from "../../components/layout/DashboardLayout";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import { TRLDistributionChart } from "../../components/charts/TRLDistributionChart";
+import { startups } from "../../data/mockData";
+import { Filter, Download, MoreHorizontal } from "lucide-react";
 export function AdminDashboard() {
-  return <DashboardLayout role="admin" title="Admin Overview">
+  return (
+    <DashboardLayout role="admin" title="Admin Overview">
       {/* Top Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
@@ -39,7 +45,17 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent className="flex items-center justify-center h-64">
             <div className="grid grid-cols-5 gap-1 w-full">
-              {[...Array(25)].map((_, i) => <div key={i} className={`h-8 rounded-sm ${Math.random() > 0.5 ? 'bg-blue-500 opacity-80' : 'bg-blue-200'}`} title="Parameter Score"></div>)}
+              {[...Array(25)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-8 rounded-sm ${
+                    Math.random() > 0.5
+                      ? "bg-blue-500 opacity-80"
+                      : "bg-blue-200"
+                  }`}
+                  title="Parameter Score"
+                ></div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -50,10 +66,18 @@ export function AdminDashboard() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Portfolio Snapshot</CardTitle>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" leftIcon={<Filter className="w-4 h-4" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Filter className="w-4 h-4" />}
+            >
               Filters
             </Button>
-            <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Download className="w-4 h-4" />}
+            >
               Export
             </Button>
           </div>
@@ -73,9 +97,17 @@ export function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {startups.map(startup => <tr key={startup.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                {startups.map((startup) => (
+                  <tr
+                    key={startup.id}
+                    className="bg-white border-b hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 font-medium text-gray-900 flex items-center space-x-3">
-                      <img src={startup.logo} alt="" className="w-8 h-8 rounded-full" />
+                      <img
+                        src={startup.logo}
+                        alt=""
+                        className="w-8 h-8 rounded-full"
+                      />
                       <span>{startup.name}</span>
                     </td>
                     <td className="px-6 py-4">{startup.projects[0].name}</td>
@@ -96,11 +128,13 @@ export function AdminDashboard() {
                         <MoreHorizontal className="w-5 h-5" />
                       </button>
                     </td>
-                  </tr>)}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
-    </DashboardLayout>;
+    </DashboardLayout>
+  );
 }
