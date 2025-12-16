@@ -26,7 +26,7 @@ const startupDetails = {
   id: 's1',
   name: 'GreenField Tech',
   status: 'Green',
-  trl: 3,
+  airl: 3,
   description: 'Developing IoT sensors for precision agriculture monitoring soil health.',
   founder: 'Alex Chen',
   email: 'alex@greenfield.com'
@@ -46,9 +46,9 @@ const promises = [
 ];
 
 const assessments = [
-  { id: 'a1', level: 'TRL 1', date: 'Jan 15, 2023', status: 'Approved', reviewer: 'Dr. Sharma' },
-  { id: 'a2', level: 'TRL 2', date: 'Jun 20, 2023', status: 'Approved', reviewer: 'Rahul V.' },
-  { id: 'a3', level: 'TRL 3', date: 'Oct 24, 2023', status: 'Under Review', reviewer: 'Unassigned' },
+  { id: 'a1', level: 'AIRL 1', date: 'Jan 15, 2023', status: 'Approved', reviewer: 'Dr. Sharma' },
+  { id: 'a2', level: 'AIRL 2', date: 'Jun 20, 2023', status: 'Approved', reviewer: 'Rahul V.' },
+  { id: 'a3', level: 'AIRL 3', date: 'Oct 24, 2023', status: 'Under Review', reviewer: 'Unassigned' },
 ];
 
 export function ReviewerStartupDetail() {
@@ -73,7 +73,7 @@ export function ReviewerStartupDetail() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{startupDetails.name}</h1>
               <Badge variant="success">Active</Badge>
-              <Badge variant="info">TRL {startupDetails.trl}</Badge>
+              <Badge variant="info">AIRL {startupDetails.airl}</Badge>
             </div>
             <p className="text-gray-500 mt-1 max-w-2xl">{startupDetails.description}</p>
             <div className="flex gap-4 mt-3 text-sm text-gray-600">

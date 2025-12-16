@@ -45,8 +45,8 @@ export function FounderProjects() {
                 <CardTitle className="text-xl font-bold text-gray-900 line-clamp-1">
                   {project.name}
                 </CardTitle>
-                <Badge variant={project.currentTRL >= 7 ? 'success' : 'info'} className="whitespace-nowrap ml-2">
-                  AIR Level {project.currentTRL}
+                <Badge variant={project.currentAIRL >= 7 ? 'success' : 'info'} className="whitespace-nowrap ml-2">
+                  AIR Level {project.currentAIRL}
                 </Badge>
               </CardHeader>
               

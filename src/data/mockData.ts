@@ -9,14 +9,14 @@ export const projects: Project[] = [{
   id: 'p1',
   name: 'AgriSense IoT',
   domain: 'AgriTech',
-  currentTRL: 3,
+  currentAIRL: 3,
   description: 'IoT sensors for precision agriculture monitoring soil health.',
   foundedDate: '2023-01-15'
 }, {
   id: 'p2',
   name: 'MediDrone',
   domain: 'Healthcare',
-  currentTRL: 5,
+  currentAIRL: 5,
   description: 'Autonomous drone delivery for emergency medical supplies.',
   foundedDate: '2022-11-20'
 }];
@@ -33,70 +33,70 @@ export const startups: Startup[] = [{
   contactEmail: 'sarah@skyhealth.com',
   logo: 'https://ui-avatars.com/api/?name=Sky+Health&background=3B82F6&color=fff'
 }];
-export const trlQuestions: Question[] = [{
+export const airlQuestions: Question[] = [{
   id: 'q1',
-  trlLevel: 1,
+  airlLevel: 1,
   category: 'Technology',
   text: 'Have basic principles been observed and reported?',
   required: true
 }, {
   id: 'q2',
-  trlLevel: 1,
+  airlLevel: 1,
   category: 'Product Engineering',
   text: 'Has the initial product concept been defined?',
   required: true
 }, {
   id: 'q3',
-  trlLevel: 1,
+  airlLevel: 1,
   category: 'Market Research',
   text: 'Has a preliminary market need been identified?',
   required: true
 }, {
   id: 'q4',
-  trlLevel: 1,
+  airlLevel: 1,
   category: 'Organisation Structure',
   text: 'Is the core founding team identified?',
   required: true
 }, {
   id: 'q5',
-  trlLevel: 1,
+  airlLevel: 1,
   category: 'Target Market Engagement',
   text: 'Have potential customer segments been listed?',
   required: true
 }, {
   id: 'q6',
-  trlLevel: 2,
+  airlLevel: 2,
   category: 'Technology',
   text: 'Has the technology concept been formulated?',
   required: true
 }, {
   id: 'q7',
-  trlLevel: 2,
+  airlLevel: 2,
   category: 'Product Engineering',
   text: 'Are initial design sketches available?',
   required: true
 }, {
   id: 'q8',
-  trlLevel: 2,
+  airlLevel: 2,
   category: 'Market Research',
   text: 'Has a competitive landscape analysis been started?',
   required: true
 }, {
   id: 'q9',
-  trlLevel: 2,
+  airlLevel: 2,
   category: 'Organisation Structure',
   text: 'Are roles and responsibilities defined?',
   required: true
 }, {
   id: 'q10',
-  trlLevel: 2,
+  airlLevel: 2,
   category: 'Target Market Engagement',
   text: 'Have initial customer interviews been conducted?',
   required: true
 }];
 export const actionItems: ActionItem[] = [{
   id: 'a1',
-  title: 'Submit TRL 3 Evidence',
+  title: 'Submit AIRL 3 Evidence',
   status: 'open',
   priority: 'high',
   dueDate: '2023-10-25'
@@ -159,7 +159,7 @@ export const reviews: Review[] = [{
   reviewerId: 'rev1',
   startupName: 'GreenField Tech',
   projectName: 'AgriSense IoT',
-  trlLevel: 3,
+  airlLevel: 3,
   status: 'pending',
   deadline: '2023-10-30'
 }, {
@@ -168,7 +168,7 @@ export const reviews: Review[] = [{
   reviewerId: 'rev1',
   startupName: 'SkyHealth Systems',
   projectName: 'MediDrone',
-  trlLevel: 5,
+  airlLevel: 5,
   status: 'completed',
   deadline: '2023-10-15',
   submittedDate: '2023-10-14'

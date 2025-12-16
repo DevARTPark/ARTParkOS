@@ -42,7 +42,7 @@ export default function RoleSelectionPage() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Founder</h2>
               <p className="text-slate-300 mb-6">
-                Manage your startup, track TRL progress, and access resources.
+                Manage your startup, track AIRL progress, and access resources.
               </p>
               <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
@@ -78,7 +78,7 @@ export default function RoleSelectionPage() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
               <p className="text-slate-300 mb-6">
-                Evaluate assessments and validate TRL levels.
+                Evaluate assessments and validate AIRL levels.
               </p>
               <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />

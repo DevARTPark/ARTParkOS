@@ -3,7 +3,7 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { TRLDistributionChart } from '../../components/charts/TRLDistributionChart';
+import { AIRLDistributionChart } from '../../components/charts/AIRLDistributionChart';
 import { startups } from '../../data/mockData';
 import { 
   Filter, 
@@ -176,10 +176,10 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card>
           <CardHeader>
-            <CardTitle>TRL Distribution</CardTitle>
+            <CardTitle>AIRL Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <TRLDistributionChart />
+            <AIRLDistributionChart />
           </CardContent>
         </Card>
 
@@ -239,7 +239,7 @@ export function AdminDashboard() {
                   <th className="px-6 py-3">Startup</th>
                   <th className="px-6 py-3">Project</th>
                   <th className="px-6 py-3">Domain</th>
-                  <th className="px-6 py-3">Current TRL</th>
+                  <th className="px-6 py-3">Current AIRL</th>
                   <th className="px-6 py-3">Weakest Param</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Actions</th>
@@ -259,7 +259,7 @@ export function AdminDashboard() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 font-bold text-blue-600">
-                      TRL {startup.projects[0].currentTRL}
+                      AIRL {startup.projects[0].currentAIRL}
                     </td>
                     <td className="px-6 py-4 text-red-500">Market Research</td>
                     <td className="px-6 py-4">

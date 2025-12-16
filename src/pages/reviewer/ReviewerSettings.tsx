@@ -89,7 +89,7 @@ export function ReviewerSettings() {
                     <Input label="Job Title" defaultValue="Senior Program Manager" />
                     <Input label="Department" defaultValue="Innovation & Grants" />
                   </div>
-                  <Textarea label="Bio (Internal)" defaultValue="Focusing on Robotics and Autonomous Systems startups. Handling TRL 4-7 progression." rows={2} />
+                  <Textarea label="Bio (Internal)" defaultValue="Focusing on Robotics and Autonomous Systems startups. Handling AIRL 4-7 progression." rows={2} />
                 </CardContent>
               </Card>
               <div className="flex justify-end">

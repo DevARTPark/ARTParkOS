@@ -4,10 +4,10 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Textarea } from '../../components/ui/Input';
-import { trlQuestions } from '../../data/mockData';
+import { airlQuestions } from '../../data/mockData';
 import { ArrowLeft, Check, X, AlertCircle, FileText, ExternalLink } from 'lucide-react';
 export function AssessmentReview() {
-  const [selectedQuestion, setSelectedQuestion] = useState(trlQuestions[0]);
+  const [selectedQuestion, setSelectedQuestion] = useState(airlQuestions[0]);
   return <DashboardLayout role="reviewer" title="Review Assessment: GreenField Tech">
       <div className="grid grid-cols-12 gap-6 h-[calc(100vh-8rem)]">
         {/* Left: Question List */}
@@ -15,10 +15,10 @@ export function AssessmentReview() {
           <Card className="h-full flex flex-col border-0 shadow-md">
             <div className="p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg">
               <h3 className="font-semibold text-gray-900">Questions</h3>
-              <p className="text-xs text-gray-500">TRL 1 Assessment</p>
+              <p className="text-xs text-gray-500">AIRL 1 Assessment</p>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {trlQuestions.map((q, idx) => <button key={q.id} onClick={() => setSelectedQuestion(q)} className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedQuestion.id === q.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}>
+              {airlQuestions.map((q, idx) => <button key={q.id} onClick={() => setSelectedQuestion(q)} className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedQuestion.id === q.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-gray-500">
                       Q{idx + 1}
@@ -121,9 +121,9 @@ export function AssessmentReview() {
                     Parameter Score Suggestion
                   </label>
                   <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option>TRL 1</option>
-                    <option>TRL 2</option>
-                    <option>TRL 3</option>
+                    <option>AIRL 1</option>
+                    <option>AIRL 2</option>
+                    <option>AIRL 3</option>
                   </select>
                 </div>
               </div>
