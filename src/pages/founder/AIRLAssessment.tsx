@@ -5,15 +5,15 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Textarea } from '../../components/ui/Input';
-import { trlQuestions } from '../../data/mockData';
+import { airlQuestions } from '../../data/mockData';
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Lock, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-export function TRLAssessment() {
+export function AIRLAssessment() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
-  const currentQuestion = trlQuestions[currentQuestionIndex];
-  const totalQuestions = trlQuestions.length;
+  const currentQuestion = airlQuestions[currentQuestionIndex];
+  const totalQuestions = airlQuestions.length;
   const progress = completedQuestions.length / totalQuestions * 100;
   const handleAnswer = (value: string) => {
     setAnswers({
@@ -34,7 +34,7 @@ export function TRLAssessment() {
       setCurrentQuestionIndex(prev => prev - 1);
     }
   };
-  return <DashboardLayout role="founder" title="TRL Assessment">
+  return <DashboardLayout role="founder" title="AIRL Assessment">
       <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] gap-6">
         {/* Left Pane: Question View */}
         <div className="flex-1 flex flex-col">
@@ -122,9 +122,9 @@ export function TRLAssessment() {
         <div className="w-full lg:w-80 flex flex-col">
           <Card className="h-full flex flex-col border-0 shadow-md">
             <CardHeader className="bg-blue-600 text-white rounded-t-lg">
-              <h3 className="font-bold text-lg">TRL 1 Progress</h3>
+              <h3 className="font-bold text-lg">AIRL 1 Progress</h3>
               <p className="text-blue-100 text-sm mt-1">
-                Answer all items to unlock TRL 2
+                Answer all items to unlock AIRL 2
               </p>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
@@ -132,7 +132,7 @@ export function TRLAssessment() {
                 <ProgressBar value={progress} showLabel />
               </div>
               <div className="divide-y divide-gray-100">
-                {trlQuestions.map((q, idx) => {
+                {airlQuestions.map((q, idx) => {
                 const isCompleted = completedQuestions.includes(q.id);
                 const isActive = idx === currentQuestionIndex;
                 return <button key={q.id} onClick={() => setCurrentQuestionIndex(idx)} className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-start space-x-3 ${isActive ? 'bg-blue-50' : ''}`}>
@@ -153,7 +153,7 @@ export function TRLAssessment() {
             </CardContent>
             <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-lg">
               <Button className="w-full" disabled={completedQuestions.length < totalQuestions} leftIcon={<Lock className="w-4 h-4" />}>
-                Unlock TRL 2
+                Unlock AIRL 2
               </Button>
             </div>
           </Card>

@@ -26,17 +26,17 @@ const criticalReviews = [
     type: 'Q3 Quarterly Review', 
     status: 'Red Flagged', 
     reviewer: 'Amit Patel', 
-    issue: 'Missed TRL 3 deadline by 2 months. Cash runway < 3 months.',
+    issue: 'Missed AIRL 3 deadline by 2 months. Cash runway < 3 months.',
     recommendation: 'Place on Probation' 
   },
   { 
     id: 2, 
     startup: 'GreenField Tech', 
-    type: 'TRL 6 Assessment', 
+    type: 'AIRL 6 Assessment', 
     status: 'Approval Needed', 
     reviewer: 'Dr. Sharma', 
     issue: 'Successfully demonstrated pilot. Ready for Acceleration Phase.',
-    recommendation: 'Approve TRL 7 Promotion' 
+    recommendation: 'Approve AIRL 7 Promotion' 
   }
 ];
 

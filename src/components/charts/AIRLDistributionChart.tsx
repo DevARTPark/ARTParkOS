@@ -1,28 +1,28 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 const data = [{
-  name: 'TRL 1',
+  name: 'AIRL 1',
   count: 4
 }, {
-  name: 'TRL 2',
+  name: 'AIRL 2',
   count: 8
 }, {
-  name: 'TRL 3',
+  name: 'AIRL 3',
   count: 12
 }, {
-  name: 'TRL 4',
+  name: 'AIRL 4',
   count: 6
 }, {
-  name: 'TRL 5',
+  name: 'AIRL 5',
   count: 3
 }, {
-  name: 'TRL 6',
+  name: 'AIRL 6',
   count: 2
 }, {
-  name: 'TRL 7',
+  name: 'AIRL 7',
   count: 1
 }];
-export function TRLDistributionChart() {
+export function AIRLDistributionChart() {
   return <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{

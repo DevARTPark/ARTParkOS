@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
-import { TRLRadarChart } from '../../components/charts/TRLRadarChart';
+import { AIRLRadarChart } from '../../components/charts/AIRLRadarChart';
 import { actionItems, facilities, mentors, reviews, projects } from '../../data/mockData';
 import { ArrowRight, Calendar, Clock, ExternalLink, FileText, MapPin, Plus, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -54,7 +54,7 @@ export function FounderDashboard() {
           <div className="text-right mr-4">
             <p className="text-sm text-gray-500">Current Level</p>
             <p className="text-3xl font-bold text-blue-600">
-              TRL {currentProject.currentTRL}
+              AIRL {currentProject.currentAIRL}
             </p>
           </div>
           <Button onClick={() => window.location.href = '/founder/assessment'}>
@@ -73,7 +73,7 @@ export function FounderDashboard() {
             <CardContent>
               <div className="flex flex-col md:flex-row items-center">
                 <div className="w-full md:w-1/2">
-                  <TRLRadarChart />
+                  <AIRLRadarChart />
                 </div>
                 <div className="w-full md:w-1/2 mt-4 md:mt-0 pl-0 md:pl-6">
                   <h4 className="font-medium text-gray-900 mb-4">
@@ -223,7 +223,7 @@ export function FounderDashboard() {
                   <thead className="text-xs text-gray-500 uppercase bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 rounded-l-lg">Project</th>
-                      <th className="px-4 py-3">TRL Level</th>
+                      <th className="px-4 py-3">AIRL Level</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Deadline</th>
                       <th className="px-4 py-3 rounded-r-lg">Action</th>
@@ -234,7 +234,7 @@ export function FounderDashboard() {
                         <td className="px-4 py-3 font-medium text-gray-900">
                           {review.projectName}
                         </td>
-                        <td className="px-4 py-3">TRL {review.trlLevel}</td>
+                        <td className="px-4 py-3">AIRL {review.airlLevel}</td>
                         <td className="px-4 py-3">
                           <Badge variant={review.status === 'completed' ? 'success' : 'warning'}>
                             {review.status}

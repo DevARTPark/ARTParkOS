@@ -220,7 +220,7 @@ export function FounderFinance() {
                 <span className="text-sm font-medium text-gray-500">₹25L Needed</span>
               </div>
               <ProgressBar value={20} color="bg-amber-500" />
-              <p className="text-xs text-gray-400 mt-1">Critical for TRL 6</p>
+              <p className="text-xs text-gray-400 mt-1">Critical for AIRL 6</p>
             </div>
           </CardContent>
         </Card>

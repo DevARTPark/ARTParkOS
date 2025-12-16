@@ -22,11 +22,11 @@ import {
 // --- Mock Data ---
 
 const activeCohort = [
-  { id: 1, name: 'GreenField Tech', valuation: '₹45 Cr', revenue: '₹1.2 Cr', jobs: 24, trl: 3, sector: 'AgriTech' },
-  { id: 2, name: 'MediDrone Systems', valuation: '₹120 Cr', revenue: '₹5.5 Cr', jobs: 45, trl: 5, sector: 'Healthcare' },
-  { id: 3, name: 'AutoBotics', valuation: '₹22 Cr', revenue: '₹0.5 Cr', jobs: 12, trl: 2, sector: 'Robotics' },
-  { id: 4, name: 'VisionAI', valuation: '₹60 Cr', revenue: '₹2.1 Cr', jobs: 18, trl: 4, sector: 'AI/ML' },
-  { id: 5, name: 'SolarFlow', valuation: '₹35 Cr', revenue: '₹1.8 Cr', jobs: 15, trl: 6, sector: 'CleanTech' },
+  { id: 1, name: 'GreenField Tech', valuation: '₹45 Cr', revenue: '₹1.2 Cr', jobs: 24, AIRL: 3, sector: 'AgriTech' },
+  { id: 2, name: 'MediDrone Systems', valuation: '₹120 Cr', revenue: '₹5.5 Cr', jobs: 45, AIRL: 5, sector: 'Healthcare' },
+  { id: 3, name: 'AutoBotics', valuation: '₹22 Cr', revenue: '₹0.5 Cr', jobs: 12, AIRL: 2, sector: 'Robotics' },
+  { id: 4, name: 'VisionAI', valuation: '₹60 Cr', revenue: '₹2.1 Cr', jobs: 18, AIRL: 4, sector: 'AI/ML' },
+  { id: 5, name: 'SolarFlow', valuation: '₹35 Cr', revenue: '₹1.8 Cr', jobs: 15, AIRL: 6, sector: 'CleanTech' },
 ];
 
 const dealFlowData = [
@@ -117,7 +117,7 @@ export function AdminPortfolio() {
             <Card className="bg-orange-50 border-orange-100">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-orange-600 font-medium uppercase">Avg TRL</p>
+                  <p className="text-xs text-orange-600 font-medium uppercase">Avg AIRL</p>
                   <h3 className="text-xl font-bold text-orange-900">4.2</h3>
                 </div>
                 <Award className="w-8 h-8 text-orange-300" />
@@ -135,7 +135,7 @@ export function AdminPortfolio() {
                     <th className="px-6 py-4 font-medium">Valuation</th>
                     <th className="px-6 py-4 font-medium">Revenue (ARR)</th>
                     <th className="px-6 py-4 font-medium">Jobs</th>
-                    <th className="px-6 py-4 font-medium">Current TRL</th>
+                    <th className="px-6 py-4 font-medium">Current AIRL</th>
                     <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
@@ -150,7 +150,7 @@ export function AdminPortfolio() {
                       <td className="px-6 py-4 text-green-600 font-medium">{s.revenue}</td>
                       <td className="px-6 py-4 text-gray-600">{s.jobs}</td>
                       <td className="px-6 py-4">
-                        <Badge variant="info">TRL {s.trl}</Badge>
+                        <Badge variant="info">AIRL {s.airl}</Badge>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button size="sm" variant="ghost">Details</Button>
@@ -223,7 +223,7 @@ export function AdminPortfolio() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-gray-500" /> Hall of Fame (TRL 7+)
+              <Briefcase className="w-5 h-5 text-gray-500" /> Hall of Fame (AIRL 7+)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">

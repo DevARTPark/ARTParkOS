@@ -24,7 +24,7 @@ import {
 
 // 1. Ticker / Notifications
 const urgentUpdates = [
-  { id: 1, type: 'assessment', text: "GreenField Tech submitted TRL 3 Assessment", time: "2 hrs ago", link: "/reviewer/review/r1" },
+  { id: 1, type: 'assessment', text: "GreenField Tech submitted AIRL 3 Assessment", time: "2 hrs ago", link: "/reviewer/review/r1" },
   { id: 2, type: 'report', text: "MediDrone submitted Oct Monthly 1-Pager", time: "5 hrs ago", link: "/reviewer/review/r2" },
   { id: 3, type: 'alert', text: "AgriSense missed Q3 Goal: 'Pilot Deployment'", time: "1 day ago", link: "#" },
 ];
@@ -39,19 +39,19 @@ const domainData = [
 ];
 
 const airlDistribution = [
-  { name: 'TRL 1-2', count: 5 },
-  { name: 'TRL 3-4', count: 12 },
-  { name: 'TRL 5-6', count: 8 },
-  { name: 'TRL 7-9', count: 3 },
+  { name: 'AIRL 1-2', count: 5 },
+  { name: 'AIRL 3-4', count: 12 },
+  { name: 'AIRL 5-6', count: 8 },
+  { name: 'AIRL 7-9', count: 3 },
 ];
 
 // 3. Startup List with R/Y/G Tags
 const startupHealth = [
-  { id: 's1', name: 'GreenField Tech', domain: 'AgriTech', trl: 3, status: 'Green', lastReview: 'Oct 15', trend: 'up' },
-  { id: 's2', name: 'MediDrone', domain: 'MedTech', trl: 5, status: 'Yellow', lastReview: 'Sep 30', trend: 'flat' },
-  { id: 's3', name: 'AutoBotics', domain: 'Robotics', trl: 2, status: 'Red', lastReview: 'Oct 01', trend: 'down' },
-  { id: 's4', name: 'HealthAI', domain: 'AI/ML', trl: 4, status: 'Green', lastReview: 'Oct 10', trend: 'up' },
-  { id: 's5', name: 'SolarFlow', domain: 'CleanTech', trl: 6, status: 'Yellow', lastReview: 'Sep 25', trend: 'flat' },
+  { id: 's1', name: 'GreenField Tech', domain: 'AgriTech', airl: 3, status: 'Green', lastReview: 'Oct 15', trend: 'up' },
+  { id: 's2', name: 'MediDrone', domain: 'MedTech', airl: 5, status: 'Yellow', lastReview: 'Sep 30', trend: 'flat' },
+  { id: 's3', name: 'AutoBotics', domain: 'Robotics', airl: 2, status: 'Red', lastReview: 'Oct 01', trend: 'down' },
+  { id: 's4', name: 'HealthAI', domain: 'AI/ML', airl: 4, status: 'Green', lastReview: 'Oct 10', trend: 'up' },
+  { id: 's5', name: 'SolarFlow', domain: 'CleanTech', airl: 6, status: 'Yellow', lastReview: 'Sep 25', trend: 'flat' },
 ];
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
@@ -113,7 +113,7 @@ export function ReviewerDashboard() {
         </Card>
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-6">
-            <p className="text-sm text-gray-500 font-medium">Graduated (TRL 7+)</p>
+            <p className="text-sm text-gray-500 font-medium">Graduated (AIRL 7+)</p>
             <div className="flex items-end justify-between">
               <h3 className="text-3xl font-bold text-gray-900">8</h3>
               <TrendingUp className="w-5 h-5 text-green-500 mb-1" />
@@ -153,7 +153,7 @@ export function ReviewerDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>TRL Progression Pipeline</CardTitle>
+            <CardTitle>AIRL Progression Pipeline</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -202,7 +202,7 @@ export function ReviewerDashboard() {
                       <td className="px-6 py-4 font-medium text-gray-900">{s.name}</td>
                       <td className="px-6 py-4 text-gray-500">{s.domain}</td>
                       <td className="px-6 py-4">
-                        <Badge variant="neutral">TRL {s.trl}</Badge>
+                        <Badge variant="neutral">AIRL {s.airl}</Badge>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
@@ -249,7 +249,7 @@ export function ReviewerDashboard() {
                   <span className="text-xs text-gray-400">Due Today</span>
                 </div>
                 <h4 className="font-semibold text-gray-900">GreenField Tech</h4>
-                <p className="text-xs text-gray-500 mb-3">TRL 3 Verification • Technology</p>
+                <p className="text-xs text-gray-500 mb-3">AIRL 3 Verification • Technology</p>
                 <div className="flex items-center justify-between border-t border-gray-50 pt-2">
                   <div className="flex -space-x-2">
                     <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white"></div>
