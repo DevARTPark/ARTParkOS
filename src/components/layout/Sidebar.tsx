@@ -17,8 +17,6 @@ import {
   Video,
   ChevronLeft,
   ChevronRight,
-  Store,
-  FilesIcon,
 } from "lucide-react";
 import { Role } from "../../types";
 import artparkLogo from "../../public/artpark_logo.png";
@@ -32,6 +30,7 @@ interface SidebarProps {
 export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
   const getNavItems = () => {
     switch (role) {
+      // ... (Founder, Admin, Reviewer cases remain unchanged)
       case "founder":
         return [
           {
@@ -60,13 +59,8 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           { icon: PieChart, label: "Portfolio", path: "/admin/portfolio" },
           { icon: Coins, label: "Financials", path: "/admin/financials" },
-          { icon: FileText, label: "Impact & Reports", path: "/admin/reports" },
-          { icon: Users, label: "Network & Ecosystem", path: "/admin/network" },
-          {
-            icon: FilesIcon,
-            label: "Reviews & Resources",
-            path: "/admin/reviews-resources",
-          },
+          { icon: FileText, label: "Reports", path: "/admin/reports" },
+          { icon: Users, label: "Network", path: "/admin/network" },
           { icon: Users, label: "Users", path: "/admin/users" },
         ];
       case "reviewer":
@@ -119,6 +113,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/lab-owner/dashboard",
           },
           { icon: Calendar, label: "Bookings", path: "/lab-owner/bookings" },
+          { icon: Calendar, label: "Schedule", path: "/lab-owner/calendar" }, // <--- ADDED
           {
             icon: Building2,
             label: "Assets & Services",
@@ -137,13 +132,13 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
 
   const navItems = getNavItems();
 
-  // Helper to determine where the 'Settings' button in footer points to
   const getSettingsPath = (role: Role) => {
     if (role === "founder") return "/founder/settings";
     if (role === "reviewer") return "/reviewer/settings";
     if (role === "admin") return "/admin/settings";
-    if (role === "lab_owner") return "/lab-owner/settings"; // <--- ADDED THIS
+    if (role === "lab_owner") return "/lab-owner/settings";
     if (role === "mentor") return "/mentor/profile/edit";
+    if (role === "supplier") return "/supplier/settings"; // <--- ADDED
     return "/settings";
   };
 
@@ -153,7 +148,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         isCollapsed ? "w-20" : "w-64"
       }`}
     >
-      {/* Header */}
       <div className="p-4 border-b border-slate-800 flex items-center justify-between h-20">
         <div
           className={`flex items-center transition-all duration-300 ${
@@ -162,7 +156,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         >
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
             <img
-              src="/artpark_in_logo.jpg"
+              src={artparkLogo}
               alt="AP"
               className="w-full h-full object-contain p-1"
               onError={(e) => {
@@ -198,7 +192,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 custom-scrollbar">
         <ul className="space-y-1 px-3">
           {navItems.map((item) => (
@@ -238,7 +231,6 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
         {isCollapsed && (
           <button
