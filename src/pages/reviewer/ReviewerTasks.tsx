@@ -22,12 +22,12 @@ const allTasks = [
     id: 't1',
     startup: 'GreenField Tech',
     type: 'AIRL Assessment',
-    title: 'TRL 3 Verification: Lab Scale Validation',
+    title: 'AIRL 3 Verification: Lab Scale Validation',
     priority: 'High',
     due: 'Today',
     status: 'Pending',
     submittedDate: 'Oct 24, 2023',
-    description: 'Verify lab results against the technical milestones for TRL 3.'
+    description: 'Verify lab results against the technical milestones for AIRL 3.'
   },
   {
     id: 't2',

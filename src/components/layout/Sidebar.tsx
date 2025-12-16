@@ -40,7 +40,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "TRL Assessment",
+            label: "AIRL Assessment",
             path: "/founder/assessment",
           },
           { icon: FolderKanban, label: "Projects", path: "/founder/projects" },

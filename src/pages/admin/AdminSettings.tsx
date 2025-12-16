@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 // --- Mock Data ---
-const trlLevels = [
+const AIRLLevels = [
   { level: 1, def: 'Basic principles observed', status: 'Active' },
   { level: 2, def: 'Technology concept formulated', status: 'Active' },
   { level: 3, def: 'Experimental proof of concept', status: 'Active' },
@@ -24,7 +24,7 @@ const trlLevels = [
 ];
 
 const auditLogs = [
-  { id: 1, action: 'Updated TRL 3 Criteria', user: 'Admin User', time: '2 hrs ago' },
+  { id: 1, action: 'Updated AIRL 3 Criteria', user: 'Admin User', time: '2 hrs ago' },
   { id: 2, action: 'Approved Grant Disbursement (Batch A)', user: 'Finance Lead', time: '5 hrs ago' },
   { id: 3, action: 'Added New Reviewer: Sarah Lee', user: 'Admin User', time: '1 day ago' },
 ];
@@ -41,7 +41,7 @@ export function AdminSettings() {
           <Card>
             <CardContent className="p-2">
               {[
-                { id: 'governance', label: 'TRL Framework', icon: ShieldCheck },
+                { id: 'governance', label: 'AIRL Framework', icon: ShieldCheck },
                 { id: 'cycles', label: 'Reporting Cycles', icon: Calendar },
                 { id: 'audit', label: 'Audit Logs', icon: FileText },
                 { id: 'general', label: 'General Settings', icon: Settings },
@@ -66,15 +66,15 @@ export function AdminSettings() {
         {/* Content Area */}
         <div className="flex-1 space-y-6">
           
-          {/* --- Tab 1: TRL Framework --- */}
+          {/* --- Tab 1: AIRL Framework --- */}
           {activeTab === 'governance' && (
             <Card>
               <CardHeader>
-                <CardTitle>Technology Readiness Level (TRL) Definitions</CardTitle>
+                <CardTitle>Technology Readiness Level (AIRL) Definitions</CardTitle>
                 <p className="text-sm text-gray-500">These definitions appear on Founder assessments and Reviewer forms.</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                {trlLevels.map((lvl) => (
+                {airlLevels.map((lvl) => (
                   <div key={lvl.level} className="flex gap-4 items-start p-3 bg-gray-50 rounded-lg border border-gray-100">
                     <div className="bg-blue-100 text-blue-700 font-bold w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0">
                       {lvl.level}

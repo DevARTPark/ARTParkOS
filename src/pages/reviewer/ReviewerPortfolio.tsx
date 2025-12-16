@@ -22,7 +22,7 @@ const portfolioData = [
     id: 's1',
     name: 'GreenField Tech',
     domain: 'AgriTech',
-    trl: 3,
+    airl: 3,
     status: 'Green',
     funding: '₹50L',
     runway: '8 Months',
@@ -33,7 +33,7 @@ const portfolioData = [
     id: 's2',
     name: 'MediDrone Systems',
     domain: 'Healthcare',
-    trl: 5,
+    airl: 5,
     status: 'Yellow',
     funding: '₹1.2Cr',
     runway: '5 Months',
@@ -44,7 +44,7 @@ const portfolioData = [
     id: 's3',
     name: 'AutoBotics',
     domain: 'Robotics',
-    trl: 2,
+    airl: 2,
     status: 'Red',
     funding: '₹25L',
     runway: '2 Months',
@@ -55,7 +55,7 @@ const portfolioData = [
     id: 's4',
     name: 'SolarFlow',
     domain: 'CleanTech',
-    trl: 6,
+    airl: 6,
     status: 'Green',
     funding: '₹80L',
     runway: '12 Months',
@@ -147,7 +147,7 @@ export function ReviewerPortfolio() {
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Current Level</p>
                   <div className="flex items-center font-bold text-blue-600">
-                    <Activity className="w-4 h-4 mr-1" /> TRL {startup.trl}
+                    <Activity className="w-4 h-4 mr-1" /> AIRL {startup.airl}
                   </div>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">

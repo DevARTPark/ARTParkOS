@@ -41,7 +41,7 @@ const quarterlyHistory = [
     reviewer: 'Dr. Priya Sharma',
     feedback: 'Technical milestones met, but commercial partnerships are lagging behind the promised timeline.',
     promises: [
-      { text: 'Achieve TRL 3', status: 'Met' },
+      { text: 'Achieve AIRL 3', status: 'Met' },
       { text: 'File Provisional Patent', status: 'Met' },
       { text: 'Sign 1 MOU', status: 'Missed' }
     ]

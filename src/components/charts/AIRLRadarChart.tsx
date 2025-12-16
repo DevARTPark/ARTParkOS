@@ -21,7 +21,7 @@ const data = [{
   A: 4,
   fullMark: 9
 }];
-export function TRLRadarChart() {
+export function AIRLRadarChart() {
   return <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
@@ -31,7 +31,7 @@ export function TRLRadarChart() {
           fontSize: 12
         }} />
           <PolarRadiusAxis angle={30} domain={[0, 9]} tick={false} axisLine={false} />
-          <Radar name="Current TRL" dataKey="A" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.3} />
+          <Radar name="Current AIRL" dataKey="A" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.3} />
           <Tooltip contentStyle={{
           borderRadius: '8px',
           border: 'none',

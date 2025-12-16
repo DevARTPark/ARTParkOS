@@ -12,7 +12,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // --- FOUNDER PAGES ---
 import { FounderDashboard } from "./pages/founder/FounderDashboard";
-import { TRLAssessment } from "./pages/founder/TRLAssessment";
+import { AIRLAssessment } from "./pages/founder/AIRLAssessment";
 import { FounderProjects } from "./pages/founder/FounderProjects";
 import { FounderFinance } from "./pages/founder/FounderFinance";
 import { FounderTeam } from "./pages/founder/FounderTeam";
@@ -104,7 +104,7 @@ function RoleSelection() {
       <div className="max-w-4xl w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            ARTPark TRL Platform
+            ARTPark AIRL Platform
           </h1>
           <p className="text-slate-400 text-lg">
             Select your role to enter the portal
@@ -123,7 +123,7 @@ function RoleSelection() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Founder</h2>
               <p className="text-slate-300 mb-8 flex-1">
-                Manage your startup, track TRL progress, and access resources.
+                Manage your startup, track AIRL progress, and access resources.
               </p>
               <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
@@ -163,7 +163,7 @@ function RoleSelection() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
               <p className="text-slate-300 mb-8 flex-1">
-                Evaluate assessments, provide feedback, and validate TRL levels.
+                Evaluate assessments, provide feedback, and validate AIRL levels.
               </p>
               <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
@@ -256,7 +256,7 @@ export function App() {
           path="/founder/assessment"
           element={
             <ProtectedRoute>
-              <TRLAssessment />
+              <AIRLAssessment />
             </ProtectedRoute>
           }
         />

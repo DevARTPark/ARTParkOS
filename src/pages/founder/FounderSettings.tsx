@@ -201,7 +201,7 @@ export function FounderSettings() {
                   </h3>
                   <div className="space-y-3">
                     {[
-                      'Weekly TRL Progress Summary',
+                      'Weekly AIRL Progress Summary',
                       'New Reviewer Comments posted',
                       'Mentor Session reminders',
                       'Platform announcements & news'
