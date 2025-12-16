@@ -63,6 +63,7 @@ import ProfileEditPage from "./pages/supplier/ProfileEditPage";
 import ProfilePage from "./pages/supplier/ProfilePage";
 import ListingsPage from "./pages/supplier/ListingsPage";
 import ListingFormPage from "./pages/supplier/ListingFormPage";
+import SupplierSettings from "./pages/supplier/SupplierSettings";
 
 // --- MENTOR PAGES (Imported & Aliased) ---
 import MentorDashboard from "./pages/mentor/MentorDashboard";
@@ -77,6 +78,7 @@ import LabOwnerDashboard from "./pages/lab-owner/LabOwnerDashboard";
 import LabServicesPage from "./pages/lab-owner/LabServicesPage";
 import LabBookingsPage from "./pages/lab-owner/LabBookingsPage";
 import LabSettings from "./pages/lab-owner/LabSettings";
+import LabCalendarPage from "./pages/lab-owner/LabCalendarPage";
 
 // Icons for RoleSelection
 import {
@@ -606,6 +608,14 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/supplier/settings"
+          element={
+            <ProtectedRoute>
+              <SupplierSettings />
+            </ProtectedRoute>
+          }
+        />
         {/* --- MENTOR ROUTES --- */}
         <Route
           path="/mentor/dashboard"
@@ -686,6 +696,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <LabSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lab-owner/calendar"
+          element={
+            <ProtectedRoute>
+              <LabCalendarPage />
             </ProtectedRoute>
           }
         />
