@@ -1,0 +1,63 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL is configured in prisma.config.ts
+}
+
+// --- ENUMS ---
+
+enum Role {
+  founder
+  admin
+  reviewer
+  mentor
+  supplier
+  lab_owner
+}
+
+enum UserStatus {
+  invited
+  active
+  suspended
+}
+
+enum TokenType {
+  account_activation
+  password_reset
+}
+
+// --- CORE IDENTITY ---
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String?   // Nullable for invited users (password not set yet)
+  role          Role
+  status        UserStatus @default(invited)
+  last_login    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  // Relations
+  tokens        AuthToken[]
+
+  @@map("users")
+}
+
+model AuthToken {
+  id         String    @id @default(uuid())
+  user_id    String
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token      String    @unique // Secure random string sent via email
+  type       TokenType
+  expires_at DateTime
+  is_used    Boolean   @default(false)
+  created_at DateTime  @default(now())
+
+  @@map("auth_tokens")
+}

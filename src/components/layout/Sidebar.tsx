@@ -120,11 +120,11 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             label: "Assets & Services",
             path: "/lab-owner/services",
           },
-          {
-            icon: Settings,
-            label: "Lab Settings",
-            path: "/lab-owner/settings",
-          },
+          // {
+          //   icon: Settings,
+          //   label: "Lab Settings",
+          //   path: "/lab-owner/settings",
+          // },
         ];
       default:
         return [];
@@ -265,7 +265,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         <button
           onClick={() => {
             localStorage.removeItem("artpark_user");
-            window.location.href = "/login";
+            window.location.href = "/";
           }}
           className={`flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1 ${
             isCollapsed ? "justify-center" : ""

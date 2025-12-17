@@ -6,104 +6,69 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
 
-  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 1. Updated keys to match URL path segments exactly (e.g., 'lab-owner')
-  // 2. Added explicit 'role' field to map to internal system roles (e.g., 'lab_owner')
-  const credentials: Record<
-    string,
-    { password: string; redirect: string; role: string }
-  > = {
-    founder: {
-      password: "12345",
-      redirect: "/founder/dashboard",
-      role: "founder",
-    },
-    admin: { password: "12345", redirect: "/admin/dashboard", role: "admin" },
-    reviewer: {
-      password: "12345",
-      redirect: "/reviewer/dashboard",
-      role: "reviewer",
-    },
-    supplier: {
-      password: "12345",
-      redirect: "/supplier/dashboard",
-      role: "supplier",
-    },
-    mentor: {
-      password: "12345",
-      redirect: "/mentor/dashboard",
-      role: "mentor",
-    },
-    "lab-owner": {
-      password: "12345",
-      redirect: "/lab-owner/dashboard",
-      role: "lab_owner",
-    }, // Key matches URL, Role matches Sidebar
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
-    // Verify user credentials exist and password matches
-    const userCred = credentials[userId];
-    if (!userCred || userCred.password !== password) {
-      setError("Invalid credentials. Check the User ID and Password below.");
-      return;
-    }
+    try {
+      // 1. Call your Backend API
+      const response = await fetch("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    // Determine role implied by redirect (if any)
-    const getRoleFromPath = (path: string) => {
-      if (!path || !path.startsWith("/")) return null;
-      const segs = path.split("/").filter(Boolean);
-      return segs.length ? segs[0] : null;
-    };
+      const data = await response.json();
 
-    const desiredPathSegment = getRoleFromPath(redirect); // e.g. "lab-owner"
-
-    // If the redirect requests a different path segment than the user ID, block it
-    // We compare userId (e.g. "lab-owner") with path segment (e.g. "lab-owner")
-    if (desiredPathSegment && desiredPathSegment !== userId) {
-      // Special case: if redirect is root or generic, we might skip this,
-      // but for deep links, we enforce the match.
-      // We only enforce if the desired segment is a known role key.
-      if (credentials[desiredPathSegment]) {
-        setError(
-          `This page requires a ${desiredPathSegment} account. Please login with '${desiredPathSegment}'.`
-        );
-        return;
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
       }
+
+      // 2. Login Success: Save Token & User Info
+      // We save it as 'artpark_user' to match your existing app logic
+      localStorage.setItem(
+        "artpark_user",
+        JSON.stringify({
+          ...data.user,
+          token: data.token,
+        })
+      );
+
+      // 3. Navigate to Dashboard
+      navigate(data.user.role === "founder" ? "/founder/dashboard" : redirect);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    // All good: persist using the MAPPED role (e.g., lab_owner)
-    const auth = { userId, role: userCred.role };
-    localStorage.setItem("artpark_user", JSON.stringify(auth));
-
-    // Navigate
-    const target = redirect === "/" ? userCred.redirect : redirect;
-    navigate(target);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-10 w-full max-w-md">
         <h1 className="text-3xl font-bold text-center text-white mb-6">
-          Login to ARTPark Portal
+          ARTPark Portal Login
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="text-white text-sm mb-1 block">User ID</label>
+            <label className="text-white text-sm mb-1 block">
+              Email Address
+            </label>
             <input
               autoFocus
-              type="text"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="e.g. founder, lab-owner"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="founder@artpark.in"
               className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-slate-300 outline-none focus:ring-2 focus:ring-blue-400"
+              required
             />
           </div>
 
@@ -113,38 +78,34 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="12345"
+              placeholder="Enter your password"
               className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-slate-300 outline-none focus:ring-2 focus:ring-blue-400"
+              required
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {error && (
+            <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-sm text-center">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
-            className="w-full py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-500 transition"
+            disabled={isLoading}
+            className={`w-full py-2 rounded-lg font-semibold transition ${
+              isLoading
+                ? "bg-gray-500 cursor-not-allowed text-gray-200"
+                : "bg-blue-600 hover:bg-blue-500 text-white"
+            }`}
           >
-            Login
+            {isLoading ? "Logging in..." : "Login"}
           </button>
         </form>
 
-        <div className="text-sm text-slate-400 mt-6 bg-black/20 p-4 rounded-lg">
-          <p className="font-semibold mb-2 text-white">Demo Credentials:</p>
-          <ul className="space-y-1 list-disc list-inside">
-            <li>
-              User ID: <strong>founder</strong> / <strong>admin</strong> /{" "}
-              <strong>reviewer</strong>
-            </li>
-            <li>
-              User ID: <strong>supplier</strong> / <strong>mentor</strong>
-            </li>
-            <li>
-              User ID: <strong>lab-owner</strong> (Not 'lab')
-            </li>
-            <li className="mt-2 text-white">
-              Password: <strong>12345</strong> (for all)
-            </li>
-          </ul>
+        <div className="text-sm text-slate-400 mt-6 text-center">
+          <p>Don't have an account?</p>
+          <p className="text-xs mt-1">Contact admin@artpark.in for access.</p>
         </div>
       </div>
     </div>

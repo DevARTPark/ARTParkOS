@@ -9,6 +9,8 @@ import {
 // Auth & Layout Components
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import SetPasswordPage from "./pages/auth/SetPasswordPage";
 
 // --- FOUNDER PAGES ---
 import { FounderDashboard } from "./pages/founder/FounderDashboard";
@@ -165,7 +167,8 @@ function RoleSelection() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
               <p className="text-slate-300 mb-8 flex-1">
-                Evaluate assessments, provide feedback, and validate AIRL levels.
+                Evaluate assessments, provide feedback, and validate AIRL
+                levels.
               </p>
               <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
@@ -245,6 +248,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<RoleSelection />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
         {/* --- FOUNDER ROUTES --- */}
         <Route
           path="/founder/dashboard"
