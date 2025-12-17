@@ -77,6 +77,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
           { icon: Building2, label: "Resources", path: "/reviewer/resources" },
+          { icon: Settings, label: "AIRL Config", path: "/reviewer/assessment-config" },
           { icon: Users, label: "Users", path: "/reviewer/users" },
           { icon: Calendar, label: "Calendar", path: "/reviewer/calendar" },
         ];

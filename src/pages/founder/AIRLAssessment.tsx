@@ -64,23 +64,65 @@ export function AIRLAssessment() {
 
                   <div className="space-y-8">
                     {/* Yes/No Radio */}
+                    {/* Status Selection: Met / Partially Met / Not Met */}
                     <div className="space-y-3">
                       <label className="text-sm font-medium text-gray-700 block">
-                        Your Response
+                        Compliance Status
                       </label>
-                      <div className="flex space-x-4">
-                        <button onClick={() => handleAnswer('yes')} className={`flex-1 py-4 px-6 rounded-lg border-2 transition-all flex items-center justify-center space-x-2 ${answers[currentQuestion.id] === 'yes' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}>
-                          <span className="font-semibold">Yes</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button 
+                          onClick={() => handleAnswer('met')} 
+                          className={`py-3 px-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center text-center ${
+                            answers[currentQuestion.id] === 'met' 
+                              ? 'border-green-600 bg-green-50 text-green-700 shadow-sm' 
+                              : 'border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-600'
+                          }`}
+                        >
+                          <span className="font-bold text-sm">Fully Met</span>
                         </button>
-                        <button onClick={() => handleAnswer('no')} className={`flex-1 py-4 px-6 rounded-lg border-2 transition-all flex items-center justify-center space-x-2 ${answers[currentQuestion.id] === 'no' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}>
-                          <span className="font-semibold">No</span>
+                        
+                        <button 
+                          onClick={() => handleAnswer('partial')} 
+                          className={`py-3 px-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center text-center ${
+                            answers[currentQuestion.id] === 'partial' 
+                              ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-sm' 
+                              : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50 text-gray-600'
+                          }`}
+                        >
+                          <span className="font-bold text-sm">Partially Met</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleAnswer('not_met')} 
+                          className={`py-3 px-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center text-center ${
+                            answers[currentQuestion.id] === 'not_met' 
+                              ? 'border-red-500 bg-red-50 text-red-700 shadow-sm' 
+                              : 'border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-600'
+                          }`}
+                        >
+                          <span className="font-bold text-sm">Not Met</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Notes */}
                     <Textarea label="Founder Notes / Context" placeholder="Add any additional context or explanation here..." rows={4} />
-
+                    {/* NEW LINK BOX */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-gray-700 block">
+                        Supporting Link
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-400 text-xs">https://</span>
+                        </div>
+                        <input
+                          type="text"
+                          className="block w-full pl-16 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="github.com/project/repo or drive.google.com/..."
+                        />
+                      </div>
+                    </div>
                     {/* Evidence Upload */}
                     <div>
                       <label className="text-sm font-medium text-gray-700 block mb-2">

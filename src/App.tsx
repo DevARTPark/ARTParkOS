@@ -56,6 +56,7 @@ import { ReviewerStartupDetail } from "./pages/reviewer/ReviewerStartupDetail";
 import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
 import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
 import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
+import { ReviewerAssessmentConfig } from "./pages/reviewer/ReviewerAssessmentConfig";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -93,6 +94,7 @@ import {
 
 // Mock Data Seeder
 import { seedMockSupplierData } from "./data/mockSupplierData";
+import { ReviewerResources } from "./pages/reviewer/ReviewerResources";
 
 if (import.meta.env.MODE !== "production") {
   seedMockSupplierData();
@@ -523,7 +525,7 @@ export function App() {
           path="/reviewer/resources"
           element={
             <ProtectedRoute>
-              <AdminDashboard />
+              <ReviewerResources />
             </ProtectedRoute>
           }
         />
@@ -556,6 +558,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/assessment-config"
+          element={
+            <ProtectedRoute>
+              <ReviewerAssessmentConfig />
             </ProtectedRoute>
           }
         />
