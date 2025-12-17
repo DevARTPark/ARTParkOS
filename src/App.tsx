@@ -19,6 +19,7 @@ import { FounderTeam } from "./pages/founder/FounderTeam";
 import { FounderReviews } from "./pages/founder/FounderReviews";
 import { FounderSettings } from "./pages/founder/FounderSettings";
 import { FounderOtherStartups } from "./pages/founder/FounderOtherStartups";
+import { FounderProjectDetail } from "./pages/founder/FounderProjectDetail";
 
 // --- NEW PORTAL PAGES ---
 import FacilitiesHub from "./pages/founder/facilities/FacilitiesHub";
@@ -57,6 +58,7 @@ import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
 import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
 import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 import { ReviewerAssessmentConfig } from "./pages/reviewer/ReviewerAssessmentConfig";
+import { ReviewerResources } from "./pages/reviewer/ReviewerResources";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -94,7 +96,6 @@ import {
 
 // Mock Data Seeder
 import { seedMockSupplierData } from "./data/mockSupplierData";
-import { ReviewerResources } from "./pages/reviewer/ReviewerResources";
 
 if (import.meta.env.MODE !== "production") {
   seedMockSupplierData();
@@ -423,6 +424,14 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/founder/project/:id"  // <-- Note: singular 'project' as requested
+          element={
+            <ProtectedRoute>
+              <FounderProjectDetail />
+            </ProtectedRoute>
+          }
+        />
         {/* --- ADMIN ROUTES --- */}
         <Route
           path="/admin/dashboard"
@@ -566,6 +575,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerAssessmentConfig />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/resources"
+          element={
+            <ProtectedRoute>
+              <ReviewerResources />
             </ProtectedRoute>
           }
         />

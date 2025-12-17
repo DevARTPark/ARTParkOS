@@ -9,15 +9,15 @@ const data = [{
   A: 3,
   fullMark: 9
 }, {
-  subject: 'Market',
+  subject: 'Engagement',
   A: 5,
   fullMark: 9
 }, {
-  subject: 'Org',
+  subject: 'Organization',
   A: 2,
   fullMark: 9
 }, {
-  subject: 'Engagement',
+  subject: 'Market',
   A: 4,
   fullMark: 9
 }];
