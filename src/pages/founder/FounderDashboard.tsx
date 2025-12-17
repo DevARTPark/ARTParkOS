@@ -31,12 +31,36 @@ export function FounderDashboard() {
   
   // Initialize state with mock data
   const [myActions, setMyActions] = useState(actionItems); 
+  const [chartSelection, setChartSelection] = useState<string>('all');
   
   const [newAction, setNewAction] = useState({
     title: '',
     priority: 'medium',
     dueDate: ''
   });
+  const categories = ['Technology', 'Product', 'Market Research', 'Organisation', 'Target Market'];
+  const projectScores: Record<string, Record<string, number>> = {
+    'p1': { 'Technology': 3, 'Product': 4, 'Market Research': 3, 'Organisation': 4, 'Target Market': 3 }, // AgriSense
+    'p2': { 'Technology': 5, 'Product': 6, 'Market Research': 5, 'Organisation': 5, 'Target Market': 6 }  // MediDrone
+  };
+
+  const currentChartData = React.useMemo(() => {
+    if (chartSelection === 'all') {
+      // OVERALL VIEW: Calculates the MINIMUM score across all projects
+      // This highlights the "weakest links" in the startup's overall portfolio
+      return categories.map(cat => {
+        const scores = projects.map(p => projectScores[p.id]?.[cat] || 0);
+        const minScore = Math.min(...scores);
+        return { subject: cat, A: minScore, fullMark: 9 };
+      });
+    } else {
+      // PROJECT VIEW: Specific scores
+      const scores = projectScores[chartSelection];
+      if (!scores) return [];
+      return categories.map(cat => ({ subject: cat, A: scores[cat], fullMark: 9 }));
+    }
+  }, [chartSelection]);
+  const displayLevel = Math.floor(currentChartData.reduce((acc, curr) => acc + curr.A, 0) / 5) || 0;
 
   const currentProject = projects[0];
 
@@ -117,33 +141,64 @@ export function FounderDashboard() {
         {/* AIRL Status Widget */}
         <motion.div variants={item}>
           <Card className="h-full">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle>AIRL Status Overview</CardTitle>
+              
+              {/* Project Selector Dropdown */}
+              <div className="w-48">
+                <select 
+                  className="w-full text-xs bg-white border border-gray-200 rounded-md py-1.5 px-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer text-gray-700"
+                  value={chartSelection}
+                  onChange={(e) => setChartSelection(e.target.value)}
+                >
+                  <option value="all">Startup Aggregate (Min)</option>
+                  <option disabled>──────────</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row items-center">
+                {/* Radar Chart Area */}
                 <div className="w-full md:w-1/2">
-                  <AIRLRadarChart />
+                  <AIRLRadarChart data={currentChartData} />
                 </div>
+
+                {/* Info Sidebar */}
                 <div className="w-full md:w-1/2 mt-4 md:mt-0 pl-0 md:pl-6">
-                  <h4 className="font-medium text-gray-900 mb-4">
-                    Recent Milestones
+                  
+                  {/* Dynamic Level Badge */}
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-[10px] text-blue-600 font-bold uppercase mb-1 tracking-wider">
+                      {chartSelection === 'all' ? 'Aggregate Maturity' : 'Project Maturity'}
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <h3 className="text-3xl font-bold text-blue-900">AIRL {displayLevel}</h3>
+                      <span className="text-sm text-blue-600 mb-1 font-medium">
+                        {chartSelection === 'all' ? '(Conservative)' : '(Current)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <h4 className="font-medium text-gray-900 mb-4 text-sm">
+                    {chartSelection === 'all' ? 'Critical Gaps (Lowest Areas)' : 'Current Status'}
                   </h4>
-                  <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-                    <div className="relative pl-6">
-                      <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-green-500 border-2 border-white"></div>
-                      <p className="text-sm font-medium text-gray-900">
-                        AIRL 3 Achieved
-                      </p>
-                      <p className="text-xs text-gray-500">Oct 12, 2023</p>
-                    </div>
-                    <div className="relative pl-6">
-                      <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-blue-500 border-2 border-white"></div>
-                      <p className="text-sm font-medium text-gray-900">
-                        AIRL 2 Verified
-                      </p>
-                      <p className="text-xs text-gray-500">Sep 01, 2023</p>
-                    </div>
+                  
+                  {/* Dynamic Milestones List */}
+                  <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+                    {currentChartData.slice(0, 2).map((dataPoint) => (
+                      <div key={dataPoint.subject} className="relative pl-6">
+                        <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white ${dataPoint.A >= 5 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {dataPoint.subject}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Score: {dataPoint.A} / 9
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
