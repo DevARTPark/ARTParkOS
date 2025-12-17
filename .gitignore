@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Security - ADD THESE LINES IMMEDIATELY
+.env
+.env.development
+.env.production
+.env.test
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +28,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+/src/generated/prisma
