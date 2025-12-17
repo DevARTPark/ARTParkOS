@@ -59,6 +59,7 @@ import { ReviewerUsers } from "./pages/reviewer/ReviewerUsers";
 import { ReviewerCalendar } from "./pages/reviewer/ReviewerCalendar";
 import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 import { ReviewerAssessmentConfig } from "./pages/reviewer/ReviewerAssessmentConfig";
+import { ReviewerInvitePage } from "./pages/reviewer/ReviewerInvitePage";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -571,6 +572,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerAssessmentConfig />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/invite"
+          element={
+            <ProtectedRoute>
+              <ReviewerInvitePage />
             </ProtectedRoute>
           }
         />

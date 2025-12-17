@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 import { prisma } from './prismaClient';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto'; // Built-in Node module for random tokens
+import crypto from 'crypto';
+import nodemailer from 'nodemailer'; // <--- Import Nodemailer
 
 dotenv.config();
 
@@ -14,16 +15,36 @@ app.use(express.json());
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key_123";
 
+// --- SMTP CONFIGURATION ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+    },
+});
+
+// Helper to send email
+async function sendEmail(to: string, subject: string, html: string) {
+    try {
+        await transporter.sendMail({
+            from: `"ARTPark Portal" <${process.env.SMTP_EMAIL}>`,
+            to,
+            subject,
+            html,
+        });
+        console.log(`✅ Email sent to ${to}`);
+    } catch (error) {
+        console.error(`❌ Email failed to ${to}:`, error);
+    }
+}
+
 // --- HELPER: Generate & Save Token ---
 async function createAuthToken(userId: string, type: 'account_activation' | 'password_reset') {
-    // 1. Generate a random hex string
     const tokenString = crypto.randomBytes(32).toString('hex');
-
-    // 2. Set expiry (e.g., 24 hours from now)
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
-    // 3. Save to DB
     await prisma.authToken.create({
         data: {
             token: tokenString,
@@ -36,42 +57,46 @@ async function createAuthToken(userId: string, type: 'account_activation' | 'pas
     return tokenString;
 }
 
-// --- 1. INVITE USER (For Admin to create accounts) ---
+// --- 1. INVITE USER (Updated with Email) ---
 app.post('/api/auth/invite-user', async (req, res) => {
     const { email, role } = req.body;
 
     try {
-        // Check if user exists
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return res.status(400).json({ error: "User already exists" });
 
-        // Create user with NO password (invited status)
         const user = await prisma.user.create({
             data: {
                 email,
                 role: role || 'founder',
                 status: 'invited',
-                password_hash: null, // No password yet
+                password_hash: null,
             }
         });
 
-        // Generate Activation Link
+        // Generate Link
         const token = await createAuthToken(user.id, 'account_activation');
         const link = `http://localhost:5173/set-password?token=${token}&type=activation`;
 
-        console.log("==================================================");
-        console.log(`📧 SIMULATED EMAIL TO: ${email}`);
-        console.log(`🔗 ACTIVATION LINK: ${link}`);
-        console.log("==================================================");
+        // Send Real Email
+        const emailHtml = `
+      <h2>Welcome to ARTPark!</h2>
+      <p>You have been invited to join the ARTPark OS platform as a <strong>${role}</strong>.</p>
+      <p>Please click the link below to activate your account and set your password:</p>
+      <a href="${link}" style="padding: 10px 20px; background-color: #2563EB; color: white; text-decoration: none; border-radius: 5px;">Activate Account</a>
+      <p><small>Link expires in 24 hours.</small></p>
+    `;
 
-        res.json({ message: "User invited. Check server console for the link!", link });
+        await sendEmail(email, "Welcome to ARTPark - Activate Account", emailHtml);
+
+        res.json({ message: "Invitation email sent successfully!" });
     } catch (err: any) {
         console.error(err);
         res.status(500).json({ error: "Failed to invite user" });
     }
 });
 
-// --- 2. FORGOT PASSWORD ---
+// --- 2. FORGOT PASSWORD (Updated with Email) ---
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
 
@@ -79,71 +104,62 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        // Generate Reset Link
         const token = await createAuthToken(user.id, 'password_reset');
         const link = `http://localhost:5173/set-password?token=${token}&type=reset`;
 
-        console.log("==================================================");
-        console.log(`📧 SIMULATED EMAIL TO: ${email}`);
-        console.log(`🔗 RESET LINK: ${link}`);
-        console.log("==================================================");
+        const emailHtml = `
+      <h2>Reset Password</h2>
+      <p>We received a request to reset your password.</p>
+      <a href="${link}" style="padding: 10px 20px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+      <p><small>If you didn't request this, ignore this email.</small></p>
+    `;
 
-        res.json({ message: "Reset link generated. Check server console!", link });
+        await sendEmail(email, "Reset Your Password", emailHtml);
+
+        res.json({ message: "Reset link sent to your email." });
     } catch (err) {
         res.status(500).json({ error: "Error processing request" });
     }
 });
 
-// --- 3. VERIFY & SET NEW PASSWORD ---
+// --- 3. VERIFY & SET PASSWORD (Unchanged) ---
 app.post('/api/auth/set-password', async (req, res) => {
     const { token, newPassword } = req.body;
-
     try {
-        // 1. Find the token
         const storedToken = await prisma.authToken.findUnique({
             where: { token },
             include: { user: true }
         });
 
-        // 2. Validate Token
         if (!storedToken) return res.status(400).json({ error: "Invalid token" });
         if (storedToken.is_used) return res.status(400).json({ error: "Token already used" });
         if (new Date() > storedToken.expires_at) return res.status(400).json({ error: "Token expired" });
 
-        // 3. Hash New Password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // 4. Update User & Token
         await prisma.$transaction([
             prisma.user.update({
                 where: { id: storedToken.user_id },
-                data: {
-                    password_hash: hashedPassword,
-                    status: 'active' // Ensure account is active
-                }
+                data: { password_hash: hashedPassword, status: 'active' }
             }),
-            prisma.authToken.update({
-                where: { id: storedToken.id },
-                data: { is_used: true }
-            })
+            prisma.authToken.update({ where: { id: storedToken.id }, data: { is_used: true } })
         ]);
 
-        res.json({ message: "Password updated successfully! You can now login." });
+        res.json({ message: "Password updated successfully!" });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Failed to set password" });
     }
 });
 
-// --- 4. LOGIN (Existing) ---
+// --- 4. LOGIN (Unchanged) ---
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return res.status(401).json({ error: "User not found" });
 
-        // Allow login only if active
-        if (!user.password_hash) return res.status(403).json({ error: "Account not activated. Please use the activation link sent to your email." });
+        if (!user.password_hash) return res.status(403).json({ error: "Account not activated." });
 
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) return res.status(401).json({ error: "Invalid password" });
