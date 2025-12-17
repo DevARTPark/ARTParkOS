@@ -1,38 +1,87 @@
-import React, { useState, Children } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { AIRLRadarChart } from '../../components/charts/AIRLRadarChart';
-import { actionItems, facilities, mentors, reviews, projects } from '../../data/mockData';
-import { ArrowRight, Calendar, Clock, ExternalLink, FileText, MapPin, Plus, Users } from 'lucide-react';
+import { actionItems, facilities, mentors, reviews, projects, currentUser } from '../../data/mockData';
+// --- FIXED IMPORT BELOW: Added CheckCircle2 ---
+import { 
+  ArrowRight, 
+  Calendar, 
+  Clock, 
+  ExternalLink, 
+  FileText, 
+  MapPin, 
+  Plus, 
+  Users, 
+  CheckCircle2 
+} from 'lucide-react';
 import { motion } from 'framer-motion';
+import Modal from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+
 export function FounderDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('open');
+  const [showActionModal, setShowActionModal] = useState(false);
+  
+  // Initialize state with mock data
+  const [myActions, setMyActions] = useState(actionItems); 
+  
+  const [newAction, setNewAction] = useState({
+    title: '',
+    priority: 'medium',
+    dueDate: ''
+  });
+
   const currentProject = projects[0];
+
+  // --- Handlers ---
+
+  const handleAddAction = (e: React.FormEvent) => {
+    e.preventDefault();
+    const action: any = {
+      id: `new-${Date.now()}`,
+      title: newAction.title,
+      status: 'open', // New items default to 'Open' tab
+      priority: newAction.priority,
+      dueDate: newAction.dueDate || new Date().toISOString().split('T')[0]
+    };
+    
+    setMyActions([action, ...myActions]); // Add to top of list
+    setShowActionModal(false); // Close modal
+    setNewAction({ title: '', priority: 'medium', dueDate: '' }); // Reset form
+  };
+
+  const handleStatusChange = (id: string, newStatus: string) => {
+    setMyActions(prevActions => 
+      prevActions.map(action => 
+        action.id === id ? { ...action, status: newStatus } : action
+      )
+    );
+  };
+
+  // --- Animation Variants ---
   const container = {
-    hidden: {
-      opacity: 0
-    },
+    hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+      transition: { staggerChildren: 0.1 }
     }
   };
+
   const item = {
-    hidden: {
-      opacity: 0,
-      y: 20
-    },
-    show: {
-      opacity: 1,
-      y: 0
-    }
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
   };
-  return <DashboardLayout role="founder" title="Startup Dashboard">
+
+  return (
+    <DashboardLayout role="founder" title={`Welcome back, ${currentUser.name.split(' ')[0]}`}>
+      
       {/* Project Selector Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div>
@@ -64,6 +113,7 @@ export function FounderDashboard() {
       </div>
 
       <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
         {/* AIRL Status Widget */}
         <motion.div variants={item}>
           <Card className="h-full">
@@ -106,38 +156,86 @@ export function FounderDashboard() {
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Action Items</CardTitle>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => setShowActionModal(true)}>
                 <Plus className="w-4 h-4" />
               </Button>
             </CardHeader>
             <CardContent>
-              <Tabs tabs={[{
-              id: 'open',
-              label: 'Open'
-            }, {
-              id: 'in_progress',
-              label: 'In Progress'
-            }, {
-              id: 'done',
-              label: 'Done'
-            }]} activeTab={activeTab} onChange={setActiveTab} className="mb-4" />
+              <Tabs 
+                tabs={[
+                  { id: 'open', label: 'Open' },
+                  { id: 'in_progress', label: 'In Progress' },
+                  { id: 'done', label: 'Done' }
+                ]} 
+                activeTab={activeTab} 
+                onChange={setActiveTab} 
+                className="mb-4" 
+              />
+              
               <div className="space-y-3">
-                {actionItems.filter(i => i.status === activeTab).map(action => <div key={action.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900">
+                {myActions.filter(i => i.status === activeTab).map(action => (
+                  <div 
+                    key={action.id} 
+                    className="group flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-white hover:shadow-sm transition-all"
+                  >
+                    <div className="flex-1 mr-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className={`text-sm font-medium ${action.status === 'done' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                           {action.title}
                         </h4>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Due: {action.dueDate}
-                        </p>
                       </div>
-                      <Badge variant={action.priority === 'high' ? 'danger' : action.priority === 'medium' ? 'warning' : 'neutral'}>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Due: {action.dueDate}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Badge variant={
+                        action.priority === 'high' ? 'danger' : 
+                        action.priority === 'medium' ? 'warning' : 
+                        'success'
+                      }>
                         {action.priority}
                       </Badge>
-                    </div>)}
-                {actionItems.filter(i => i.status === activeTab).length === 0 && <div className="text-center py-8 text-gray-400 text-sm">
-                    No items found
-                  </div>}
+
+                      {/* --- Action Buttons --- */}
+                      
+                      {activeTab === 'open' && (
+                        <button 
+                          onClick={() => handleStatusChange(action.id, 'in_progress')}
+                          className="p-1.5 rounded-full hover:bg-blue-100 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Start Task"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {activeTab === 'in_progress' && (
+                        <button 
+                          onClick={() => handleStatusChange(action.id, 'done')}
+                          className="p-1.5 rounded-full hover:bg-green-100 text-gray-400 hover:text-green-600 transition-colors"
+                          title="Mark as Done"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {activeTab === 'done' && (
+                         <div className="p-1.5">
+                           <CheckCircle2 className="w-4 h-4 text-green-500" />
+                         </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {myActions.filter(i => i.status === activeTab).length === 0 && (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    {activeTab === 'open' && "No pending tasks."}
+                    {activeTab === 'in_progress' && "No tasks in progress."}
+                    {activeTab === 'done' && "No completed tasks."}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -148,13 +246,18 @@ export function FounderDashboard() {
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Facilities & Labs</CardTitle>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/founder/facilities')}
+              >
                 Book New
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {facilities.slice(0, 2).map(facility => <div key={facility.id} className="flex items-center space-x-4 p-3 border border-gray-100 rounded-lg">
+                {facilities.slice(0, 2).map(facility => (
+                  <div key={facility.id} className="flex items-center space-x-4 p-3 border border-gray-100 rounded-lg">
                     <img src={facility.image} alt={facility.name} className="w-16 h-16 rounded-lg object-cover" />
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-gray-900">
@@ -169,10 +272,15 @@ export function FounderDashboard() {
                         </span>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => navigate(`/founder/facilities/${facility.id}`)}
+                    >
                       View
                     </Button>
-                  </div>)}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -183,13 +291,18 @@ export function FounderDashboard() {
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Mentors & Experts</CardTitle>
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate('/founder/mentors')}
+              >
                 View All
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mentors.map(mentor => <div key={mentor.id} className="flex items-center justify-between">
+                {mentors.map(mentor => (
+                  <div key={mentor.id} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <img src={mentor.image} alt={mentor.name} className="w-10 h-10 rounded-full" />
                       <div>
@@ -201,10 +314,15 @@ export function FounderDashboard() {
                         </p>
                       </div>
                     </div>
-                    <Button variant="secondary" size="sm">
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => navigate(`/founder/mentors/${mentor.id}`)}
+                    >
                       Request
                     </Button>
-                  </div>)}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -215,7 +333,9 @@ export function FounderDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Reviews & Documents</CardTitle>
-              <Button>Submit Monthly Review</Button>
+              <Button onClick={() => navigate('/founder/reviews')}>
+                Submit Review
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -230,7 +350,8 @@ export function FounderDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reviews.map(review => <tr key={review.id} className="border-b border-gray-100 last:border-0">
+                    {reviews.map(review => (
+                      <tr key={review.id} className="border-b border-gray-100 last:border-0">
                         <td className="px-4 py-3 font-medium text-gray-900">
                           {review.projectName}
                         </td>
@@ -244,11 +365,17 @@ export function FounderDashboard() {
                           {review.deadline}
                         </td>
                         <td className="px-4 py-3">
-                          <Button variant="ghost" size="sm">
+                          {/* UPDATED BUTTON */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => navigate('/founder/reviews')}
+                          >
                             View Details
                           </Button>
                         </td>
-                      </tr>)}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -256,5 +383,53 @@ export function FounderDashboard() {
           </Card>
         </motion.div>
       </motion.div>
-    </DashboardLayout>;
+
+      {/* Add Action Item Modal */}
+      <Modal
+        isOpen={showActionModal}
+        onClose={() => setShowActionModal(false)}
+        title="Add Action Item"
+        size="sm"
+      >
+        <form onSubmit={handleAddAction} className="space-y-4">
+          <Input 
+            label="Action Description" 
+            placeholder="e.g. Upload Pitch Deck"
+            value={newAction.title}
+            onChange={(e) => setNewAction({...newAction, title: e.target.value})}
+            required
+          />
+          
+          <Select
+            label="Priority"
+            value={newAction.priority}
+            onChange={(e) => setNewAction({...newAction, priority: e.target.value})}
+            options={[
+              { value: 'high', label: 'High (Red)' },
+              { value: 'medium', label: 'Medium (Yellow)' },
+              { value: 'low', label: 'Low (Green)' }
+            ]}
+          />
+
+          <Input 
+            label="Deadline" 
+            type="date"
+            value={newAction.dueDate}
+            onChange={(e) => setNewAction({...newAction, dueDate: e.target.value})}
+            required
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowActionModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              Save Action
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+    </DashboardLayout>
+  );
 }

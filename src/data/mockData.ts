@@ -93,7 +93,80 @@ export const airlQuestions: Question[] = [{
   category: 'Target Market Engagement',
   text: 'Have initial customer interviews been conducted?',
   required: true
-}];
+},
+{
+    id: 'q401',
+    airlLevel: 4,
+    category: 'Technology',
+    text: 'Has the system/subsystem been validated in a laboratory environment?',
+    required: true
+  },
+  {
+    id: 'q402',
+    airlLevel: 4,
+    category: 'Product Engineering',
+    text: 'Is the functional prototype fully integrated and tested?',
+    required: true
+  },
+  {
+    id: 'q403',
+    airlLevel: 4,
+    category: 'Market Research',
+    text: 'Have you completed a detailed competitive landscape analysis?',
+    required: true
+  },
+  {
+    id: 'q404',
+    airlLevel: 4,
+    category: 'Organisation Structure',
+    text: 'Are key technical leads (CTO/Head of Eng) onboarded full-time?',
+    required: true
+  },
+  {
+    id: 'q405',
+    airlLevel: 4,
+    category: 'Target Market Engagement',
+    text: 'Have you secured Letters of Intent (LOIs) for pilot programs?',
+    required: true
+  },
+
+  // --- NEW: AIRL Level 6 Questions (For projects currently at Level 5) ---
+  {
+    id: 'q601',
+    airlLevel: 6,
+    category: 'Technology',
+    text: 'Has the prototype been demonstrated in a relevant operational environment?',
+    required: true
+  },
+  {
+    id: 'q602',
+    airlLevel: 6,
+    category: 'Product Engineering',
+    text: 'Has the "Design for Manufacturing" (DFM) process been initiated?',
+    required: true
+  },
+  {
+    id: 'q603',
+    airlLevel: 6,
+    category: 'Market Research',
+    text: 'Has the pricing model been validated with paying customers?',
+    required: true
+  },
+  {
+    id: 'q604',
+    airlLevel: 6,
+    category: 'Organisation Structure',
+    text: 'Is the sales or business development team established?',
+    required: true
+  },
+  {
+    id: 'q605',
+    airlLevel: 6,
+    category: 'Target Market Engagement',
+    text: 'Are there active paid pilots or early adopter sales?',
+    required: true
+  }
+];
 export const actionItems: ActionItem[] = [{
   id: 'a1',
   title: 'Submit AIRL 3 Evidence',
