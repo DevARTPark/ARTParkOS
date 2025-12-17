@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
-import { Header, HeaderUser } from "./Header"; // Import HeaderUser type
+import { Header, HeaderUser } from "./Header"; 
 import { Role } from "../../types";
 import { motion } from "framer-motion";
 
@@ -21,7 +21,7 @@ export function DashboardLayout({
   // State to manage sidebar collapse
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Explicitly type the state as HeaderUser so 'role' can be any string (e.g. "Supplier Partner")
+  // Explicitly type the state as HeaderUser
   const [user, setUser] = useState<HeaderUser>({
     name: "Loading...",
     role: role,
@@ -35,7 +35,7 @@ export function DashboardLayout({
         const parsed = JSON.parse(savedProfile);
         setUser({
           name: parsed.name || "Supplier Account",
-          role: "Supplier Partner", // Now valid because HeaderUser.role is string
+          role: "Supplier Partner",
           avatar: parsed.logoDataUrl,
         });
       } else {
@@ -75,7 +75,8 @@ export function DashboardLayout({
           isCollapsed ? "ml-20" : "ml-64"
         }`}
       >
-        <Header title={title} user={user} />
+        {/* Pass userRole prop here */}
+        <Header title={title} user={user} userRole={role} />
 
         <main className="flex-1 p-8 overflow-y-auto">
           <motion.div
