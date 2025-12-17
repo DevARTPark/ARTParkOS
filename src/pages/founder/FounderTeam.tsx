@@ -5,6 +5,11 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { Input, Textarea } from '../../components/ui/Input';
+
+// Import Shared Data
+import { actionItems } from '../../data/mockData';
+import { teams as initialTeams, initialTasks, members } from '../../data/teamData';
+
 import { 
   Users, 
   UserPlus, 
@@ -13,79 +18,75 @@ import {
   Circle, 
   Clock, 
   MoreHorizontal,
-  Plus,
-  Search,
-  Zap,
-  BarChart3
+  Plus, 
+  Search, 
+  Zap, 
+  BarChart3,
+  X 
 } from 'lucide-react';
-
-// --- Mock Data ---
-
-const teams = [
-  {
-    id: 't1',
-    name: 'Product Engineering',
-    lead: 'Sarah Jenkins',
-    members: 6,
-    workload: 85, // percentage
-    expertise: ['React', 'Node.js', 'IoT Integration'],
-    avatar: 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=0D8ABC&color=fff'
-  },
-  {
-    id: 't2',
-    name: 'R&D / Innovation',
-    lead: 'Dr. Arinze Okafor',
-    members: 4,
-    workload: 40,
-    expertise: ['Material Science', 'Prototyping', 'Patents'],
-    avatar: 'https://ui-avatars.com/api/?name=Arinze+Okafor&background=6D28D9&color=fff'
-  },
-  {
-    id: 't3',
-    name: 'Marketing & Sales',
-    lead: 'Priya Mehta',
-    members: 3,
-    workload: 65,
-    expertise: ['GTM Strategy', 'Digital Ads', 'Partnerships'],
-    avatar: 'https://ui-avatars.com/api/?name=Priya+Mehta&background=BE185D&color=fff'
-  }
-];
-
-const initialTasks = [
-  { id: 1, title: 'Finalize IoT Sensor Specs', team: 'Product Engineering', assignee: 'Sarah Jenkins', status: 'In Progress', priority: 'High', due: 'Oct 24' },
-  { id: 2, title: 'Q3 Market Research Report', team: 'Marketing & Sales', assignee: 'Priya Mehta', status: 'Done', priority: 'Medium', due: 'Oct 20' },
-  { id: 3, title: 'Drone Battery Stress Test', team: 'R&D / Innovation', assignee: 'Dr. Arinze', status: 'To Do', priority: 'High', due: 'Nov 01' },
-];
-
-const members = [
-  { id: 1, name: 'Sarah Jenkins', role: 'CTO', team: 'Product Engineering', status: 'Busy', skills: ['System Arch', 'Leadership'] },
-  { id: 2, name: 'Mike Chen', role: 'Senior Dev', team: 'Product Engineering', status: 'Available', skills: ['React', 'Python'] },
-  { id: 3, name: 'Dr. Arinze', role: 'Head of R&D', team: 'R&D', status: 'In Meeting', skills: ['Physics', 'Research'] },
-];
-
-// --- Components ---
 
 export function FounderTeam() {
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // State for Data
+  const [myTeams, setMyTeams] = useState(initialTeams);
   const [tasks, setTasks] = useState(initialTasks);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', team: '', priority: 'Medium' });
 
-  // Handle creating a new task
+  // Modals State
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false); // <--- NEW STATE
+
+  // Form State
+  const [newTask, setNewTask] = useState({ title: '', team: '', priority: 'Medium' });
+  const [newTeam, setNewTeam] = useState({ name: '', lead: '', expertise: '' }); // <--- NEW STATE
+
+  // --- Handlers ---
+
   const handleAssignTask = () => {
     if (!newTask.title || !newTask.team) return;
+    
     const task = {
       id: tasks.length + 1,
       title: newTask.title,
       team: newTask.team,
-      assignee: 'Unassigned', // Simplified for demo
+      assignee: 'Unassigned', 
       status: 'To Do',
       priority: newTask.priority,
-      due: 'TBD'
+      due: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     };
+    
     setTasks([...tasks, task]);
+
+    // Sync with Dashboard Actions
+    const dashboardAction = {
+      id: `team-task-${Date.now()}`,
+      title: `${newTask.title} (${newTask.team})`,
+      status: 'open',
+      priority: newTask.priority.toLowerCase(),
+      dueDate: new Date().toISOString().split('T')[0]
+    };
+    actionItems.unshift(dashboardAction);
+
     setShowAssignModal(false);
     setNewTask({ title: '', team: '', priority: 'Medium' });
+  };
+
+  const handleAddTeam = () => {
+    if (!newTeam.name || !newTeam.lead) return;
+
+    const teamToAdd = {
+      id: `t-new-${Date.now()}`,
+      name: newTeam.name,
+      lead: newTeam.lead,
+      members: 1, // Default to 1 (the lead)
+      workload: 0, // Fresh team has 0 workload
+      expertise: newTeam.expertise.split(',').map(s => s.trim()).filter(s => s), // Split comma-separated string
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newTeam.lead)}&background=random&color=fff`
+    };
+
+    setMyTeams([...myTeams, teamToAdd]);
+    setShowAddTeamModal(false);
+    setNewTeam({ name: '', lead: '', expertise: '' });
   };
 
   return (
@@ -101,15 +102,24 @@ export function FounderTeam() {
           activeTab={activeTab} 
           onChange={setActiveTab} 
         />
-        <Button onClick={() => setShowAssignModal(true)} leftIcon={<Plus className="w-4 h-4" />}>
-          Assign New Work
-        </Button>
+        <div className="flex gap-2">
+          {/* Quick Add Team Button (Optional, also available via card) */}
+          {activeTab === 'overview' && (
+            <Button variant="outline" onClick={() => setShowAddTeamModal(true)} leftIcon={<UserPlus className="w-4 h-4" />}>
+              Add Team
+            </Button>
+          )}
+          <Button onClick={() => setShowAssignModal(true)} leftIcon={<Plus className="w-4 h-4" />}>
+            Assign New Work
+          </Button>
+        </div>
       </div>
 
       {/* --- Tab 1: Teams Overview --- */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {teams.map((team) => (
+          {/* Render Teams from State */}
+          {myTeams.map((team) => (
             <Card key={team.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
@@ -144,8 +154,8 @@ export function FounderTeam() {
                 <div className="mb-6">
                   <p className="text-xs text-gray-400 uppercase font-semibold mb-2">Core Expertise</p>
                   <div className="flex flex-wrap gap-2">
-                    {team.expertise.map((skill) => (
-                      <span key={skill} className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded border border-gray-200">
+                    {team.expertise.map((skill, idx) => (
+                      <span key={idx} className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded border border-gray-200">
                         {skill}
                       </span>
                     ))}
@@ -164,10 +174,13 @@ export function FounderTeam() {
             </Card>
           ))}
           
-          {/* Add New Team Card */}
-          <div className="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:bg-gray-50 cursor-pointer min-h-[280px]">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-              <UserPlus className="w-6 h-6 text-gray-400" />
+          {/* Add New Team Card - Now Functional */}
+          <div 
+            onClick={() => setShowAddTeamModal(true)} // <--- ADDED CLICK HANDLER
+            className="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-500 transition-all cursor-pointer min-h-[280px]"
+          >
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-110">
+              <UserPlus className="w-6 h-6" />
             </div>
             <p className="font-medium">Create New Team</p>
           </div>
@@ -277,13 +290,13 @@ export function FounderTeam() {
         </Card>
       )}
 
-      {/* --- Assign Task Modal (Simplified Overlay) --- */}
+      {/* --- MODAL 1: Assign Task --- */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h3 className="font-semibold text-lg">Assign New Work</h3>
-              <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
             </div>
             <div className="p-6 space-y-4">
               <Input 
@@ -300,7 +313,7 @@ export function FounderTeam() {
                   onChange={(e) => setNewTask({...newTask, team: e.target.value})}
                 >
                   <option value="">Select a Team...</option>
-                  {teams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  {myTeams.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
               </div>
               <div>
@@ -325,6 +338,42 @@ export function FounderTeam() {
             <div className="p-4 bg-gray-50 flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowAssignModal(false)}>Cancel</Button>
               <Button onClick={handleAssignTask}>Assign Task</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: Add New Team (NEW) --- */}
+      {showAddTeamModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Create New Team</h3>
+              <button onClick={() => setShowAddTeamModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input 
+                label="Team Name" 
+                placeholder="E.g. Logistics & Operations" 
+                value={newTeam.name}
+                onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
+              />
+              <Input 
+                label="Team Lead Name" 
+                placeholder="E.g. John Doe" 
+                value={newTeam.lead}
+                onChange={(e) => setNewTeam({...newTeam, lead: e.target.value})}
+              />
+              <Input 
+                label="Core Expertise (comma separated)" 
+                placeholder="E.g. Supply Chain, Fleet Management" 
+                value={newTeam.expertise}
+                onChange={(e) => setNewTeam({...newTeam, expertise: e.target.value})}
+              />
+            </div>
+            <div className="p-4 bg-gray-50 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowAddTeamModal(false)}>Cancel</Button>
+              <Button onClick={handleAddTeam}>Create Team</Button>
             </div>
           </div>
         </div>
