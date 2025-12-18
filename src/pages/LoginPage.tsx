@@ -9,6 +9,9 @@ export default function LoginPage() {
   const redirect =
     searchParams.get("redirect") || searchParams.get("next") || "/";
 
+  // Get the Expected Role from URL
+  const expectedRole = searchParams.get("expectedRole");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -33,8 +36,15 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      // 2. Login Success: Save Token & User Info
-      // Saving as 'artpark_user' to match the rest of your app's expectations
+      // 2. STRICT SECURITY CHECK: Validate Role
+      const actualRole = data.user.role;
+
+      if (expectedRole && expectedRole !== actualRole) {
+        // Generic error message as requested to avoid leaking role info
+        throw new Error("Invalid credentials");
+      }
+
+      // 3. Login Success: Save Token & User Info
       localStorage.setItem(
         "artpark_user",
         JSON.stringify({
@@ -43,12 +53,21 @@ export default function LoginPage() {
         })
       );
 
-      // 3. Navigate based on Role (Smart Redirect)
-      // If a specific redirect was requested (and isn't just root), go there.
-      // Otherwise, send them to their specific Role Dashboard.
-      if (redirect && redirect !== "/") {
-        navigate(redirect);
-      } else {
+      // 4. Determine Final Path
+      let finalPath = redirect;
+
+      // Extra Safety: If they somehow logged in as Admin but are on a Founder path, fix it.
+      if (redirect.startsWith("/admin") && actualRole !== "admin") {
+        finalPath = "/founder/dashboard";
+      } else if (
+        redirect.startsWith("/reviewer") &&
+        actualRole !== "reviewer"
+      ) {
+        finalPath = "/founder/dashboard";
+      }
+
+      // If redirect was invalid or generic root, send to specific Role Dashboard
+      if (!finalPath || finalPath === "/" || finalPath === "/login") {
         const dashboardMap: Record<string, string> = {
           founder: "/founder/dashboard",
           reviewer: "/reviewer/dashboard",
@@ -57,11 +76,15 @@ export default function LoginPage() {
           supplier: "/supplier/dashboard",
           lab_owner: "/lab-owner/dashboard",
         };
-        navigate(dashboardMap[data.user.role] || "/");
+        finalPath = dashboardMap[actualRole] || "/";
       }
+
+      navigate(finalPath);
     } catch (err: any) {
       console.error(err);
       setError(err.message);
+      // Clear any partial session data
+      localStorage.removeItem("artpark_user");
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +98,6 @@ export default function LoginPage() {
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-5">
-          {/* Email Field */}
           <div>
             <label className="text-white text-sm mb-1 block">
               Email Address
@@ -91,7 +113,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Password Field with Forgot Link */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-white text-sm">Password</label>
@@ -112,14 +133,12 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-sm text-center">
               {error}
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
