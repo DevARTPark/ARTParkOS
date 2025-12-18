@@ -4,7 +4,6 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
-import { Input } from '../../components/ui/Input';
 import { 
   ClipboardCheck, 
   FileText, 
@@ -13,69 +12,25 @@ import {
   Clock, 
   AlertTriangle, 
   CheckCircle2, 
-  ArrowRight 
+  ArrowRight,
+  PlayCircle
 } from 'lucide-react';
 
-// --- Mock Data: Reviewer Work Queue ---
-const allTasks = [
-  {
-    id: 't1',
-    startup: 'GreenField Tech',
-    type: 'AIRL Assessment',
-    title: 'AIRL 3 Verification: Lab Scale Validation',
-    priority: 'High',
-    due: 'Today',
-    status: 'Pending',
-    submittedDate: 'Oct 24, 2023',
-    description: 'Verify lab results against the technical milestones for AIRL 3.'
-  },
-  {
-    id: 't2',
-    startup: 'MediDrone Systems',
-    type: 'Monthly Report',
-    title: 'October 1-Pager Review',
-    priority: 'Medium',
-    due: 'Tomorrow',
-    status: 'Pending',
-    submittedDate: 'Oct 25, 2023',
-    description: 'Review monthly progress on "Pilot Onboarding" goal.'
-  },
-  {
-    id: 't3',
-    startup: 'AgriSense IoT',
-    type: 'Quarterly Review',
-    title: 'Q3 Deep Dive & Grading',
-    priority: 'High',
-    due: 'Oct 30',
-    status: 'In Progress',
-    submittedDate: 'Oct 20, 2023',
-    description: 'Assess Q3 promises vs actuals and assign R/Y/G status.'
-  },
-  {
-    id: 't4',
-    startup: 'SolarFlow',
-    type: 'Mentorship Request',
-    title: 'Approve Mentor Request: Dr. Sharma',
-    priority: 'Low',
-    due: 'Nov 02',
-    status: 'Pending',
-    submittedDate: 'Oct 26, 2023',
-    description: 'Startup requesting specialized mentorship for material science.'
-  },
-];
+// Import Shared Data
+import { initialTasks } from '../../data/mockReviewerTasks';
 
 export function ReviewerTasks() {
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
 
-  // Filter Logic
-  const filteredTasks = allTasks.filter(task => {
+  // Filter: Only show tasks assigned to 'me'
+  const myTasks = initialTasks.filter(t => t.assigneeId === 'me');
+
+  const filteredTasks = myTasks.filter(task => {
     const matchesSearch = task.startup.toLowerCase().includes(search.toLowerCase()) || 
                           task.title.toLowerCase().includes(search.toLowerCase());
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'high_priority') return matchesSearch && task.priority === 'High';
-    if (activeTab === 'assessments') return matchesSearch && task.type === 'AIRL Assessment';
-    if (activeTab === 'reports') return matchesSearch && (task.type === 'Monthly Report' || task.type === 'Quarterly Review');
     return matchesSearch;
   });
 
@@ -89,16 +44,14 @@ export function ReviewerTasks() {
   };
 
   return (
-    <DashboardLayout role="reviewer" title="Assigned Tasks">
+    <DashboardLayout role="reviewer" title="My Assigned Tasks">
       
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <Tabs 
           tabs={[
-            { id: 'all', label: 'All Tasks' },
+            { id: 'all', label: `All Tasks (${myTasks.length})` },
             { id: 'high_priority', label: 'High Priority' },
-            { id: 'assessments', label: 'Assessments' },
-            { id: 'reports', label: 'Reports' },
           ]} 
           activeTab={activeTab} 
           onChange={setActiveTab} 
@@ -109,15 +62,12 @@ export function ReviewerTasks() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input 
               type="text" 
-              placeholder="Search startup or task..." 
+              placeholder="Search my tasks..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
             />
           </div>
-          <Button variant="outline" leftIcon={<Filter className="w-4 h-4" />}>
-            Filter
-          </Button>
         </div>
       </div>
 
@@ -125,7 +75,7 @@ export function ReviewerTasks() {
       <div className="space-y-4">
         {filteredTasks.length > 0 ? (
           filteredTasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-md transition-shadow group cursor-pointer" 
+            <Card key={task.id} className="hover:shadow-md transition-shadow group cursor-pointer border-l-4 border-l-blue-500" 
                   onClick={() => window.location.href = `/reviewer/review/${task.id}`}>
               <CardContent className="p-5">
                 <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
@@ -141,6 +91,7 @@ export function ReviewerTasks() {
                         {task.priority === 'High' && (
                           <Badge variant="danger" className="text-[10px] px-1.5 py-0 h-5">High Priority</Badge>
                         )}
+                        <Badge variant="success" className="text-[10px]">Assigned to Me</Badge>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{task.description}</p>
                       <div className="flex items-center gap-4 text-xs text-gray-400 mt-2">
@@ -148,15 +99,11 @@ export function ReviewerTasks() {
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
                           {task.startup}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center">
-                          <Clock className="w-3 h-3 mr-1" /> Submitted: {task.submittedDate}
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right: Status & Action */}
+                  {/* Right: Action */}
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
                     <div className="text-right">
                       <span className="text-xs font-medium text-gray-500 block mb-1">Due Date</span>
@@ -165,7 +112,7 @@ export function ReviewerTasks() {
                       </span>
                     </div>
                     <Button size="sm" className="w-full group-hover:bg-blue-700 transition-colors">
-                      Review <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
+                      Start Review <PlayCircle className="w-3 h-3 ml-2" />
                     </Button>
                   </div>
 
@@ -178,8 +125,10 @@ export function ReviewerTasks() {
             <div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
               <ClipboardCheck className="w-6 h-6 text-gray-400" />
             </div>
-            <h3 className="text-gray-900 font-medium">No tasks found</h3>
-            <p className="text-gray-500 text-sm mt-1">Try adjusting your filters or search query</p>
+            <h3 className="text-gray-900 font-medium">No active tasks</h3>
+            <p className="text-gray-500 text-sm mt-1">
+              Go to the <a href="/reviewer/pool" className="text-blue-600 hover:underline">Task Pool</a> to claim new work.
+            </p>
           </div>
         )}
       </div>

@@ -33,6 +33,20 @@ export function AIRLAssessment() {
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
 
   // 2. Derive Project Data
+  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  
+  // 3. Calculate Target Level (Current + 1)
+  // Example: If project is AIRL 3, we show AIRL 4 questions
+  const targetLevel = selectedProject ? selectedProject.currentAIRL + 1 : 1;
+
+  // 4. Filter Questions for Target Level
+  const relevantQuestions = airlQuestions.filter(q => q.airlLevel === targetLevel);
+  
+  // Reset index when project/level changes
+  useEffect(() => {
+    setCurrentQuestionIndex(0);
+    // Optional: Reset answers or fetch saved draft for this project
+    setCompletedQuestions([]); 
   const selectedProject =
     projects.find((p) => p.id === selectedProjectId) || projects[0];
 
@@ -51,6 +65,13 @@ export function AIRLAssessment() {
 
   const currentQuestion = relevantQuestions[currentQuestionIndex];
   const totalQuestions = relevantQuestions.length;
+  const progress = totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
+
+  // Handle Project Switch
+  const handleProjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newId = e.target.value;
+    setSelectedProjectId(newId);
+    setSearchParams({ projectId: newId }); // Update URL
   const progress =
     totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
 
@@ -62,6 +83,10 @@ export function AIRLAssessment() {
 
   const handleAnswer = (value: string) => {
     if (!currentQuestion) return;
+    setAnswers({
+      ...answers,
+      [currentQuestion.id]: value
+    });
     setAnswers({ ...answers, [currentQuestion.id]: value });
     if (!completedQuestions.includes(currentQuestion.id)) {
       setCompletedQuestions([...completedQuestions, currentQuestion.id]);
@@ -70,13 +95,13 @@ export function AIRLAssessment() {
 
   const handleNext = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
+      setCurrentQuestionIndex(prev => prev + 1);
     }
   };
 
   const handlePrev = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1);
+      setCurrentQuestionIndex(prev => prev - 1);
     }
   };
 
@@ -97,6 +122,7 @@ export function AIRLAssessment() {
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="text-xs text-gray-500">Current Status</p>
+            <p className="font-bold text-gray-900">AIRL {selectedProject.currentAIRL}</p>
             <p className="font-bold text-gray-900">
               AIRL {selectedProject.currentAIRL}
             </p>
