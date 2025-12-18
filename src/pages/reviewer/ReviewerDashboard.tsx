@@ -15,7 +15,7 @@ import {
   Filter, 
   TrendingUp,
   X,
-  Calendar as CalendarIcon
+  ArrowRight
 } from 'lucide-react';
 
 // 1. IMPORT DATA
@@ -38,11 +38,16 @@ export function ReviewerDashboard() {
   const [airlFilter, setAirlFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // --- VELOCITY CHART STATE ---
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // --- COMPARISON CHART STATE ---
+  // Default: End = Today, Start = 3 Months ago
+  const today = new Date();
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+  const [startDate, setStartDate] = useState(threeMonthsAgo.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
 
   // --- NAVIGATION HANDLER ---
-  // Navigates to Portfolio page with specific filter pre-set
   const navigateToPortfolio = (filterType: string, value: any) => {
     navigate('/reviewer/portfolio', { 
       state: { filterType, value } 
@@ -53,7 +58,6 @@ export function ReviewerDashboard() {
   const parseMockDate = (dateStr: string) => {
     const currentYear = new Date().getFullYear();
     const date = new Date(`${dateStr}, ${currentYear}`);
-    // Handle case where mock date "Oct 15" might be in the future relative to "today"
     if (date > new Date()) {
       date.setFullYear(currentYear - 1);
     }
@@ -75,29 +79,49 @@ export function ReviewerDashboard() {
   const redFlagged = reviewerStartups.filter(s => s.healthStatus === 'Red').length;
   const graduated = reviewerStartups.filter(s => s.airlLevel >= 7).length;
 
-  // --- CHART 1: QUARTERLY VELOCITY LOGIC ---
-  const velocityData = useMemo(() => {
-    const endDate = new Date(selectedDate);
-    const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 3); // 3 Months prior
+  // --- CHART 1: PROGRESSION COMPARISON LOGIC ---
+  const comparisonData = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    // Find startups reviewed/updated in this window
-    const movers = reviewerStartups.filter(s => {
-      const reviewDate = parseMockDate(s.lastReviewDate);
-      return reviewDate >= startDate && reviewDate <= endDate;
+    // Initialize counts for levels 1-9
+    const counts = Array.from({ length: 9 }, (_, i) => ({
+      name: `${i + 1}`,
+      startCount: 0,
+      endCount: 0
+    }));
+
+    reviewerStartups.forEach(startup => {
+      const reviewDate = parseMockDate(startup.lastReviewDate);
+      const currentLevel = startup.airlLevel;
+
+      // Logic for "End Date" (Current Status at End Date)
+      if (reviewDate <= end) {
+        if (currentLevel >= 1 && currentLevel <= 9) {
+          counts[currentLevel - 1].endCount++;
+        }
+      }
+
+      // Logic for "Start Date" (Simulated Historical Status)
+      if (reviewDate <= start) {
+        // Reviewed BEFORE start date -> They were already at current level
+        if (currentLevel >= 1 && currentLevel <= 9) {
+          counts[currentLevel - 1].startCount++;
+        }
+      } else if (reviewDate > start && reviewDate <= end) {
+        // Reviewed BETWEEN start and end -> They moved UP recently.
+        // Assume they were at (Current Level - 1) on the Start Date.
+        const prevLevel = currentLevel - 1;
+        if (prevLevel >= 1) {
+          counts[prevLevel - 1].startCount++;
+        }
+      }
     });
 
-    // Map counts to levels 1-9
-    return Array.from({ length: 9 }, (_, i) => {
-      const level = i + 1;
-      return {
-        name: `${level}`,
-        count: movers.filter(s => s.airlLevel === level).length
-      };
-    });
-  }, [selectedDate, reviewerStartups]);
+    return counts;
+  }, [startDate, endDate, reviewerStartups]);
 
-  // --- CHART 2: CURRENT AIRL SNAPSHOT LOGIC ---
+  // --- CHART 2: CURRENT SNAPSHOT ---
   const snapshotData = useMemo(() => {
     return Array.from({ length: 9 }, (_, i) => {
       const level = i + 1;
@@ -108,7 +132,6 @@ export function ReviewerDashboard() {
     });
   }, [reviewerStartups]);
 
-  // Unique Domains for Filter Dropdown
   const uniqueDomains = Array.from(new Set(reviewerStartups.map(s => s.domain)));
 
   return (
@@ -131,17 +154,15 @@ export function ReviewerDashboard() {
         </div>
         <Button 
           size="sm" 
-          className="h-7 text-xs bg-white text-black border-none hover:bg-blue-600 hover:text-white transition-colors"
+          className="h-7 text-xs bg-blue text-blac border-none hover:bg-blue-600 hover:text-white transition-colors"
           onClick={() => navigate('/reviewer/tasks')} 
         >
           View All Tasks
         </Button>
       </div>
 
-      {/* 2. Key Metrics Row (Interactive) */}
+      {/* 2. Key Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        
-        {/* Metric 1: Total Startups */}
         <Card 
           className="border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => navigateToPortfolio('all', null)}
@@ -154,10 +175,8 @@ export function ReviewerDashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Metric 2: Pending Reviews */}
         <Card 
-          className="border-l-4 border-l-yellow-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="border-l-4 border-l-yellow-500 cursor-pointer hover:bg-gray-50 transition-colors" 
           onClick={() => navigateToPortfolio('pending', true)}
         >
           <CardContent className="p-6">
@@ -168,10 +187,8 @@ export function ReviewerDashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Metric 3: Red Flagged */}
         <Card 
-          className="border-l-4 border-l-red-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="border-l-4 border-l-red-500 cursor-pointer hover:bg-gray-50 transition-colors" 
           onClick={() => navigateToPortfolio('status', 'Red')}
         >
           <CardContent className="p-6">
@@ -182,10 +199,8 @@ export function ReviewerDashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Metric 4: Graduated */}
         <Card 
-          className="border-l-4 border-l-green-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="border-l-4 border-l-green-500 cursor-pointer hover:bg-gray-50 transition-colors" 
           onClick={() => navigateToPortfolio('graduated', true)}
         >
           <CardContent className="p-6">
@@ -201,73 +216,82 @@ export function ReviewerDashboard() {
       {/* 3. Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         
-        {/* CHART 1: Quarterly Velocity */}
+        {/* CHART 1: PROGRESSION COMPARISON (New Requirement) */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Quarterly Progression Velocity</CardTitle>
-              <p className="text-xs text-gray-500 mt-1">Startups achieving new AIRL levels</p>
-            </div>
-            {/* Date Picker */}
-            <div className="flex items-center space-x-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-              <CalendarIcon className="w-4 h-4 text-gray-400" />
-              <span className="text-xs text-gray-500 font-medium mr-1">End:</span>
-              <input 
-                type="date" 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold text-gray-700 focus:ring-0 cursor-pointer outline-none w-28"
-              />
+          <CardHeader>
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Progression Comparison</CardTitle>
+                  <p className="text-xs text-gray-500 mt-1">Comparing AIRL distribution (Start vs End Date)</p>
+                </div>
+              </div>
+              
+              {/* Dual Date Pickers */}
+              <div className="flex items-center justify-end gap-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Start</span>
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-white border border-gray-200 rounded px-2 py-1 text-xs font-medium text-gray-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <ArrowRight className="w-3 h-3 text-gray-400" />
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">End</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-white border border-gray-200 rounded px-2 py-1 text-xs font-medium text-gray-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="h-72">
-            {velocityData.every(d => d.count === 0) ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <Activity className="w-8 h-8 mb-2 opacity-50" />
-                <p className="text-sm">No progression recorded in this 3-month window.</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={velocityData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    label={{ value: 'AIRL Level Achieved', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
-                  />
-                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
-                  <RechartsTooltip 
-                    cursor={{ fill: '#f3f4f6' }} 
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white p-2 border border-gray-100 shadow-lg rounded-lg text-xs">
-                            <p className="font-bold text-gray-900">AIRL {label}</p>
-                            <p className="text-green-600 font-bold">
-                              +{payload[0].value} Startups
-                            </p>
-                            <p className="text-gray-400 mt-1">Moved in selected quarter</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#10b981" 
-                    radius={[4, 4, 0, 0]} 
-                    barSize={30}
-                    name="Startups"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  label={{ value: 'AIRL Level', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                />
+                <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f3f4f6' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend 
+                  verticalAlign="top" 
+                  align="right" 
+                  iconType="circle" 
+                  wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
+                />
+                <Bar 
+                  dataKey="startCount" 
+                  name="Start Date" 
+                  fill="#94a3b8" // Grey for historical
+                  radius={[4, 4, 0, 0]} 
+                  barSize={20}
+                />
+                <Bar 
+                  dataKey="endCount" 
+                  name="End Date" 
+                  fill="#3b82f6" // Blue for current
+                  radius={[4, 4, 0, 0]} 
+                  barSize={20}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* CHART 2: Current AIRL Snapshot (With Interaction) */}
+        {/* CHART 2: Current AIRL Snapshot (Maintained) */}
         <Card>
           <CardHeader>
             <CardTitle>AIRL Progression Pipeline</CardTitle>
@@ -275,7 +299,7 @@ export function ReviewerDashboard() {
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={snapshotData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+              <BarChart data={snapshotData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="name" 
@@ -288,7 +312,6 @@ export function ReviewerDashboard() {
                   cursor={{ fill: '#f3f4f6' }} 
                   labelFormatter={(label) => `AIRL Level ${label}`}
                 />
-                {/* INTERACTIVE BAR: Adds click event to navigate to specific level */}
                 <Bar 
                   dataKey="count" 
                   name="Startups" 
@@ -307,7 +330,7 @@ export function ReviewerDashboard() {
       {/* 4. Startup Health & Review Queue (Filtered Table) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left: Detailed Startup List */}
+        {/* Left Column: Startup List */}
         <div className="lg:col-span-2">
           <Card className="h-full">
             <CardHeader className="flex flex-col space-y-4">
@@ -437,7 +460,7 @@ export function ReviewerDashboard() {
           </Card>
         </div>
 
-        {/* Right: Assigned Task Queue */}
+        {/* Right Column: Review Queue */}
         <div>
           <Card className="h-full border-blue-100 bg-blue-50/30">
             <CardHeader>
