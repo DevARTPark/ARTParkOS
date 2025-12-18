@@ -62,6 +62,7 @@ import { ReviewerSettings } from "./pages/reviewer/ReviewerSettings";
 import { ReviewerAssessmentConfig } from "./pages/reviewer/ReviewerAssessmentConfig";
 import { ReviewerInvitePage } from "./pages/reviewer/ReviewerInvitePage";
 import { ReviewerResources } from "./pages/reviewer/ReviewerResources";
+import { ReviewerTaskPool } from "./pages/reviewer/ReviewerTaskPool";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -597,6 +598,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerResources />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/pool"
+          element={
+            <ProtectedRoute>
+              <ReviewerTaskPool />
             </ProtectedRoute>
           }
         />

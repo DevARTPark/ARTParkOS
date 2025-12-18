@@ -72,14 +72,19 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/reviewer/dashboard",
           },
           {
+            icon: ClipboardCheck, 
+            label: "My Tasks", // Renamed from "Assigned Tasks"
+            path: "/reviewer/tasks",
+          },
+          {
+            icon: FolderKanban, // New Icon
+            label: "Task Pool", // New Link
+            path: "/reviewer/pool",
+          },
+          {
             icon: UserPlus, // <--- NEW ITEM
             label: "Invite Members",
             path: "/reviewer/invite",
-          },
-          {
-            icon: ClipboardCheck,
-            label: "Assigned Tasks",
-            path: "/reviewer/tasks",
           },
           { icon: PieChart, label: "Portfolio", path: "/reviewer/portfolio" },
           { icon: Building2, label: "Resources", path: "/reviewer/resources" },

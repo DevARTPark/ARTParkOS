@@ -1,68 +1,120 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
+  ResponsiveContainer, Tooltip as RechartsTooltip, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
 } from 'recharts';
 import { 
   Activity, 
-  AlertCircle, 
-  CheckCircle2, 
-  Clock, 
-  FileText, 
-  Filter, 
   Layout, 
-  MoreHorizontal, 
   Search, 
-  TrendingUp 
+  Filter, 
+  TrendingUp,
+  X,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 
-// --- Mock Data ---
+// 1. IMPORT DATA
+import { reviewerStartups } from '../../data/reviewerData';
 
-// 1. Ticker / Notifications
+// --- Local Mock Data for Ticker ---
 const urgentUpdates = [
   { id: 1, type: 'assessment', text: "GreenField Tech submitted AIRL 3 Assessment", time: "2 hrs ago", link: "/reviewer/review/r1" },
   { id: 2, type: 'report', text: "MediDrone submitted Oct Monthly 1-Pager", time: "5 hrs ago", link: "/reviewer/review/r2" },
   { id: 3, type: 'alert', text: "AgriSense missed Q3 Goal: 'Pilot Deployment'", time: "1 day ago", link: "#" },
 ];
 
-// 2. Stats
-const domainData = [
-  { name: 'Robotics', value: 35 },
-  { name: 'AI/ML', value: 25 },
-  { name: 'MedTech', value: 20 },
-  { name: 'AgriTech', value: 10 },
-  { name: 'CleanTech', value: 10 },
-];
-
-const airlDistribution = [
-  { name: 'AIRL 1-2', count: 5 },
-  { name: 'AIRL 3-4', count: 12 },
-  { name: 'AIRL 5-6', count: 8 },
-  { name: 'AIRL 7-9', count: 3 },
-];
-
-// 3. Startup List with R/Y/G Tags
-const startupHealth = [
-  { id: 's1', name: 'GreenField Tech', domain: 'AgriTech', airl: 3, status: 'Green', lastReview: 'Oct 15', trend: 'up' },
-  { id: 's2', name: 'MediDrone', domain: 'MedTech', airl: 5, status: 'Yellow', lastReview: 'Sep 30', trend: 'flat' },
-  { id: 's3', name: 'AutoBotics', domain: 'Robotics', airl: 2, status: 'Red', lastReview: 'Oct 01', trend: 'down' },
-  { id: 's4', name: 'HealthAI', domain: 'AI/ML', airl: 4, status: 'Green', lastReview: 'Oct 10', trend: 'up' },
-  { id: 's5', name: 'SolarFlow', domain: 'CleanTech', airl: 6, status: 'Yellow', lastReview: 'Sep 25', trend: 'flat' },
-];
-
-const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
-
 export function ReviewerDashboard() {
-  const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
+  
+  // --- STATE ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [domainFilter, setDomainFilter] = useState('all');
+  const [airlFilter, setAirlFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // --- VELOCITY CHART STATE ---
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // --- NAVIGATION HANDLER ---
+  // Navigates to Portfolio page with specific filter pre-set
+  const navigateToPortfolio = (filterType: string, value: any) => {
+    navigate('/reviewer/portfolio', { 
+      state: { filterType, value } 
+    });
+  };
+
+  // --- HELPER: Parse Mock Data Dates ---
+  const parseMockDate = (dateStr: string) => {
+    const currentYear = new Date().getFullYear();
+    const date = new Date(`${dateStr}, ${currentYear}`);
+    // Handle case where mock date "Oct 15" might be in the future relative to "today"
+    if (date > new Date()) {
+      date.setFullYear(currentYear - 1);
+    }
+    return date;
+  };
+
+  // --- FILTERING LOGIC (For Table) ---
+  const filteredStartups = reviewerStartups.filter(startup => {
+    const matchesSearch = startup.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDomain = domainFilter === 'all' || startup.domain === domainFilter;
+    const matchesAirl = airlFilter === 'all' || startup.airlLevel.toString() === airlFilter;
+    const matchesStatus = statusFilter === 'all' || startup.healthStatus === statusFilter;
+    return matchesSearch && matchesDomain && matchesAirl && matchesStatus;
+  });
+
+  // --- METRIC CALCULATIONS ---
+  const totalStartups = reviewerStartups.length;
+  const pendingReviews = reviewerStartups.filter(s => s.hasPendingReview).length;
+  const redFlagged = reviewerStartups.filter(s => s.healthStatus === 'Red').length;
+  const graduated = reviewerStartups.filter(s => s.airlLevel >= 7).length;
+
+  // --- CHART 1: QUARTERLY VELOCITY LOGIC ---
+  const velocityData = useMemo(() => {
+    const endDate = new Date(selectedDate);
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 3); // 3 Months prior
+
+    // Find startups reviewed/updated in this window
+    const movers = reviewerStartups.filter(s => {
+      const reviewDate = parseMockDate(s.lastReviewDate);
+      return reviewDate >= startDate && reviewDate <= endDate;
+    });
+
+    // Map counts to levels 1-9
+    return Array.from({ length: 9 }, (_, i) => {
+      const level = i + 1;
+      return {
+        name: `${level}`,
+        count: movers.filter(s => s.airlLevel === level).length
+      };
+    });
+  }, [selectedDate, reviewerStartups]);
+
+  // --- CHART 2: CURRENT AIRL SNAPSHOT LOGIC ---
+  const snapshotData = useMemo(() => {
+    return Array.from({ length: 9 }, (_, i) => {
+      const level = i + 1;
+      return {
+        name: `${level}`,
+        count: reviewerStartups.filter(s => s.airlLevel === level).length
+      };
+    });
+  }, [reviewerStartups]);
+
+  // Unique Domains for Filter Dropdown
+  const uniqueDomains = Array.from(new Set(reviewerStartups.map(s => s.domain)));
 
   return (
     <DashboardLayout role="reviewer" title="Program & Innovation Dashboard">
       
-      {/* 1. Top Task Bar (Live Updates) */}
+      {/* 1. Top Task Bar */}
       <div className="bg-blue-900 text-white rounded-lg p-3 mb-8 shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="flex items-center space-x-3 overflow-hidden">
           <div className="bg-blue-700 p-1.5 rounded-md animate-pulse">
@@ -77,45 +129,69 @@ export function ReviewerDashboard() {
             ))}
           </div>
         </div>
-        <Button size="sm" variant="secondary" className="h-7 text-xs bg-blue-700 text-white border-none hover:bg-blue-600">
+        <Button 
+          size="sm" 
+          className="h-7 text-xs bg-white text-black border-none hover:bg-blue-600 hover:text-white transition-colors"
+          onClick={() => navigate('/reviewer/tasks')} 
+        >
           View All Tasks
         </Button>
       </div>
 
-      {/* 2. Key Metrics Row */}
+      {/* 2. Key Metrics Row (Interactive) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
+        
+        {/* Metric 1: Total Startups */}
+        <Card 
+          className="border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => navigateToPortfolio('all', null)}
+        >
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 font-medium">Total Startups</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-bold text-gray-900">28</h3>
+              <h3 className="text-3xl font-bold text-gray-900">{totalStartups}</h3>
               <Badge variant="success" className="mb-1">+2 this month</Badge>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-yellow-500">
+
+        {/* Metric 2: Pending Reviews */}
+        <Card 
+          className="border-l-4 border-l-yellow-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => navigateToPortfolio('pending', true)}
+        >
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 font-medium">Pending Reviews</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-bold text-gray-900">5</h3>
-              <span className="text-xs text-gray-400 mb-1">3 High Priority</span>
+              <h3 className="text-3xl font-bold text-gray-900">{pendingReviews}</h3>
+              <span className="text-xs text-gray-400 mb-1">High Priority</span>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+
+        {/* Metric 3: Red Flagged */}
+        <Card 
+          className="border-l-4 border-l-red-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => navigateToPortfolio('status', 'Red')}
+        >
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 font-medium">Red Flagged</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-bold text-gray-900">3</h3>
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-red-600 hover:bg-red-50">View</Button>
+              <h3 className="text-3xl font-bold text-gray-900">{redFlagged}</h3>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-red-600 hover:bg-red-100">View</Button>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-green-500">
+
+        {/* Metric 4: Graduated */}
+        <Card 
+          className="border-l-4 border-l-green-500 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => navigateToPortfolio('graduated', true)}
+        >
           <CardContent className="p-6">
             <p className="text-sm text-gray-500 font-medium">Graduated (AIRL 7+)</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-bold text-gray-900">8</h3>
+              <h3 className="text-3xl font-bold text-gray-900">{graduated}</h3>
               <TrendingUp className="w-5 h-5 text-green-500 mb-1" />
             </div>
           </CardContent>
@@ -124,67 +200,184 @@ export function ReviewerDashboard() {
 
       {/* 3. Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* CHART 1: Quarterly Velocity */}
         <Card>
-          <CardHeader>
-            <CardTitle>Cohort Distribution (by Domain)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle>Quarterly Progression Velocity</CardTitle>
+              <p className="text-xs text-gray-500 mt-1">Startups achieving new AIRL levels</p>
+            </div>
+            {/* Date Picker */}
+            <div className="flex items-center space-x-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+              <CalendarIcon className="w-4 h-4 text-gray-400" />
+              <span className="text-xs text-gray-500 font-medium mr-1">End:</span>
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-gray-700 focus:ring-0 cursor-pointer outline-none w-28"
+              />
+            </div>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={domainData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {domainData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <RechartsTooltip />
-                <Legend layout="vertical" verticalAlign="middle" align="right" />
-              </PieChart>
-            </ResponsiveContainer>
+            {velocityData.every(d => d.count === 0) ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <Activity className="w-8 h-8 mb-2 opacity-50" />
+                <p className="text-sm">No progression recorded in this 3-month window.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={velocityData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    label={{ value: 'AIRL Level Achieved', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                  />
+                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                  <RechartsTooltip 
+                    cursor={{ fill: '#f3f4f6' }} 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-2 border border-gray-100 shadow-lg rounded-lg text-xs">
+                            <p className="font-bold text-gray-900">AIRL {label}</p>
+                            <p className="text-green-600 font-bold">
+                              +{payload[0].value} Startups
+                            </p>
+                            <p className="text-gray-400 mt-1">Moved in selected quarter</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#10b981" 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={30}
+                    name="Startups"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
+        {/* CHART 2: Current AIRL Snapshot (With Interaction) */}
         <Card>
           <CardHeader>
             <CardTitle>AIRL Progression Pipeline</CardTitle>
+            <p className="text-xs text-gray-500 mt-1">Current status of all active startups</p>
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={airlDistribution} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <BarChart data={snapshotData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <RechartsTooltip cursor={{ fill: '#f3f4f6' }} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  label={{ value: 'Current AIRL Level', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                />
+                <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f3f4f6' }} 
+                  labelFormatter={(label) => `AIRL Level ${label}`}
+                />
+                {/* INTERACTIVE BAR: Adds click event to navigate to specific level */}
+                <Bar 
+                  dataKey="count" 
+                  name="Startups" 
+                  fill="#3b82f6" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={30}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={(data) => navigateToPortfolio('airl', data.name)}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* 4. Startup Health & Review Queue */}
+      {/* 4. Startup Health & Review Queue (Filtered Table) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left: Detailed Startup List */}
         <div className="lg:col-span-2">
           <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Portfolio Health Status</CardTitle>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input type="text" placeholder="Search..." className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm w-40" />
+            <CardHeader className="flex flex-col space-y-4">
+              <div className="flex flex-row items-center justify-between">
+                <CardTitle>Portfolio Health Status</CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input 
+                      type="text" 
+                      placeholder="Search startups..." 
+                      className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    variant={showFilters ? 'secondary' : 'outline'} 
+                    size="sm" 
+                    leftIcon={showFilters ? <X className="w-3 h-3"/> : <Filter className="w-3 h-3" />}
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    {showFilters ? 'Close' : 'Filter'}
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm" leftIcon={<Filter className="w-3 h-3" />}>Filter</Button>
               </div>
+
+              {showFilters && (
+                <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Domain</label>
+                    <select 
+                      className="w-full text-sm border-gray-200 rounded-md py-1.5 px-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={domainFilter}
+                      onChange={(e) => setDomainFilter(e.target.value)}
+                    >
+                      <option value="all">All Domains</option>
+                      {uniqueDomains.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1 block">AIRL Level</label>
+                    <select 
+                      className="w-full text-sm border-gray-200 rounded-md py-1.5 px-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={airlFilter}
+                      onChange={(e) => setAirlFilter(e.target.value)}
+                    >
+                      <option value="all">All Levels</option>
+                      {Array.from({length: 9}, (_, i) => i + 1).map(l => (
+                        <option key={l} value={l}>Level {l}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Health Status</label>
+                    <select 
+                      className="w-full text-sm border-gray-200 rounded-md py-1.5 px-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="Green">Green (Healthy)</option>
+                      <option value="Yellow">Yellow (Warning)</option>
+                      <option value="Red">Red (Critical)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </CardHeader>
+            
             <CardContent className="p-0">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
@@ -197,34 +390,47 @@ export function ReviewerDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {startupHealth.map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-6 py-4 font-medium text-gray-900">{s.name}</td>
-                      <td className="px-6 py-4 text-gray-500">{s.domain}</td>
-                      <td className="px-6 py-4">
-                        <Badge variant="neutral">AIRL {s.airl}</Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          s.status === 'Green' ? 'bg-green-50 text-green-700 border-green-200' :
-                          s.status === 'Yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          <span className={`w-2 h-2 rounded-full mr-1.5 ${
-                            s.status === 'Green' ? 'bg-green-500' :
-                            s.status === 'Yellow' ? 'bg-amber-500' :
-                            'bg-red-500'
-                          }`}></span>
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          Manage
-                        </Button>
+                  {filteredStartups.length > 0 ? (
+                    filteredStartups.slice(0, 8).map((s) => (
+                      <tr key={s.id} className="hover:bg-gray-50 transition-colors group">
+                        <td className="px-6 py-4 font-medium text-gray-900">{s.name}</td>
+                        <td className="px-6 py-4 text-gray-500">{s.domain}</td>
+                        <td className="px-6 py-4">
+                          <Badge variant="neutral">AIRL {s.airlLevel}</Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                            s.healthStatus === 'Green' ? 'bg-green-50 text-green-700 border-green-200' :
+                            s.healthStatus === 'Yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                              s.healthStatus === 'Green' ? 'bg-green-500' :
+                              s.healthStatus === 'Yellow' ? 'bg-amber-500' :
+                              'bg-red-500'
+                            }`}></span>
+                            {s.healthStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => navigate(`/reviewer/portfolio/${s.id}`)}
+                          >
+                            Manage
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500 italic">
+                        No startups match your search or filters.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </CardContent>
@@ -241,44 +447,30 @@ export function ReviewerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Task 1 */}
-              <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer" 
-                   onClick={() => window.location.href = '/reviewer/review/r1'}>
-                <div className="flex justify-between items-start mb-2">
-                  <Badge variant="info">Assessment</Badge>
-                  <span className="text-xs text-gray-400">Due Today</span>
-                </div>
-                <h4 className="font-semibold text-gray-900">GreenField Tech</h4>
-                <p className="text-xs text-gray-500 mb-3">AIRL 3 Verification • Technology</p>
-                <div className="flex items-center justify-between border-t border-gray-50 pt-2">
-                  <div className="flex -space-x-2">
-                    <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white"></div>
-                    <div className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white"></div>
+              {reviewerStartups.filter(s => s.hasPendingReview).slice(0, 2).map(task => (
+                <div key={task.id} className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant={task.isHighPriority ? 'danger' : 'info'}>
+                      {task.isHighPriority ? 'High Priority' : 'Assessment'}
+                    </Badge>
+                    <span className="text-xs text-gray-400">Due Soon</span>
                   </div>
-                  <Button size="sm" className="h-7 text-xs">Start</Button>
+                  <h4 className="font-semibold text-gray-900">{task.name}</h4>
+                  <p className="text-xs text-gray-500 mb-3">AIRL {task.airlLevel} • {task.domain}</p>
+                  <div className="flex items-center justify-between border-t border-gray-50 pt-2">
+                    <div className="flex -space-x-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white"></div>
+                      <div className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white"></div>
+                    </div>
+                    <Button size="sm" className="h-7 text-xs">Start</Button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Task 2 */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer opacity-75">
-                <div className="flex justify-between items-start mb-2">
-                  <Badge variant="warning">Monthly</Badge>
-                  <span className="text-xs text-gray-400">Due Tomorrow</span>
-                </div>
-                <h4 className="font-semibold text-gray-900">MediDrone Systems</h4>
-                <p className="text-xs text-gray-500 mb-3">October Progress Report Review</p>
-                <div className="flex items-center justify-end border-t border-gray-50 pt-2">
-                  <Button size="sm" variant="outline" className="h-7 text-xs">View</Button>
-                </div>
-              </div>
-
-              {/* Empty State / Calendar Link */}
+              ))}
               <div className="text-center pt-4">
                 <a href="/reviewer/calendar" className="text-xs text-blue-600 font-medium hover:underline">
                   View Full Calendar
                 </a>
               </div>
-
             </CardContent>
           </Card>
         </div>
