@@ -9,26 +9,23 @@ import {
   Tooltip,
 } from "recharts";
 
-// Define the shape of the data point for type safety
-export interface AIRLChartDataPoint {
-  subject: string;
-  A: number; // The score
-  fullMark: number; // Max possible score (9)
-}
+const data = [
+  { subject: "Technology", A: 4, fullMark: 9 },
+  { subject: "Product", A: 3, fullMark: 9 },
+  { subject: "Engagement", A: 5, fullMark: 9 },
+  { subject: "Organization", A: 2, fullMark: 9 },
+  { subject: "Market", A: 4, fullMark: 9 },
+];
 
-interface AIRLRadarChartProps {
-  data: AIRLChartDataPoint[];
-}
-
-export function AIRLRadarChart({ data }: AIRLRadarChartProps) {
+export function AIRLRadarChart() {
   return (
-    <div className="w-full h-[300px]">
+    <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
           <PolarGrid stroke="#e5e7eb" />
           <PolarAngleAxis
             dataKey="subject"
-            tick={{ fill: "#6b7280", fontSize: 11, fontWeight: 500 }}
+            tick={{ fill: "#6b7280", fontSize: 12 }}
           />
           <PolarRadiusAxis
             angle={30}
@@ -37,19 +34,19 @@ export function AIRLRadarChart({ data }: AIRLRadarChartProps) {
             axisLine={false}
           />
           <Radar
-            name="AIRL Score"
+            name="Current AIRL"
             dataKey="A"
-            stroke="#2563eb"
+            stroke="#3b82f6"
+            strokeWidth={2}
             fill="#3b82f6"
-            fillOpacity={0.5}
+            fillOpacity={0.3}
           />
           <Tooltip
             contentStyle={{
               borderRadius: "8px",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+              border: "none",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
             }}
-            itemStyle={{ color: "#1d4ed8", fontWeight: 600 }}
           />
         </RadarChart>
       </ResponsiveContainer>

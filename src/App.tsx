@@ -3,7 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate,
+  Link, // Imported Link
 } from "react-router-dom";
 
 // Auth & Layout Components
@@ -71,13 +71,13 @@ import ListingsPage from "./pages/supplier/ListingsPage";
 import ListingFormPage from "./pages/supplier/ListingFormPage";
 import SupplierSettings from "./pages/supplier/SupplierSettings";
 
-// --- MENTOR PAGES (Imported & Aliased) ---
+// --- MENTOR PAGES ---
 import MentorDashboard from "./pages/mentor/MentorDashboard";
 import SchedulePage from "./pages/mentor/SchedulePage";
 import SessionListPage from "./pages/mentor/SessionListPage";
 import SessionDetailPage from "./pages/mentor/SessionDetailPage";
-import MentorProfilePage from "./pages/mentor/ProfilePage"; // Aliased to avoid conflict
-import MentorProfileEditPage from "./pages/mentor/ProfileEditPage"; // Aliased
+import MentorProfilePage from "./pages/mentor/ProfilePage";
+import MentorProfileEditPage from "./pages/mentor/ProfileEditPage";
 
 // --- LAB-OWNER PAGES ---
 import LabOwnerDashboard from "./pages/lab-owner/LabOwnerDashboard";
@@ -119,8 +119,10 @@ function RoleSelection() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Founder */}
-          <a
-            href={`/login?redirect=${encodeURIComponent("/founder/dashboard")}`}
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
+              "/founder/dashboard"
+            )}&expectedRole=founder`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -135,11 +137,13 @@ function RoleSelection() {
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Admin */}
-          <a
-            href={`/login?redirect=${encodeURIComponent("/admin/dashboard")}`}
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
+              "/admin/dashboard"
+            )}&expectedRole=admin`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -154,13 +158,13 @@ function RoleSelection() {
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Reviewer */}
-          <a
-            href={`/login?redirect=${encodeURIComponent(
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
               "/reviewer/dashboard"
-            )}`}
+            )}&expectedRole=reviewer`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -176,13 +180,13 @@ function RoleSelection() {
                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Suppliers */}
-          <a
-            href={`/login?redirect=${encodeURIComponent(
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
               "/supplier/dashboard"
-            )}`}
+            )}&expectedRole=supplier`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -197,11 +201,13 @@ function RoleSelection() {
                 Go to Suppliers <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Mentors */}
-          <a
-            href={`/login?redirect=${encodeURIComponent("/mentor/dashboard")}`}
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
+              "/mentor/dashboard"
+            )}&expectedRole=mentor`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -216,13 +222,13 @@ function RoleSelection() {
                 Go to Mentors <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Lab Facility Owners */}
-          <a
-            href={`/login?redirect=${encodeURIComponent(
+          <Link
+            to={`/login?redirect=${encodeURIComponent(
               "/lab-owner/dashboard"
-            )}`}
+            )}&expectedRole=lab_owner`}
             className="group"
           >
             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
@@ -237,7 +243,7 @@ function RoleSelection() {
                 Go to Lab Portal <ArrowRight className="ml-2 w-4 h-4" />
               </div>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -252,11 +258,12 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
+
         {/* --- FOUNDER ROUTES --- */}
         <Route
           path="/founder/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderDashboard />
             </ProtectedRoute>
           }
@@ -264,7 +271,7 @@ export function App() {
         <Route
           path="/founder/assessment"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <AIRLAssessment />
             </ProtectedRoute>
           }
@@ -272,7 +279,7 @@ export function App() {
         <Route
           path="/founder/projects"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderProjects />
             </ProtectedRoute>
           }
@@ -280,7 +287,7 @@ export function App() {
         <Route
           path="/founder/finance"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderFinance />
             </ProtectedRoute>
           }
@@ -288,7 +295,7 @@ export function App() {
         <Route
           path="/founder/my-team"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderTeam />
             </ProtectedRoute>
           }
@@ -296,7 +303,7 @@ export function App() {
         <Route
           path="/founder/reviews"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderReviews />
             </ProtectedRoute>
           }
@@ -304,7 +311,7 @@ export function App() {
         <Route
           path="/founder/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderSettings />
             </ProtectedRoute>
           }
@@ -312,16 +319,17 @@ export function App() {
         <Route
           path="/founder/ecosystem"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderOtherStartups />
             </ProtectedRoute>
           }
         />
-        {/* --- FACILITIES HUB --- */}
+
+        {/* Facilities Hub & Subpages */}
         <Route
           path="/founder/facilities"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FacilitiesHub />
             </ProtectedRoute>
           }
@@ -329,7 +337,7 @@ export function App() {
         <Route
           path="/founder/facilities/in-house"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FacilityListPage />
             </ProtectedRoute>
           }
@@ -337,7 +345,7 @@ export function App() {
         <Route
           path="/founder/facilities/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FacilityDetailPage />
             </ProtectedRoute>
           }
@@ -345,15 +353,17 @@ export function App() {
         <Route
           path="/founder/facilities/:id/booking"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FacilityBookingPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Labs */}
         <Route
           path="/founder/labs"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <TestLabListPage />
             </ProtectedRoute>
           }
@@ -361,7 +371,7 @@ export function App() {
         <Route
           path="/founder/labs/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <TestLabDetailPage />
             </ProtectedRoute>
           }
@@ -369,15 +379,17 @@ export function App() {
         <Route
           path="/founder/labs/:id/booking"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <TestLabBookingPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Mentors */}
         <Route
           path="/founder/mentors"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <MentorListPage />
             </ProtectedRoute>
           }
@@ -385,15 +397,17 @@ export function App() {
         <Route
           path="/founder/mentors/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <MentorDetailPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Software */}
         <Route
           path="/founder/software"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <SoftwareListPage />
             </ProtectedRoute>
           }
@@ -401,15 +415,17 @@ export function App() {
         <Route
           path="/founder/software/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <SoftwareDetailPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Suppliers */}
         <Route
           path="/founder/suppliers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <SupplierListPage />
             </ProtectedRoute>
           }
@@ -417,32 +433,35 @@ export function App() {
         <Route
           path="/founder/suppliers/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <SupplierDetailPage />
             </ProtectedRoute>
           }
         />
+
+        {/* Knowledge */}
         <Route
           path="/founder/knowledge-ai"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <KnowledgeAIAssistantPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/founder/project/:id" // <-- Note: singular 'project' as requested
+          path="/founder/project/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["founder"]}>
               <FounderProjectDetail />
             </ProtectedRoute>
           }
         />
+
         {/* --- ADMIN ROUTES --- */}
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -450,7 +469,7 @@ export function App() {
         <Route
           path="/admin/portfolio"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminPortfolio />
             </ProtectedRoute>
           }
@@ -458,7 +477,7 @@ export function App() {
         <Route
           path="/admin/financials"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminFinancials />
             </ProtectedRoute>
           }
@@ -466,7 +485,7 @@ export function App() {
         <Route
           path="/admin/reports"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminReports />
             </ProtectedRoute>
           }
@@ -474,7 +493,7 @@ export function App() {
         <Route
           path="/admin/network"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminNetwork />
             </ProtectedRoute>
           }
@@ -482,7 +501,7 @@ export function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminUsers />
             </ProtectedRoute>
           }
@@ -490,7 +509,7 @@ export function App() {
         <Route
           path="/admin/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminSettings />
             </ProtectedRoute>
           }
@@ -498,16 +517,17 @@ export function App() {
         <Route
           path="/admin/reviews-resources"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminReviewsResources />
             </ProtectedRoute>
           }
         />
+
         {/* --- REVIEWER ROUTES --- */}
         <Route
           path="/reviewer/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerDashboard />
             </ProtectedRoute>
           }
@@ -515,7 +535,7 @@ export function App() {
         <Route
           path="/reviewer/tasks"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerTasks />
             </ProtectedRoute>
           }
@@ -523,7 +543,7 @@ export function App() {
         <Route
           path="/reviewer/portfolio"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerPortfolio />
             </ProtectedRoute>
           }
@@ -531,7 +551,7 @@ export function App() {
         <Route
           path="/reviewer/portfolio/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerStartupDetail />
             </ProtectedRoute>
           }
@@ -539,7 +559,7 @@ export function App() {
         <Route
           path="/reviewer/resources"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerResources />
             </ProtectedRoute>
           }
@@ -547,7 +567,7 @@ export function App() {
         <Route
           path="/reviewer/users"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerUsers />
             </ProtectedRoute>
           }
@@ -555,7 +575,7 @@ export function App() {
         <Route
           path="/reviewer/calendar"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerCalendar />
             </ProtectedRoute>
           }
@@ -563,7 +583,7 @@ export function App() {
         <Route
           path="/reviewer/review/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <AssessmentReview />
             </ProtectedRoute>
           }
@@ -571,7 +591,7 @@ export function App() {
         <Route
           path="/reviewer/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerSettings />
             </ProtectedRoute>
           }
@@ -579,7 +599,7 @@ export function App() {
         <Route
           path="/reviewer/assessment-config"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerAssessmentConfig />
             </ProtectedRoute>
           }
@@ -587,24 +607,17 @@ export function App() {
         <Route
           path="/reviewer/invite"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerInvitePage />
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/reviewer/resources"
-          element={
-            <ProtectedRoute>
-              <ReviewerResources />
-            </ProtectedRoute>
-          }
-        />
+
         {/* --- SUPPLIER ROUTES --- */}
         <Route
           path="/supplier/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <SupplierDashboard />
             </ProtectedRoute>
           }
@@ -612,7 +625,7 @@ export function App() {
         <Route
           path="/supplier/profile/edit"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <ProfileEditPage />
             </ProtectedRoute>
           }
@@ -620,7 +633,7 @@ export function App() {
         <Route
           path="/supplier/profile"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <ProfilePage />
             </ProtectedRoute>
           }
@@ -628,7 +641,7 @@ export function App() {
         <Route
           path="/supplier/listings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <ListingsPage />
             </ProtectedRoute>
           }
@@ -636,7 +649,7 @@ export function App() {
         <Route
           path="/supplier/listings/new"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <ListingFormPage />
             </ProtectedRoute>
           }
@@ -644,7 +657,7 @@ export function App() {
         <Route
           path="/supplier/listings/:id/edit"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <ListingFormPage />
             </ProtectedRoute>
           }
@@ -652,16 +665,17 @@ export function App() {
         <Route
           path="/supplier/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["supplier"]}>
               <SupplierSettings />
             </ProtectedRoute>
           }
         />
+
         {/* --- MENTOR ROUTES --- */}
         <Route
           path="/mentor/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <MentorDashboard />
             </ProtectedRoute>
           }
@@ -669,7 +683,7 @@ export function App() {
         <Route
           path="/mentor/schedule"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <SchedulePage />
             </ProtectedRoute>
           }
@@ -677,7 +691,7 @@ export function App() {
         <Route
           path="/mentor/sessions"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <SessionListPage />
             </ProtectedRoute>
           }
@@ -685,7 +699,7 @@ export function App() {
         <Route
           path="/mentor/sessions/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <SessionDetailPage />
             </ProtectedRoute>
           }
@@ -693,7 +707,7 @@ export function App() {
         <Route
           path="/mentor/profile"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <MentorProfilePage />
             </ProtectedRoute>
           }
@@ -701,7 +715,7 @@ export function App() {
         <Route
           path="/mentor/profile/edit"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["mentor"]}>
               <MentorProfileEditPage />
             </ProtectedRoute>
           }
@@ -711,7 +725,7 @@ export function App() {
         <Route
           path="/lab-owner/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabOwnerDashboard />
             </ProtectedRoute>
           }
@@ -719,7 +733,7 @@ export function App() {
         <Route
           path="/lab-owner/services"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabServicesPage />
             </ProtectedRoute>
           }
@@ -727,7 +741,7 @@ export function App() {
         <Route
           path="/lab-owner/bookings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabBookingsPage />
             </ProtectedRoute>
           }
@@ -735,7 +749,7 @@ export function App() {
         <Route
           path="/lab-owner/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabSettings />
             </ProtectedRoute>
           }
@@ -743,7 +757,7 @@ export function App() {
         <Route
           path="/lab-owner/calendar"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabCalendarPage />
             </ProtectedRoute>
           }
