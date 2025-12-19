@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport'; // 1. Import this type
 
 dotenv.config();
 
@@ -18,16 +19,17 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key_123";
 
-// --- SMTP CONFIGURATION ---
+// --- SMTP CONFIGURATION (Fixed Type Error) ---
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com", // Explicit host
-    port: 465,              // Explicit port for Secure SSL
-    secure: true,           // true for 465, false for other ports
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // true for 465, false for other ports
     auth: {
         user: process.env.SMTP_EMAIL,
         pass: process.env.SMTP_PASSWORD,
     },
-});
+    family: 4, // Optional: Uncomment if you still have connection issues
+} as SMTPTransport.Options); // 2. Cast as SMTP Options
 
 async function sendEmail(to: string, subject: string, html: string) {
     try {
@@ -81,7 +83,8 @@ app.post('/api/auth/invite-user', async (req, res) => {
         });
 
         const token = await createAuthToken(user.id, 'account_activation');
-        const link = `http://localhost:5173/set-password?token=${token}&type=activation`;
+        // NOTE: In production, change localhost to your Vercel URL
+        const link = `https://artparkos.vercel.app/set-password?token=${token}&type=activation`;
 
         const emailHtml = `
       <h2>Welcome to ARTPark!</h2>
@@ -126,7 +129,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         }
 
         const token = await createAuthToken(user.id, 'password_reset');
-        const resetLink = `http://localhost:5173/set-password?token=${token}&type=reset`;
+        // NOTE: In production, change localhost to your Vercel URL
+        const resetLink = `https://artparkos.vercel.app/set-password?token=${token}&type=reset`;
 
         console.log("---------------------------------------------------");
         console.log(`🔑 PASSWORD RESET LINK FOR ${email}:`);
@@ -152,7 +156,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/set-password', async (req, res) => {
     const { token, password } = req.body;
 
-    // --- DEBUG LOG ---
     console.log("👉 SET PASSWORD REQUEST:", { token, passwordRecieved: !!password });
 
     if (!password) {
@@ -168,10 +171,8 @@ app.post('/api/auth/set-password', async (req, res) => {
         if (!authToken) return res.status(400).json({ error: "Invalid link." });
         if (authToken.is_used) return res.status(400).json({ error: "Link already used." });
 
-        // Hash password (This is where it crashed before if password was undefined)
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // ... rest of the logic (update user, etc.)
         await prisma.user.update({
             where: { id: authToken.user_id },
             data: {
