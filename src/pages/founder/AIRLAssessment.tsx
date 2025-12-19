@@ -22,6 +22,8 @@ export function AIRLAssessment() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
+  // 3. STATE FOR TOGGLING INFO
+  const [showInfo, setShowInfo] = useState(false);
 
   // 2. Derive Project Data
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -123,7 +125,7 @@ export function AIRLAssessment() {
               </div>
             ) : (
               <>
-                <div className="p-8 flex-1 overflow-y-auto">
+                <div className="p-8 flex-1">
                   <AnimatePresence mode="wait">
                     <motion.div 
                       key={currentQuestion.id} 

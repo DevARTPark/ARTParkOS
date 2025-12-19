@@ -6,7 +6,7 @@ import { Input, Textarea } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Badge } from '../../components/ui/Badge';
 import { airlQuestions } from '../../data/mockData'; // Initial data
-import { Plus, Trash2, Save, Layers, AlertCircle, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Save, Layers, AlertCircle, MessageSquare, Lightbulb } from 'lucide-react';
 
 // Define the 5 Categories
 const CATEGORIES = [
@@ -26,8 +26,11 @@ export function ReviewerAssessmentConfig() {
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionCategory, setNewQuestionCategory] = useState(CATEGORIES[0]);
   
-  // NEW: State for custom comment prompt
+  // State for custom comment prompt
   const [newCommentPrompt, setNewCommentPrompt] = useState("Founder's Comments");
+
+  // NEW: State for Expectations/Guidance
+  const [newExpectations, setNewExpectations] = useState('');
 
   // Filter questions for current view
   const currentLevelQuestions = questions.filter(q => q.airlLevel === selectedLevel);
@@ -35,13 +38,19 @@ export function ReviewerAssessmentConfig() {
   const handleAddQuestion = () => {
     if (!newQuestionText.trim()) return;
 
+    // Convert the textarea string into an array of strings (one per line)
+    const expectationsArray = newExpectations
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
     const newQ = {
       id: `q-${Date.now()}`,
       airlLevel: selectedLevel,
       category: newQuestionCategory,
       text: newQuestionText,
-      // Store the custom prompt (or default if empty)
       commentPrompt: newCommentPrompt.trim() || "Founder's Comments",
+      expectations: expectationsArray, // Add the array to the question object
       required: true
     };
 
@@ -49,7 +58,8 @@ export function ReviewerAssessmentConfig() {
     
     // Reset inputs
     setNewQuestionText('');
-    setNewCommentPrompt("Founder's Comments"); 
+    setNewCommentPrompt("Founder's Comments");
+    setNewExpectations('');
   };
 
   const handleDeleteQuestion = (id: string) => {
@@ -116,10 +126,27 @@ export function ReviewerAssessmentConfig() {
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                          {/* Show the custom prompt if it exists */}
-                          <div className="mt-2 flex items-center text-xs text-slate-500 bg-white border border-slate-100 rounded px-2 py-1 w-fit">
-                            <MessageSquare className="w-3 h-3 mr-1.5 text-blue-400" />
-                            Comment Label: <span className="font-medium ml-1 text-slate-700">{q.commentPrompt || "Founder's Comments"}</span>
+                          
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {/* Comment Prompt Label */}
+                            <div className="flex items-center text-xs text-slate-500 bg-white border border-slate-100 rounded px-2 py-1">
+                              <MessageSquare className="w-3 h-3 mr-1.5 text-blue-400" />
+                              Label: <span className="font-medium ml-1 text-slate-700">{q.commentPrompt || "Founder's Comments"}</span>
+                            </div>
+
+                            {/* Expectations Count / Preview */}
+                            {q.expectations && q.expectations.length > 0 && (
+                              <div className="flex-1 min-w-[200px] text-xs text-slate-600 bg-blue-50/50 border border-blue-100 rounded p-2">
+                                <div className="flex items-center gap-1 font-semibold text-blue-700 mb-1">
+                                  <Lightbulb className="w-3 h-3" /> Expectations ({q.expectations.length}):
+                                </div>
+                                <ul className="list-disc list-inside text-slate-500 pl-1">
+                                  {q.expectations.map((exp: string, i: number) => (
+                                    <li key={i} className="truncate">{exp}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -162,10 +189,22 @@ export function ReviewerAssessmentConfig() {
                 />
               </div>
 
-              {/* NEW FIELD: Custom Comment Prompt */}
+              {/* Expectations / Guidance Input */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Expectation for Comments</label>
-                <p className="text-[10px] text-slate-500 mb-1.5">What should the founder write in the box?</p>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Expectations / Guidance</label>
+                <p className="text-[10px] text-slate-500 mb-1.5">Enter points line-by-line. These appear in the 'Info' popup.</p>
+                <Textarea 
+                  rows={5}
+                  placeholder={"- Cite specific papers\n- Demonstrate understanding\n- Identify core hypothesis"}
+                  value={newExpectations}
+                  onChange={(e) => setNewExpectations(e.target.value)}
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              {/* Custom Comment Prompt */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Comment Box Label</label>
                 <Input 
                   value={newCommentPrompt}
                   onChange={(e) => setNewCommentPrompt(e.target.value)}
