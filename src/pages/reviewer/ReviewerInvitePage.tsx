@@ -16,6 +16,7 @@ import {
   Users,
   Building2,
   Calendar,
+  Lock,
 } from "lucide-react";
 
 export function ReviewerInvitePage() {
@@ -29,6 +30,12 @@ export function ReviewerInvitePage() {
 
   // Configuration for the Role Selection Cards
   const roles = [
+    {
+      id: "admin", // --- ADDED ADMIN ROLE ---
+      label: "Admin",
+      icon: Lock,
+      desc: "Full platform access and management rights.",
+    },
     {
       id: "founder",
       label: "Founder",
