@@ -18,6 +18,7 @@ import {
   Calendar,
   Lock,
 } from "lucide-react";
+import { API_URL } from "../../config";
 
 export function ReviewerInvitePage() {
   const [email, setEmail] = useState("");
@@ -74,7 +75,7 @@ export function ReviewerInvitePage() {
     setStatus(null);
 
     try {
-      const res = await fetch("http://localhost:3000/api/auth/invite-user", {
+      const res = await fetch(`${API_URL}/api/auth/invite-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, role }),

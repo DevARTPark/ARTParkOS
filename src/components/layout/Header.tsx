@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { projects, startups, facilities, mentors } from "../../data/mockData";
+import { API_URL } from "../../config";
 
 export interface HeaderUser {
   name: string;
@@ -74,7 +75,7 @@ export function Header({
       setUser(parsedUser);
 
       // Background Fetch to keep cache updated
-      fetch(`http://localhost:3000/api/founder/profile?userId=${parsedUser.id}`)
+      fetch(`${API_URL}/api/founder/profile?userId=${parsedUser.id}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.id) {

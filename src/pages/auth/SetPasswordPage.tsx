@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
+import { API_URL } from "../../config";
 
 export default function SetPasswordPage() {
   const navigate = useNavigate();
@@ -42,17 +43,14 @@ export default function SetPasswordPage() {
       // 2. Call Backend API
       console.log("Sending payload:", { token, password }); // Debug log
 
-      const response = await fetch(
-        "http://localhost:3000/api/auth/set-password",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token, // Send the token from URL
-            password, // Send the new password
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/auth/set-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token, // Send the token from URL
+          password, // Send the new password
+        }),
+      });
 
       const data = await response.json();
 
