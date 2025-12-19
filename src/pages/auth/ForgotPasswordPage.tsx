@@ -10,11 +10,12 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
     setMessage("");
+    setError("");
 
     try {
-      const res = await fetch(
+      // 1. Make the API Call
+      const response = await fetch(
         "http://localhost:3000/api/auth/forgot-password",
         {
           method: "POST",
@@ -23,16 +24,24 @@ export default function ForgotPasswordPage() {
         }
       );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      // 2. Check if response is actually JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(
+          "Server returned an invalid response (HTML). Please restart the backend server."
+        );
+      }
 
-      // In real life, this message says "Check email".
-      // For dev, we show the link in the backend console.
-      setMessage(
-        "A reset link has been simulated! Check your Backend Terminal."
-      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send reset email");
+      }
+
+      setMessage(data.message);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err.message || "Failed to connect to server.");
     } finally {
       setIsLoading(false);
     }

@@ -16,7 +16,6 @@ import {
   UserCircle,
   Video,
   ChevronLeft,
-  ChevronRight,
   UserPlus,
 } from "lucide-react";
 import { Role } from "../../types";
@@ -31,7 +30,6 @@ interface SidebarProps {
 export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
   const getNavItems = () => {
     switch (role) {
-      // ... (Founder, Admin, Reviewer cases remain unchanged)
       case "founder":
         return [
           {
@@ -73,16 +71,16 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           },
           {
             icon: ClipboardCheck,
-            label: "My Tasks", // Renamed from "Assigned Tasks"
+            label: "My Tasks",
             path: "/reviewer/tasks",
           },
           {
-            icon: FolderKanban, // New Icon
-            label: "Task Pool", // New Link
+            icon: FolderKanban,
+            label: "Task Pool",
             path: "/reviewer/pool",
           },
           {
-            icon: UserPlus, // <--- NEW ITEM
+            icon: UserPlus,
             label: "Invite Members",
             path: "/reviewer/invite",
           },
@@ -129,17 +127,12 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/lab-owner/dashboard",
           },
           { icon: Calendar, label: "Bookings", path: "/lab-owner/bookings" },
-          { icon: Calendar, label: "Schedule", path: "/lab-owner/calendar" }, // <--- ADDED
+          { icon: Calendar, label: "Schedule", path: "/lab-owner/calendar" },
           {
             icon: Building2,
             label: "Assets & Services",
             path: "/lab-owner/services",
           },
-          // {
-          //   icon: Settings,
-          //   label: "Lab Settings",
-          //   path: "/lab-owner/settings",
-          // },
         ];
       default:
         return [];
@@ -154,7 +147,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
     if (role === "admin") return "/admin/settings";
     if (role === "lab_owner") return "/lab-owner/settings";
     if (role === "mentor") return "/mentor/profile/edit";
-    if (role === "supplier") return "/supplier/settings"; // <--- ADDED
+    if (role === "supplier") return "/supplier/settings";
     return "/settings";
   };
 
@@ -164,7 +157,13 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
         isCollapsed ? "w-20" : "w-64"
       }`}
     >
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between h-20">
+      <div
+        className={`p-4 border-b border-slate-800 flex items-center justify-between h-20 transition-colors ${
+          isCollapsed ? "cursor-pointer hover:bg-slate-800" : ""
+        }`}
+        onClick={() => isCollapsed && toggleSidebar()} // Click to Expand Logic
+        title={isCollapsed ? "Click to Expand" : ""}
+      >
         <div
           className={`flex items-center transition-all duration-300 ${
             isCollapsed ? "justify-center w-full" : "space-x-3"
@@ -198,9 +197,16 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             </p>
           </div>
         </div>
+
+        {/* TOGGLE BUTTON: 
+            Hidden when collapsed. Visible only when expanded.
+        */}
         {!isCollapsed && (
           <button
-            onClick={toggleSidebar}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering the logo click
+              toggleSidebar();
+            }}
             className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -248,14 +254,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        {isCollapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="w-full flex justify-center mb-4 p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        )}
+        {/* Removed the bottom expand button as requested */}
         <NavLink
           to={getSettingsPath(role)}
           className={({ isActive }) =>

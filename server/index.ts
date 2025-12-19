@@ -11,6 +11,8 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
+
+// Increase payload limit for images
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -43,7 +45,7 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function createAuthToken(userId: string, type: 'account_activation' | 'password_reset') {
     const tokenString = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    expiresAt.setHours(expiresAt.getHours() + 24); // Token valid for 24 hours
 
     await prisma.authToken.create({
         data: {
@@ -56,8 +58,11 @@ async function createAuthToken(userId: string, type: 'account_activation' | 'pas
     return tokenString;
 }
 
-// --- AUTH ROUTES (Keep your existing ones) ---
+// ==========================================
+// AUTH ROUTES
+// ==========================================
 
+// 1. Invite User
 app.post('/api/auth/invite-user', async (req, res) => {
     const { email, role } = req.body;
     try {
@@ -89,6 +94,7 @@ app.post('/api/auth/invite-user', async (req, res) => {
     }
 });
 
+// 2. Login
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -106,9 +112,90 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- NEW PROFILE ROUTES (Add these) ---
+// 3. Forgot Password
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email } = req.body;
 
-// 1. Get Profile
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user) {
+            return res.json({ message: "If that email exists, a reset link has been sent." });
+        }
+
+        const token = await createAuthToken(user.id, 'password_reset');
+        const resetLink = `http://localhost:5173/set-password?token=${token}&type=reset`;
+
+        console.log("---------------------------------------------------");
+        console.log(`🔑 PASSWORD RESET LINK FOR ${email}:`);
+        console.log(resetLink);
+        console.log("---------------------------------------------------");
+
+        const emailHtml = `
+      <h2>Reset Your Password</h2>
+      <p>Click the link below to reset your password. Valid for 24 hours.</p>
+      <a href="${resetLink}">Reset Password</a>
+    `;
+        await sendEmail(email, "Password Reset Request", emailHtml);
+
+        res.json({ message: "If that email exists, a reset link has been sent." });
+
+    } catch (err) {
+        console.error("Forgot Password Error:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// 4. Set Password
+app.post('/api/auth/set-password', async (req, res) => {
+    const { token, password } = req.body;
+
+    // --- DEBUG LOG ---
+    console.log("👉 SET PASSWORD REQUEST:", { token, passwordRecieved: !!password });
+
+    if (!password) {
+        return res.status(400).json({ error: "Password is required" });
+    }
+
+    try {
+        const authToken = await prisma.authToken.findUnique({
+            where: { token },
+            include: { user: true }
+        });
+
+        if (!authToken) return res.status(400).json({ error: "Invalid link." });
+        if (authToken.is_used) return res.status(400).json({ error: "Link already used." });
+
+        // Hash password (This is where it crashed before if password was undefined)
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // ... rest of the logic (update user, etc.)
+        await prisma.user.update({
+            where: { id: authToken.user_id },
+            data: {
+                password_hash: hashedPassword,
+                status: 'active',
+            }
+        });
+
+        await prisma.authToken.update({
+            where: { id: authToken.id },
+            data: { is_used: true }
+        });
+
+        res.json({ message: "Password updated successfully!" });
+
+    } catch (err) {
+        console.error("Set Password Error:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// ==========================================
+// PROFILE ROUTES
+// ==========================================
+
+// 5. Get Profile
 app.get('/api/founder/profile', async (req, res) => {
     const { userId } = req.query;
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
@@ -122,31 +209,40 @@ app.get('/api/founder/profile', async (req, res) => {
     }
 });
 
-// 2. Save Profile
-// ... inside your POST /api/founder/profile endpoint
-
+// 6. Save Profile
 app.post('/api/founder/profile', async (req, res) => {
     const { userId, data } = req.body;
     try {
         const profile = await prisma.founderProfile.upsert({
             where: { userId },
             update: {
-                // ... existing fields ...
                 founderName: data.founderName,
                 phone: data.phone,
                 designation: data.designation,
-                avatarUrl: data.avatarUrl, // <--- Add this
+                avatarUrl: data.avatarUrl,
                 startupName: data.startupName,
-                // ... rest of fields
+                tagline: data.tagline,
+                description: data.description,
+                website: data.website,
+                industry: data.industry,
+                location: data.location,
+                teamSize: parseInt(data.teamSize) || 0,
+                foundedYear: parseInt(data.foundedYear) || new Date().getFullYear(),
             },
             create: {
                 userId,
                 founderName: data.founderName,
                 phone: data.phone,
                 designation: data.designation,
-                avatarUrl: data.avatarUrl, // <--- Add this
+                avatarUrl: data.avatarUrl,
                 startupName: data.startupName || "My Startup",
-                // ... rest of fields
+                tagline: data.tagline,
+                description: data.description,
+                website: data.website,
+                industry: data.industry,
+                location: data.location,
+                teamSize: parseInt(data.teamSize) || 0,
+                foundedYear: parseInt(data.foundedYear) || new Date().getFullYear(),
             }
         });
         res.json({ message: "Profile saved!", profile });
