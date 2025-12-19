@@ -191,7 +191,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             }`}
           >
             <span className="font-bold text-xl tracking-tight block whitespace-nowrap">
-              ARTPark
+              ARTPARK
             </span>
             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
               {role} Portal

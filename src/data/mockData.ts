@@ -33,138 +33,274 @@ export const startups: Startup[] = [{
   contactEmail: 'sarah@skyhealth.com',
   logo: 'https://ui-avatars.com/api/?name=Sky+Health&background=3B82F6&color=fff'
 }];
-export const airlQuestions: Question[] = [{
-  id: 'q1',
-  airlLevel: 1,
-  category: 'Technology',
-  text: 'Have basic principles been observed and reported?',
-  required: true
-}, {
-  id: 'q2',
-  airlLevel: 1,
-  category: 'Product Engineering',
-  text: 'Has the initial product concept been defined?',
-  required: true
-}, {
-  id: 'q3',
-  airlLevel: 1,
-  category: 'Market Research',
-  text: 'Has a preliminary market need been identified?',
-  required: true
-}, {
-  id: 'q4',
-  airlLevel: 1,
-  category: 'Organisation Structure',
-  text: 'Is the core founding team identified?',
-  required: true
-}, {
-  id: 'q5',
-  airlLevel: 1,
-  category: 'Target Market Engagement',
-  text: 'Have potential customer segments been listed?',
-  required: true
-}, {
-  id: 'q6',
-  airlLevel: 2,
-  category: 'Technology',
-  text: 'Has the technology concept been formulated?',
-  required: true
-}, {
-  id: 'q7',
-  airlLevel: 2,
-  category: 'Product Engineering',
-  text: 'Are initial design sketches available?',
-  required: true
-}, {
-  id: 'q8',
-  airlLevel: 2,
-  category: 'Market Research',
-  text: 'Has a competitive landscape analysis been started?',
-  required: true
-}, {
-  id: 'q9',
-  airlLevel: 2,
-  category: 'Organisation Structure',
-  text: 'Are roles and responsibilities defined?',
-  required: true
-}, {
-  id: 'q10',
-  airlLevel: 2,
-  category: 'Target Market Engagement',
-  text: 'Have initial customer interviews been conducted?',
-  required: true
-},
-{
+// --- UPDATED QUESTIONS WITH EXPECTATIONS ---
+export const airlQuestions: Question[] = [
+  // --- LEVEL 1 ---
+  {
+    id: 'q1',
+    airlLevel: 1,
+    category: 'Technology',
+    text: 'Have basic principles been observed and reported?',
+    required: true,
+    expectations: [
+      "Cite specific academic papers or internal lab reports.",
+      "Demonstrate a clear understanding of the underlying physics/chemistry.",
+      "Identify the core hypothesis being tested.",
+      "Ensure the principle aligns with current scientific consensus."
+    ]
+  },
+  {
+    id: 'q2',
+    airlLevel: 1,
+    category: 'Product Engineering',
+    text: 'Has the initial product concept been defined?',
+    required: true,
+    expectations: [
+      "Define the potential problem this technology solves.",
+      "Outline the basic 'form factor' idea (e.g., software vs hardware).",
+      "List the high-level features required for the solution.",
+      "Identify any obvious technical blockers to feasibility."
+    ]
+  },
+  {
+    id: 'q3',
+    airlLevel: 1,
+    category: 'Market Research',
+    text: 'Has a preliminary market need been identified?',
+    required: true,
+    expectations: [
+      "Identify at least one broad customer segment (e.g., 'Logistics').",
+      "Explain why current solutions might be insufficient.",
+      "Map the technology to a generic value proposition.",
+      "Provide anecdotal evidence of the need."
+    ]
+  },
+  {
+    id: 'q4',
+    airlLevel: 1,
+    category: 'Organisation Structure',
+    text: 'Is the core founding team identified?',
+    required: true,
+    expectations: [
+      "List the 1-3 key individuals driving the idea.",
+      "Ideally, have a mix of technical and business intent.",
+      "Ensure founders have the legal right to pursue this idea.",
+      "Draft a basic equity split or understanding."
+    ]
+  },
+  {
+    id: 'q5',
+    airlLevel: 1,
+    category: 'Target Market Engagement',
+    text: 'Have potential customer segments been listed?',
+    required: true,
+    expectations: [
+      "Create a list of 10-20 potential companies or user types.",
+      "Hypothesize who the 'buyer' vs the 'user' might be.",
+      "No direct contact is required yet, just identification.",
+      "Identify the geographic focus (e.g., India, Global)."
+    ]
+  },
+
+  // --- LEVEL 2 ---
+  {
+    id: 'q6',
+    airlLevel: 2,
+    category: 'Technology',
+    text: 'Has the technology concept been formulated?',
+    required: true,
+    expectations: [
+      "Provide a schematic or conceptual drawing of the solution.",
+      "List the key components required to build a prototype.",
+      "Identify potential technical risks or bottlenecks.",
+      "Outline the theoretical performance limits."
+    ]
+  },
+  {
+    id: 'q7',
+    airlLevel: 2,
+    category: 'Product Engineering',
+    text: 'Are initial design sketches available?',
+    required: true,
+    expectations: [
+      "Paper sketches or wireframes of the product.",
+      "Basic flow diagrams of how the user interacts with it.",
+      "Identification of physical dimensions (if hardware).",
+      "Initial thoughts on materials or software stack."
+    ]
+  },
+  {
+    id: 'q8',
+    airlLevel: 2,
+    category: 'Market Research',
+    text: 'Has a competitive landscape analysis been started?',
+    required: true,
+    expectations: [
+      "Identify top 3-5 direct competitors.",
+      "Identify indirect substitutes (e.g., 'doing nothing' or Excel).",
+      "Create a feature comparison matrix.",
+      "Highlight your intended Unique Selling Proposition (USP)."
+    ]
+  },
+  {
+    id: 'q9',
+    airlLevel: 2,
+    category: 'Organisation Structure',
+    text: 'Are roles and responsibilities defined?',
+    required: true,
+    expectations: [
+      "Who is the CEO vs. CTO?",
+      "Identify gaps (e.g., 'We need a marketing lead').",
+      "Agree on decision-making processes.",
+      "Set a regular meeting cadence."
+    ]
+  },
+  {
+    id: 'q10',
+    airlLevel: 2,
+    category: 'Target Market Engagement',
+    text: 'Have initial customer interviews been conducted?',
+    required: true,
+    expectations: [
+      "Conduct at least 10 'Problem Discovery' interviews.",
+      "Do not sell the solution yet; focus on validating the pain point.",
+      "Record insights and quotes from users.",
+      "Validate that the problem is 'urgent' and 'expensive'."
+    ]
+  },
+
+  // --- LEVEL 4 ---
+  {
     id: 'q401',
     airlLevel: 4,
     category: 'Technology',
     text: 'Has the system/subsystem been validated in a laboratory environment?',
-    required: true
+    required: true,
+    expectations: [
+      "Demonstrate a 'Breadboard' prototype working in controlled conditions.",
+      "Data must show the core function works repeatedly.",
+      "Identify failure modes encountered during testing.",
+      "Compare lab results with theoretical models."
+    ]
   },
   {
     id: 'q402',
     airlLevel: 4,
     category: 'Product Engineering',
     text: 'Is the functional prototype fully integrated and tested?',
-    required: true
+    required: true,
+    expectations: [
+      "Combine separate components into a single 'ugly' prototype.",
+      "Ensure software and hardware talk to each other correctly.",
+      "Prototype should be capable of end-to-end functionality.",
+      "Document the Bill of Materials (BOM) for this version."
+    ]
   },
   {
     id: 'q403',
     airlLevel: 4,
     category: 'Market Research',
     text: 'Have you completed a detailed competitive landscape analysis?',
-    required: true
+    required: true,
+    expectations: [
+      "Deep dive into competitor pricing strategies.",
+      "Analyze competitor marketing positioning and keywords.",
+      "Identify gaps in competitor features using real user reviews.",
+      "Validate your 'Unfair Advantage' against this data."
+    ]
   },
   {
     id: 'q404',
     airlLevel: 4,
     category: 'Organisation Structure',
     text: 'Are key technical leads (CTO/Head of Eng) onboarded full-time?',
-    required: true
+    required: true,
+    expectations: [
+      "Technical leadership must be dedicated (no moonlighting).",
+      "Employment contracts or vesting schedules signed.",
+      "Clear ownership of IP assignment to the company.",
+      "Team capability assessment to reach next milestone."
+    ]
   },
   {
     id: 'q405',
     airlLevel: 4,
     category: 'Target Market Engagement',
     text: 'Have you secured Letters of Intent (LOIs) for pilot programs?',
-    required: true
+    required: true,
+    expectations: [
+      "Signed non-binding LOIs from potential pilot partners.",
+      "Clear definition of 'Success Criteria' for the pilot in the LOI.",
+      "Customer willingness to pay (or cost-share) indicated.",
+      "Identification of the specific champion within the customer org."
+    ]
   },
 
-  // --- NEW: AIRL Level 6 Questions (For projects currently at Level 5) ---
+  // --- LEVEL 6 ---
   {
     id: 'q601',
     airlLevel: 6,
     category: 'Technology',
     text: 'Has the prototype been demonstrated in a relevant operational environment?',
-    required: true
+    required: true,
+    expectations: [
+      "Test the device in real-world conditions (heat, dust, noise).",
+      "Run the system by intended users, not just engineers.",
+      "Log operational hours without critical failure.",
+      "Validate safety and compliance in the field environment."
+    ]
   },
   {
     id: 'q602',
     airlLevel: 6,
     category: 'Product Engineering',
     text: 'Has the "Design for Manufacturing" (DFM) process been initiated?',
-    required: true
+    required: true,
+    expectations: [
+      "Simplify part count for assembly.",
+      "Identify long-lead-time components and supply chain risks.",
+      "Move from 3D printing to injection molding/scalable processes.",
+      "Cost-down analysis for volume production."
+    ]
   },
   {
     id: 'q603',
     airlLevel: 6,
     category: 'Market Research',
     text: 'Has the pricing model been validated with paying customers?',
-    required: true
+    required: true,
+    expectations: [
+      "Execute actual transactions (even if discounted).",
+      "Validate unit economics (CAC vs LTV projections).",
+      "Confirm the billing frequency (SaaS vs One-time).",
+      "Analyze friction points in the purchasing process."
+    ]
   },
   {
     id: 'q604',
     airlLevel: 6,
     category: 'Organisation Structure',
     text: 'Is the sales or business development team established?',
-    required: true
+    required: true,
+    expectations: [
+      "Hire at least one dedicated Sales/BD person.",
+      "Implement a CRM system (HubSpot, Salesforce, etc.).",
+      "Define the sales cycle stages.",
+      "Set revenue targets for the next 2 quarters."
+    ]
   },
   {
     id: 'q605',
     airlLevel: 6,
     category: 'Target Market Engagement',
     text: 'Are there active paid pilots or early adopter sales?',
-    required: true
+    required: true,
+    expectations: [
+      "Converted LOIs into paid contracts.",
+      "Deployment of units to customer sites.",
+      "Regular feedback loops established with these early adopters.",
+      "Testimonials or case studies secured from early wins."
+    ]
   }
 ];
 export const actionItems: ActionItem[] = [{
