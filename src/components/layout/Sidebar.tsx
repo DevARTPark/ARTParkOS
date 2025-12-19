@@ -72,7 +72,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
             path: "/reviewer/dashboard",
           },
           {
-            icon: ClipboardCheck, 
+            icon: ClipboardCheck,
             label: "My Tasks", // Renamed from "Assigned Tasks"
             path: "/reviewer/tasks",
           },
