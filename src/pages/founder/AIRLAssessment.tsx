@@ -7,15 +7,15 @@ import { Badge } from '../../components/ui/Badge';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Textarea } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+// 1. IMPORT DATA
 import { airlQuestions, projects } from '../../data/mockData';
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Lock, Upload, AlertCircle } from 'lucide-react';
+// 2. ADD INFO ICON
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Lock, Upload, Info, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AIRLAssessment() {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // 1. Determine Initial Project
-  // Check URL first, otherwise default to first project
   const initialProjectId = searchParams.get('projectId') || projects[0]?.id || '';
   
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
@@ -25,20 +25,18 @@ export function AIRLAssessment() {
   // 3. STATE FOR TOGGLING INFO
   const [showInfo, setShowInfo] = useState(false);
 
-  // 2. Derive Project Data
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
-  
-  // 3. Calculate Target Level (Current + 1)
-  // Example: If project is AIRL 3, we show AIRL 4 questions
   const targetLevel = selectedProject ? selectedProject.currentAIRL + 1 : 1;
-
-  // 4. Filter Questions for Target Level
   const relevantQuestions = airlQuestions.filter(q => q.airlLevel === targetLevel);
   
-  // Reset index when project/level changes
+  // Reset when question changes
+  useEffect(() => {
+    // Automatically show info for the first question, or hide it on change
+    setShowInfo(true); 
+  }, [currentQuestionIndex]);
+
   useEffect(() => {
     setCurrentQuestionIndex(0);
-    // Optional: Reset answers or fetch saved draft for this project
     setCompletedQuestions([]); 
   }, [selectedProjectId, targetLevel]);
 
@@ -46,19 +44,15 @@ export function AIRLAssessment() {
   const totalQuestions = relevantQuestions.length;
   const progress = totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
 
-  // Handle Project Switch
   const handleProjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newId = e.target.value;
     setSelectedProjectId(newId);
-    setSearchParams({ projectId: newId }); // Update URL
+    setSearchParams({ projectId: newId });
   };
 
   const handleAnswer = (value: string) => {
     if (!currentQuestion) return;
-    setAnswers({
-      ...answers,
-      [currentQuestion.id]: value
-    });
+    setAnswers({ ...answers, [currentQuestion.id]: value });
     if (!completedQuestions.includes(currentQuestion.id)) {
       setCompletedQuestions([...completedQuestions, currentQuestion.id]);
     }
@@ -79,7 +73,7 @@ export function AIRLAssessment() {
   return (
     <DashboardLayout role="founder" title="AIRL Assessment">
       
-      {/* Project Selector & Context Header */}
+      {/* Project Selector Header (Unchanged) */}
       <div className="mb-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
           <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
@@ -106,21 +100,20 @@ export function AIRLAssessment() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-14rem)] gap-6">
+      <div className="flex flex-col lg:flex-row h-auto min-h-[600px] gap-6">
         
         {/* Left Pane: Question View */}
         <div className="flex-1 flex flex-col">
-          <Card className="flex-1 flex flex-col shadow-md border-0">
+          <Card className="flex-1 flex flex-col shadow-md border-0 h-full">
             
             {relevantQuestions.length === 0 ? (
-              // Empty State if no questions exist for this level in mock data
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle2 className="w-8 h-8 text-green-500" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">No Assessment Pending</h3>
                 <p className="text-gray-500 mt-2 max-w-md">
-                  There are no questions defined for <strong>AIRL {targetLevel}</strong> yet. You might have completed the available assessments for this stage.
+                  There are no questions defined for <strong>AIRL {targetLevel}</strong> yet.
                 </p>
               </div>
             ) : (
@@ -135,16 +128,54 @@ export function AIRLAssessment() {
                       transition={{ duration: 0.3 }}
                     >
                       <div className="mb-6">
-                        <Badge variant="neutral" className="mb-4">
-                          {currentQuestion.category}
-                        </Badge>
-                        <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+                        <div className="flex items-center justify-between mb-4">
+                          <Badge variant="neutral">
+                            {currentQuestion.category}
+                          </Badge>
+                          {/* 4. INFO TOGGLE BUTTON */}
+                          <button 
+                            onClick={() => setShowFilters(!showInfo)} // Note: Assuming typo in your request, using showInfo state
+                            onClick={() => setShowInfo(!showInfo)}
+                            className={`p-2 rounded-full transition-colors ${showInfo ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                            title="Toggle Assessment Guidance"
+                          >
+                            <Info className="w-5 h-5" />
+                          </button>
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-4">
                           {currentQuestion.text}
                         </h2>
+
+                        {/* 5. GUIDANCE / EXPECTATIONS BOX */}
+                        <AnimatePresence>
+                          {showInfo && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
+                                <div className="flex items-center gap-2 mb-2 text-blue-800 font-semibold text-sm">
+                                  <Lightbulb className="w-4 h-4" />
+                                  What is expected?
+                                </div>
+                                <ul className="list-disc list-inside space-y-1">
+                                  {currentQuestion.expectations?.map((point, i) => (
+                                    <li key={i} className="text-sm text-blue-700 leading-relaxed">
+                                      {point}
+                                    </li>
+                                  )) || <li className="text-sm text-gray-500">No specific guidance available.</li>}
+                                </ul>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
 
                       <div className="space-y-8">
-                        {/* 3-State Response (Met / Partial / Not Met) */}
+                        {/* 3-State Response */}
                         <div className="space-y-3">
                           <label className="text-sm font-medium text-gray-700 block">
                             Compliance Status
@@ -189,7 +220,7 @@ export function AIRLAssessment() {
                         <Textarea 
                           label="Founder Notes / Context" 
                           placeholder="Add any additional context or explanation here..." 
-                          rows={4} 
+                          rows={3} 
                         />
 
                         {/* Evidence Upload */}
@@ -215,7 +246,7 @@ export function AIRLAssessment() {
                 </div>
 
                 {/* Footer Navigation */}
-                <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-lg flex justify-between items-center">
+                <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-lg flex justify-between items-center mt-auto">
                   <Button 
                     variant="outline" 
                     onClick={handlePrev} 
@@ -239,7 +270,7 @@ export function AIRLAssessment() {
           </Card>
         </div>
 
-        {/* Right Pane: Checklist Sidebar */}
+        {/* Right Pane: Checklist Sidebar (Unchanged) */}
         <div className="w-full lg:w-80 flex flex-col">
           <Card className="h-full flex flex-col border-0 shadow-md">
             <CardHeader className="bg-blue-600 text-white rounded-t-lg">
@@ -263,7 +294,7 @@ export function AIRLAssessment() {
                       <button 
                         key={q.id} 
                         onClick={() => setCurrentQuestionIndex(idx)} 
-                        className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-start space-x-3 ${isActive ? 'bg-blue-50' : ''}`}
+                        className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-start space-x-3 ${isActive ? 'bg-blue-50 border-l-4 border-blue-600' : 'border-l-4 border-transparent'}`}
                       >
                         <div className={`mt-0.5 flex-shrink-0 ${isCompleted ? 'text-green-500' : 'text-gray-300'}`}>
                           {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
