@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { API_URL } from "../../config";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -15,14 +16,11 @@ export default function ForgotPasswordPage() {
 
     try {
       // 1. Make the API Call
-      const response = await fetch(
-        "http://localhost:3000/api/auth/forgot-password",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
       // 2. Check if response is actually JSON before parsing
       const contentType = response.headers.get("content-type");

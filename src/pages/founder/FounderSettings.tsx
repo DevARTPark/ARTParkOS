@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { compressImage } from "../../utils/imageUtils"; // <--- Import the utility
+import { API_URL } from "../../config";
 
 export function FounderSettings() {
   const [activeTab, setActiveTab] = useState("general");
@@ -68,7 +69,7 @@ export function FounderSettings() {
 
     // 2. Fetch fresh data from API
     setLoading(true);
-    fetch(`http://localhost:3000/api/founder/profile?userId=${user.id}`)
+    fetch(`${API_URL}/api/founder/profile?userId=${user.id}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.id) {
@@ -115,7 +116,7 @@ export function FounderSettings() {
 
     try {
       // 3. Send to Backend
-      const res = await fetch("http://localhost:3000/api/founder/profile", {
+      const res = await fetch(`${API_URL}/api/founder/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id, data: formData }),
