@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
+  Shield,
+  Globe,
 } from "lucide-react";
 import { Role } from "../../types";
 import artparkLogo from "../../../public/artpark_in_logo.jpg";
@@ -48,7 +50,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           { icon: Building2, label: "Facilities", path: "/founder/facilities" },
           { icon: Coins, label: "Finance", path: "/founder/finance" },
           { icon: Users, label: "My Team", path: "/founder/my-team" },
-          { icon: Users, label: "Other Startups", path: "/founder/ecosystem" },
+          { icon: Globe, label: "Other Startups", path: "/founder/ecosystem" },
           { icon: FileText, label: "Reviews", path: "/founder/reviews" },
         ];
       case "admin":
@@ -61,7 +63,7 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
           { icon: PieChart, label: "Portfolio", path: "/admin/portfolio" },
           { icon: Coins, label: "Financials", path: "/admin/financials" },
           { icon: FileText, label: "Reports", path: "/admin/reports" },
-          { icon: Users, label: "Network", path: "/admin/network" },
+          { icon: Globe, label: "Network", path: "/admin/network" },
           { icon: Users, label: "Users", path: "/admin/users" },
         ];
       case "reviewer":
