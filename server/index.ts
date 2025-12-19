@@ -20,7 +20,9 @@ const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key_123";
 
 // --- SMTP CONFIGURATION ---
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com", // Explicit host
+    port: 465,              // Explicit port for Secure SSL
+    secure: true,           // true for 465, false for other ports
     auth: {
         user: process.env.SMTP_EMAIL,
         pass: process.env.SMTP_PASSWORD,
