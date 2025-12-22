@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -6,17 +6,11 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { AIRLRadarChart } from '../../components/charts/AIRLRadarChart';
-import { actionItems, facilities, mentors, reviews, projects, currentUser } from '../../data/mockData';
-// --- FIXED IMPORT BELOW: Added CheckCircle2 ---
+import { actionItems, facilities, mentors, reviews, projects as mockProjects, currentUser } from '../../data/mockData';
 import { 
   ArrowRight, 
-  Calendar, 
   Clock, 
-  ExternalLink, 
-  FileText, 
-  MapPin, 
   Plus, 
-  Users, 
   CheckCircle2 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -29,8 +23,17 @@ export function FounderDashboard() {
   const [activeTab, setActiveTab] = useState('open');
   const [showActionModal, setShowActionModal] = useState(false);
   
-  // Initialize state with mock data
-  const [myActions, setMyActions] = useState(actionItems); 
+  // Load Projects from Local Storage
+  const [allProjects] = useState(() => {
+    const savedProjects = localStorage.getItem('founder_projects');
+    return savedProjects ? JSON.parse(savedProjects) : mockProjects;
+  });
+
+  const [myActions, setMyActions] = useState(() => {
+    const savedActions = localStorage.getItem('founder_actions');
+    return savedActions ? JSON.parse(savedActions) : actionItems;
+  });
+
   const [chartSelection, setChartSelection] = useState<string>('all');
   
   const [newAction, setNewAction] = useState({
@@ -38,31 +41,73 @@ export function FounderDashboard() {
     priority: 'medium',
     dueDate: ''
   });
+
   const categories = ['Technology', 'Product', 'Market Research', 'Organisation', 'Target Market'];
+  
+  // Mock scores for chart visualization
   const projectScores: Record<string, Record<string, number>> = {
-    'p1': { 'Technology': 3, 'Product': 4, 'Market Research': 3, 'Organisation': 4, 'Target Market': 3 }, // AgriSense
-    'p2': { 'Technology': 5, 'Product': 6, 'Market Research': 5, 'Organisation': 5, 'Target Market': 6 }  // MediDrone
+    'p1': { 'Technology': 3, 'Product': 4, 'Market Research': 3, 'Organisation': 4, 'Target Market': 3 }, 
+    'p2': { 'Technology': 5, 'Product': 6, 'Market Research': 5, 'Organisation': 5, 'Target Market': 6 }
   };
 
-  const currentChartData = React.useMemo(() => {
+  // --- 1. NEW CHART LOGIC (AVERAGE instead of MIN) ---
+  const currentChartData = useMemo(() => {
     if (chartSelection === 'all') {
-      // OVERALL VIEW: Calculates the MINIMUM score across all projects
-      // This highlights the "weakest links" in the startup's overall portfolio
+      // OVERALL VIEW: Calculates the AVERAGE score across assessed projects
+      // Filter out 'New' projects that haven't been assessed by a reviewer yet
+      const assessedProjects = allProjects.filter((p: any) => !p.isNew);
+      
+      if (assessedProjects.length === 0) {
+        return categories.map(cat => ({ subject: cat, A: 0, fullMark: 9 }));
+      }
+
       return categories.map(cat => {
-        const scores = projects.map(p => projectScores[p.id]?.[cat] || 0);
-        const minScore = Math.min(...scores);
-        return { subject: cat, A: minScore, fullMark: 9 };
+        // Sum scores for this category across all assessed projects
+        const totalScore = assessedProjects.reduce((sum: number, p: any) => {
+          return sum + (projectScores[p.id]?.[cat] || 0); // Default to 0 if mock score missing
+        }, 0);
+        
+        // Calculate Average
+        const avgScore = totalScore / assessedProjects.length;
+        
+        // Return rounded for cleaner chart
+        return { subject: cat, A: Number(avgScore.toFixed(1)), fullMark: 9 };
       });
     } else {
-      // PROJECT VIEW: Specific scores
-      const scores = projectScores[chartSelection];
-      if (!scores) return [];
+      // PROJECT VIEW
+      const scores = projectScores[chartSelection] || { 'Technology': 0, 'Product': 0, 'Market Research': 0, 'Organisation': 0, 'Target Market': 0 };
       return categories.map(cat => ({ subject: cat, A: scores[cat], fullMark: 9 }));
     }
-  }, [chartSelection]);
-  const displayLevel = Math.floor(currentChartData.reduce((acc, curr) => acc + curr.A, 0) / 5) || 0;
+  }, [chartSelection, allProjects]);
 
-  const currentProject = projects[0];
+  // --- 2. NEW AGGREGATE SPIRAL AIRL LOGIC ---
+  // "Avg of assessed projects' AIRL, rounded to ceiling"
+  const displayLevel = useMemo(() => {
+    if (chartSelection === 'all') {
+        // Filter for Assessed Projects Only (Verified by Reviewer)
+        const assessedProjects = allProjects.filter((p: any) => !p.isNew);
+        
+        if (assessedProjects.length === 0) return 0;
+        
+        // Sum of AIRLs
+        const totalAIRL = assessedProjects.reduce((sum: number, p: any) => sum + (p.currentAIRL || 0), 0);
+        
+        // Average
+        const avgAIRL = totalAIRL / assessedProjects.length;
+        
+        // Round Up (Ceiling)
+        return Math.ceil(avgAIRL);
+    } else {
+        // Single project view: Show actual AIRL
+        const project = allProjects.find((p: any) => p.id === chartSelection);
+        return project ? project.currentAIRL : 0;
+    }
+  }, [chartSelection, allProjects]);
+
+  // Determine current project for header display
+  const currentProject = chartSelection === 'all' 
+    ? allProjects[0] 
+    : allProjects.find((p: any) => p.id === chartSelection) || allProjects[0];
 
   // --- Handlers ---
 
@@ -71,31 +116,31 @@ export function FounderDashboard() {
     const action: any = {
       id: `new-${Date.now()}`,
       title: newAction.title,
-      status: 'open', // New items default to 'Open' tab
+      status: 'open', 
       priority: newAction.priority,
       dueDate: newAction.dueDate || new Date().toISOString().split('T')[0]
     };
     
-    setMyActions([action, ...myActions]); // Add to top of list
-    setShowActionModal(false); // Close modal
-    setNewAction({ title: '', priority: 'medium', dueDate: '' }); // Reset form
+    const updatedActions = [action, ...myActions];
+    setMyActions(updatedActions);
+    localStorage.setItem('founder_actions', JSON.stringify(updatedActions));
+    
+    setShowActionModal(false); 
+    setNewAction({ title: '', priority: 'medium', dueDate: '' }); 
   };
 
   const handleStatusChange = (id: string, newStatus: string) => {
-    setMyActions(prevActions => 
-      prevActions.map(action => 
-        action.id === id ? { ...action, status: newStatus } : action
-      )
+    const updatedActions = myActions.map((action: any) => 
+      action.id === id ? { ...action, status: newStatus } : action
     );
+    setMyActions(updatedActions);
+    localStorage.setItem('founder_actions', JSON.stringify(updatedActions));
   };
 
   // --- Animation Variants ---
   const container = {
     hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
   const item = {
@@ -103,15 +148,20 @@ export function FounderDashboard() {
     show: { opacity: 1, y: 0 }
   };
 
+  if (!currentProject) return <div className="p-8">Loading Projects...</div>;
+
   return (
     <DashboardLayout role="founder" title={`Welcome back, ${currentUser.name.split(' ')[0]}`}>
       
       {/* Project Selector Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {currentProject.name}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {currentProject.name}
+            </h2>
+            {currentProject.isNew && <Badge variant="warning">New Project</Badge>}
+          </div>
           <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
             <span className="flex items-center">
               <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
@@ -130,7 +180,7 @@ export function FounderDashboard() {
               AIRL {currentProject.currentAIRL}
             </p>
           </div>
-          <Button onClick={() => window.location.href = '/founder/assessment'}>
+          <Button onClick={() => navigate(`/founder/assessment?projectId=${currentProject.id}`)}>
             Continue Assessment <ArrowRight className="ml-2 w-4 h-4" />
           </Button>
         </div>
@@ -151,9 +201,9 @@ export function FounderDashboard() {
                   value={chartSelection}
                   onChange={(e) => setChartSelection(e.target.value)}
                 >
-                  <option value="all">Startup Aggregate (Min)</option>
+                  <option value="all">Startup Aggregate (Avg)</option>
                   <option disabled>──────────</option>
-                  {projects.map(p => (
+                  {allProjects.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -168,34 +218,35 @@ export function FounderDashboard() {
 
                 {/* Info Sidebar */}
                 <div className="w-full md:w-1/2 mt-4 md:mt-0 pl-0 md:pl-6">
-                  
-                  {/* Dynamic Level Badge */}
                   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
                     <p className="text-[10px] text-blue-600 font-bold uppercase mb-1 tracking-wider">
-                      {chartSelection === 'all' ? 'Aggregate Maturity' : 'Project Maturity'}
+                      {chartSelection === 'all' ? 'Aggregate Spiral AIRL' : 'Project Maturity'}
                     </p>
                     <div className="flex items-end gap-2">
                       <h3 className="text-3xl font-bold text-blue-900">AIRL {displayLevel}</h3>
                       <span className="text-sm text-blue-600 mb-1 font-medium">
-                        {chartSelection === 'all' ? '(Conservative)' : '(Current)'}
+                        {chartSelection === 'all' ? '(Avg Ceiling)' : '(Current)'}
                       </span>
                     </div>
                   </div>
 
                   <h4 className="font-medium text-gray-900 mb-4 text-sm">
-                    {chartSelection === 'all' ? 'Critical Gaps (Lowest Areas)' : 'Current Status'}
+                    {chartSelection === 'all' ? 'Portfolio Strengths' : 'Current Status'}
                   </h4>
                   
-                  {/* Dynamic Milestones List */}
+                  {/* Dynamic Top Categories (Instead of weakest) */}
                   <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-                    {currentChartData.slice(0, 2).map((dataPoint) => (
+                    {currentChartData
+                      .sort((a, b) => b.A - a.A) // Sort by highest score first
+                      .slice(0, 2)
+                      .map((dataPoint) => (
                       <div key={dataPoint.subject} className="relative pl-6">
                         <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white ${dataPoint.A >= 5 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                         <p className="text-sm font-medium text-gray-900">
                           {dataPoint.subject}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Score: {dataPoint.A} / 9
+                          Avg Score: {dataPoint.A} / 9
                         </p>
                       </div>
                     ))}
@@ -228,7 +279,7 @@ export function FounderDashboard() {
               />
               
               <div className="space-y-3">
-                {myActions.filter(i => i.status === activeTab).map(action => (
+                {myActions.filter((i: any) => i.status === activeTab).map((action: any) => (
                   <div 
                     key={action.id} 
                     className="group flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-white hover:shadow-sm transition-all"
@@ -284,7 +335,7 @@ export function FounderDashboard() {
                   </div>
                 ))}
                 
-                {myActions.filter(i => i.status === activeTab).length === 0 && (
+                {myActions.filter((i: any) => i.status === activeTab).length === 0 && (
                   <div className="text-center py-8 text-gray-400 text-sm">
                     {activeTab === 'open' && "No pending tasks."}
                     {activeTab === 'in_progress' && "No tasks in progress."}
@@ -420,7 +471,6 @@ export function FounderDashboard() {
                           {review.deadline}
                         </td>
                         <td className="px-4 py-3">
-                          {/* UPDATED BUTTON */}
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -437,6 +487,7 @@ export function FounderDashboard() {
             </CardContent>
           </Card>
         </motion.div>
+
       </motion.div>
 
       {/* Add Action Item Modal */}
