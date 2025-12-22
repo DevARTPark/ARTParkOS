@@ -7,17 +7,17 @@ import {
   User as UserIcon,
   Rocket,
   Building2,
-  Beaker,
-  GraduationCap,
-  MessageSquare,
+  Briefcase, // New Icon
+  Check, // New Icon
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
-import { projects, startups, facilities, mentors } from "../../data/mockData";
+import { projects, startups } from "../../data/mockData";
 import { API_URL } from "../../config";
 
 export interface HeaderUser {
   name: string;
   role: string;
+  roles?: string[]; // Added roles array
   avatar?: string;
 }
 
@@ -34,7 +34,11 @@ export function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
 
+  // --- USER & ROLE STATE ---
   const [user, setUser] = useState<any>(null);
+  const [activeRole, setActiveRole] = useState<string>("");
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+
   // Initialize with cached profile if available (Instant Load)
   const [profile, setProfile] = useState<any>(() => {
     const cached = localStorage.getItem("artpark_profile_cache");
@@ -70,9 +74,15 @@ export function Header({
 
   const loadData = () => {
     const userStr = localStorage.getItem("artpark_user");
+    const roleStr = localStorage.getItem("active_role");
+
     if (userStr) {
       const parsedUser = JSON.parse(userStr);
       setUser(parsedUser);
+
+      // Set Active Role (Default to first role if missing)
+      const currentRole = roleStr || parsedUser.roles?.[0] || "founder";
+      setActiveRole(currentRole);
 
       // Background Fetch to keep cache updated
       fetch(`${API_URL}/api/founder/profile?userId=${parsedUser.id}`)
@@ -95,7 +105,6 @@ export function Header({
       const detail = (e as CustomEvent).detail;
       if (detail) {
         setProfile((prev: any) => ({ ...prev, ...detail }));
-        // Update cache so next refresh is fast
         localStorage.setItem(
           "artpark_profile_cache",
           JSON.stringify({ ...profile, ...detail })
@@ -110,18 +119,51 @@ export function Header({
 
   const handleLogout = () => {
     localStorage.removeItem("artpark_user");
-    localStorage.removeItem("artpark_profile_cache"); // Clear cache on logout
+    localStorage.removeItem("artpark_profile_cache");
+    localStorage.removeItem("active_role"); // Clear active role
     navigate("/login");
+  };
+
+  // --- ROLE SWITCHING LOGIC ---
+  const handleRoleSwitch = (newRole: string) => {
+    // 1. Update State & Storage
+    localStorage.setItem("active_role", newRole);
+    setActiveRole(newRole);
+    setShowRoleMenu(false);
+
+    // 2. Navigate to new dashboard
+    const dashboardMap: Record<string, string> = {
+      founder: "/founder/dashboard",
+      admin: "/admin/dashboard",
+      reviewer: "/reviewer/dashboard",
+      supplier: "/supplier/dashboard",
+      mentor: "/mentor/dashboard",
+      lab_owner: "/lab-owner/dashboard",
+    };
+
+    // Redirect
+    navigate(dashboardMap[newRole] || "/");
+
+    // 3. Optional: Reload to ensure clean state for the new role context
+    window.location.reload();
   };
 
   const displayName =
     profile?.founderName || user?.name || initialUser?.name || "Guest User";
+
+  // Use Active Role for display
   const displayRole =
-    profile?.designation || user?.role || initialRole || "Visitor";
+    activeRole ||
+    profile?.designation ||
+    user?.role ||
+    initialRole ||
+    "Visitor";
+
   const displayAvatar = profile?.avatarUrl || initialUser?.avatar;
 
   const getProfilePath = (role?: string) => {
-    const targetRole = role || user?.role;
+    // Use the ACTIVE role to determine where the profile link goes
+    const targetRole = role || activeRole;
     switch (targetRole) {
       case "founder":
         return "/founder/settings";
@@ -170,12 +212,58 @@ export function Header({
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center">
+      {/* --- LEFT SECTION: Title & Role Switcher --- */}
+      <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold text-gray-800">
           {title || "Dashboard"}
         </h1>
+
+        {/* CONDITIONAL ROLE SWITCHER: Only if > 1 role */}
+        {user?.roles && user.roles.length > 1 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span className="capitalize">
+                {activeRole.replace("_", " ")} View
+              </span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+
+            {showRoleMenu && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-50 text-xs font-semibold text-gray-400">
+                  SWITCH CONTEXT
+                </div>
+                {user.roles.map((role: string) => (
+                  <button
+                    key={role}
+                    onClick={() => handleRoleSwitch(role)}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group"
+                  >
+                    <span
+                      className={`text-sm capitalize ${
+                        activeRole === role
+                          ? "font-semibold text-blue-600"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {role.replace("_", " ")}
+                    </span>
+                    {activeRole === role && (
+                      <Check className="w-4 h-4 text-blue-600" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* --- RIGHT SECTION: Search, Notifications, Profile --- */}
       <div className="flex items-center space-x-6">
         {/* Search */}
         <div className="relative hidden md:block group" ref={searchRef}>
@@ -258,7 +346,7 @@ export function Header({
                 {displayName}
               </p>
               <p className="text-xs text-gray-500 capitalize mt-1">
-                {displayRole}
+                {displayRole.replace("_", " ")}
               </p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -271,8 +359,9 @@ export function Header({
                 {user?.email || "guest@artpark.in"}
               </p>
             </div>
+            {/* Dynamic Profile Link based on Active Role */}
             <Link
-              to={getProfilePath(user?.role)}
+              to={getProfilePath(activeRole)}
               className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <UserIcon className="w-4 h-4 mr-2" /> Profile
