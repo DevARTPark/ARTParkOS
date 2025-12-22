@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport'; // 1. Import this type
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 dotenv.config();
 
@@ -19,17 +19,27 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key_123";
 
-// --- SMTP CONFIGURATION (Fixed Type Error) ---
+// --- DYNAMIC FRONTEND URL ---
+// Now purely relies on .env. If missing, defaults to localhost but logs a warning.
+const FRONTEND_URL = process.env.FRONTEND_URL;
+
+if (!FRONTEND_URL) {
+    console.warn("⚠️  WARNING: FRONTEND_URL is not defined in .env! Defaulting to http://localhost:5173");
+}
+const finalFrontendUrl = FRONTEND_URL || "http://localhost:5173";
+
+
+// --- SMTP CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 465,
-    secure: true, // true for 465, false for other ports
+    secure: true,
     auth: {
         user: process.env.SMTP_EMAIL,
         pass: process.env.SMTP_PASSWORD,
     },
-    family: 4, // Optional: Uncomment if you still have connection issues
-} as SMTPTransport.Options); // 2. Cast as SMTP Options
+    family: 4,
+} as SMTPTransport.Options);
 
 async function sendEmail(to: string, subject: string, html: string) {
     try {
@@ -49,7 +59,7 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function createAuthToken(userId: string, type: 'account_activation' | 'password_reset') {
     const tokenString = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Token valid for 24 hours
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     await prisma.authToken.create({
         data: {
@@ -83,8 +93,14 @@ app.post('/api/auth/invite-user', async (req, res) => {
         });
 
         const token = await createAuthToken(user.id, 'account_activation');
-        // NOTE: In production, change localhost to your Vercel URL
-        const link = `https://artparkos.vercel.app/set-password?token=${token}&type=activation`;
+
+        // --- USE DYNAMIC URL ---
+        const link = `${finalFrontendUrl}/set-password?token=${token}&type=activation`;
+
+        console.log("---------------------------------------------------");
+        console.log(`📨 INVITE LINK FOR ${email} (${role}):`);
+        console.log(link);
+        console.log("---------------------------------------------------");
 
         const emailHtml = `
       <h2>Welcome to ARTPark!</h2>
@@ -129,8 +145,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         }
 
         const token = await createAuthToken(user.id, 'password_reset');
-        // NOTE: In production, change localhost to your Vercel URL
-        const resetLink = `https://artparkos.vercel.app/set-password?token=${token}&type=reset`;
+
+        // --- USE DYNAMIC URL ---
+        const resetLink = `${finalFrontendUrl}/set-password?token=${token}&type=reset`;
 
         console.log("---------------------------------------------------");
         console.log(`🔑 PASSWORD RESET LINK FOR ${email}:`);
@@ -194,10 +211,6 @@ app.post('/api/auth/set-password', async (req, res) => {
     }
 });
 
-// ==========================================
-// PROFILE ROUTES
-// ==========================================
-
 // 5. Get Profile
 app.get('/api/founder/profile', async (req, res) => {
     const { userId } = req.query;
@@ -255,7 +268,6 @@ app.post('/api/founder/profile', async (req, res) => {
     }
 });
 
-// --- START SERVER ---
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Backend Server running on http://localhost:${PORT}`);
