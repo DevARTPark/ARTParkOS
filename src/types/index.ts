@@ -10,9 +10,14 @@ export interface Project {
   id: string;
   name: string;
   domain: string;
-  currentTRL: number;
+  currentAIRL: number;
   description: string;
   foundedDate: string;
+  teamSize?: string;
+  // NEW FIELDS
+  isNew?: boolean; // True if just created and waiting for baseline
+  estimatedAIRL?: number; // What the founder THINKS they are
+  baselineDeadline?: string; // The 7-day deadline
 }
 export interface Startup {
   id: string;
