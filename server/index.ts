@@ -83,10 +83,12 @@ app.post('/api/auth/invite-user', async (req, res) => {
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return res.status(400).json({ error: "User already exists" });
 
+        // Inside app.post('/api/auth/invite-user' ...
         const user = await prisma.user.create({
             data: {
                 email,
-                role: role || 'founder',
+                // CHANGE: Store the invited role as the first item in the array
+                roles: [role || 'founder'],
                 status: 'invited',
                 password_hash: null,
             }
@@ -126,8 +128,23 @@ app.post('/api/auth/login', async (req, res) => {
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) return res.status(401).json({ error: "Invalid password" });
 
-        const token = jwt.sign({ userId: user.id, role: user.role, email: user.email }, SECRET_KEY, { expiresIn: '12h' });
-        res.json({ token, user: { id: user.id, name: email.split('@')[0], role: user.role, email: user.email } });
+        // Inside app.post('/api/auth/login' ...
+        const token = jwt.sign(
+            // CHANGE: Include 'roles' (plural) in token
+            { userId: user.id, roles: user.roles, email: user.email },
+            SECRET_KEY,
+            { expiresIn: '12h' }
+        );
+
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                name: email.split('@')[0],
+                roles: user.roles, // CHANGE: Send array
+                email: user.email
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: "Internal error" });
     }

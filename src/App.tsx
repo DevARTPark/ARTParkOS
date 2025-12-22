@@ -3,11 +3,12 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Link, // Imported Link
+  Link,
+  Navigate,
 } from "react-router-dom";
 
 // Auth & Layout Components
-import LoginPage from "./pages/LoginPage";
+import LoginPage from "./pages/auth/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import SetPasswordPage from "./pages/auth/SetPasswordPage";
@@ -255,8 +256,8 @@ export function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<RoleSelection />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
 
