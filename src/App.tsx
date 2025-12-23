@@ -12,6 +12,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import SetPasswordPage from "./pages/auth/SetPasswordPage";
+import { UnifiedProfileSettings } from "./pages/common/UnifiedProfileSettings";
 
 // --- FOUNDER PAGES ---
 import { FounderDashboard } from "./pages/founder/FounderDashboard";
@@ -314,7 +315,7 @@ export function App() {
           path="/founder/settings"
           element={
             <ProtectedRoute allowedRoles={["founder"]}>
-              <FounderSettings />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />
@@ -512,7 +513,7 @@ export function App() {
           path="/admin/settings"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminSettings />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />
@@ -594,7 +595,7 @@ export function App() {
           path="/reviewer/settings"
           element={
             <ProtectedRoute allowedRoles={["reviewer"]}>
-              <ReviewerSettings />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />
@@ -684,7 +685,7 @@ export function App() {
           path="/supplier/settings"
           element={
             <ProtectedRoute allowedRoles={["supplier"]}>
-              <SupplierSettings />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />
@@ -734,7 +735,7 @@ export function App() {
           path="/mentor/profile/edit"
           element={
             <ProtectedRoute allowedRoles={["mentor"]}>
-              <MentorProfileEditPage />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />
@@ -768,7 +769,7 @@ export function App() {
           path="/lab-owner/settings"
           element={
             <ProtectedRoute allowedRoles={["lab_owner"]}>
-              <LabSettings />
+              <UnifiedProfileSettings />
             </ProtectedRoute>
           }
         />

@@ -26,6 +26,7 @@ import {
   Save,
   Check
 } from "lucide-react";
+import { compressImage } from "../../utils/imageUtils";
 import { compressImage } from "../../utils/imageUtils"; 
 import { API_URL } from "../../config";
 import { currentUser } from "../../data/mockData"; // Fallback data

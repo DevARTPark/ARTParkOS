@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { Lock, Mail, ArrowRight, Loader } from "lucide-react";
+import artparkLogo from "../../../public/artpark_in_logo.jpg";
 import { API_URL } from "../../config";
 
 export default function LoginPage() {
@@ -11,15 +13,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
-
-    console.log("🚀 [Login] Starting login process...");
-    console.log("📍 [Login] Target API:", `${API_URL}/api/auth/login`);
+    setLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -28,54 +27,30 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log("📡 [Login] Response Status:", response.status);
-
       const data = await response.json();
-      console.log("📦 [Login] Response Data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "Login failed");
       }
 
-      // --- DEBUGGING DATA STRUCTURE ---
-      console.log("🔍 [Login] User Object:", data.user);
-      console.log("🔍 [Login] User Roles (Array):", data.user.roles);
-      console.log("🔍 [Login] User Role (Singular - Legacy):", data.user.role);
-
-      // --- HANDLING ROLES ---
-      // 1. Try to find the roles array
-      let roles = data.user.roles;
-
-      // 2. If no array, check for singular role (Backward Compatibility)
-      if (!roles || roles.length === 0) {
-        if (data.user.role) {
-          console.log(
-            "⚠️ [Login] 'roles' array missing. Using singular 'role'."
-          );
-          roles = [data.user.role];
-        } else {
-          console.warn(
-            "🚨 [Login] NO ROLE FOUND! Defaulting to 'founder' to prevent crash."
-          );
-          roles = ["founder"];
-        }
-      }
+      // Handle Roles
+      const roles =
+        data.user.roles && data.user.roles.length > 0
+          ? data.user.roles
+          : ["founder"];
 
       const primaryRole = roles[0];
-      console.log("👑 [Login] Primary Role Determined:", primaryRole);
 
-      // --- SAVING TO STORAGE ---
+      // Save Data
       localStorage.setItem("token", data.token);
       localStorage.setItem(
         "artpark_user",
         JSON.stringify({ ...data.user, roles })
       );
       localStorage.setItem("active_role", primaryRole);
-      console.log("💾 [Login] Saved to LocalStorage.");
 
-      // --- CALCULATING REDIRECT ---
+      // Redirect Logic
       let finalPath = redirect;
-
       const dashboardMap: Record<string, string> = {
         founder: "/founder/dashboard",
         reviewer: "/reviewer/dashboard",
@@ -89,72 +64,128 @@ export default function LoginPage() {
         finalPath = dashboardMap[primaryRole] || "/founder/dashboard";
       }
 
-      console.log("🚗 [Login] Navigating to:", finalPath);
       navigate(finalPath);
     } catch (err: any) {
-      console.error("❌ [Login] ERROR:", err);
       setError(err.message);
       localStorage.removeItem("artpark_user");
       localStorage.removeItem("active_role");
       localStorage.removeItem("token");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-10 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center text-white mb-6">
-          ARTPark Debug Login
-        </h1>
+    // CHANGED: Light gray background instead of dark slate
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      {/* Background Decoration (Subtle Gradients) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-blue-100/50 rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-purple-100/50 rounded-full blur-3xl delay-700" />
+      </div>
+
+      {/* CHANGED: White card with shadow instead of glassmorphism */}
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative z-10 border border-gray-100">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center mb-4 p-2">
+            <img
+              src={artparkLogo}
+              alt="ARTPARK"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          {/* CHANGED: Dark text colors */}
+          <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Sign in to continue to ARTPARK OS
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="text-white text-sm mb-1 block">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 ml-1">
               Email Address
             </label>
-            <input
-              autoFocus
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="founder@artpark.in"
-              className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-slate-300 outline-none focus:ring-2 focus:ring-blue-400 border border-transparent focus:border-blue-400 transition"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-white text-sm mb-1 block">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-slate-300 outline-none focus:ring-2 focus:ring-blue-400 border border-transparent focus:border-blue-400 transition"
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-sm text-center">
-              {error}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+              </div>
+              {/* CHANGED: Light input styles (white bg, gray border, dark text) */}
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="name@company.com"
+              />
             </div>
-          )}
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between ml-1">
+              <label className="text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
 
           <button
             type="submit"
-            disabled={isLoading}
-            className={`w-full py-2.5 rounded-lg font-semibold transition shadow-lg ${
-              isLoading
-                ? "bg-gray-600 cursor-not-allowed text-gray-300"
-                : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30"
-            }`}
+            disabled={loading}
+            className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3.5 rounded-xl transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] shadow-md hover:shadow-lg flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {loading ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                <span>Signing in...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </button>
         </form>
+
+        <div className="mt-8 text-center">
+          <p className="text-gray-500 text-sm">
+            Don't have an account? Contact Admin @{" "}
+            <a
+              href="mailto:dev@artpark.in"
+              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              dev@artpark.in
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
