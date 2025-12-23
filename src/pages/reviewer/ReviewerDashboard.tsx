@@ -18,8 +18,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-// 1. IMPORT DATA
-import { reviewerStartups } from '../../data/reviewerData';
+// 1. IMPORT DATA & TYPES
+import { reviewerStartups, StartupEntry } from '../../data/reviewerData';
 
 // --- Local Mock Data for Ticker ---
 const urgentUpdates = [
@@ -31,6 +31,33 @@ const urgentUpdates = [
 export function ReviewerDashboard() {
   const navigate = useNavigate();
   
+  // --- 2. DYNAMIC DATA LOADING (Fixes Static Charts) ---
+  const [startups, setStartups] = useState<StartupEntry[]>(() => {
+    // A. Load new projects submitted by founders
+    const localProjectsStr = localStorage.getItem('founder_projects');
+    const localProjects = localProjectsStr ? JSON.parse(localProjectsStr) : [];
+
+    // B. Map Founder Projects to Reviewer 'StartupEntry' format
+    const newStartups: StartupEntry[] = localProjects.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      domain: p.domain,
+      // If it's new/unverified, visualize it at their estimated level so it appears in the pipeline
+      airlLevel: p.isNew ? p.estimatedAIRL : p.currentAIRL, 
+      healthStatus: 'Yellow', // Default status for new/pending items
+      lastReviewDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), // Today
+      hasPendingReview: true, // Always true for new submissions
+      isHighPriority: p.isNew || false
+    }));
+
+    // C. Merge Static Mock Data + New Dynamic Data
+    // We filter out any IDs from mock data that might conflict (unlikely, but safe)
+    const existingIds = new Set(newStartups.map(s => s.id));
+    const filteredStatic = reviewerStartups.filter(s => !existingIds.has(s.id));
+
+    return [...filteredStatic, ...newStartups];
+  });
+
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -39,7 +66,6 @@ export function ReviewerDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   // --- COMPARISON CHART STATE ---
-  // Default: End = Today, Start = 3 Months ago
   const today = new Date();
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(today.getMonth() - 3);
@@ -56,6 +82,9 @@ export function ReviewerDashboard() {
 
   // --- HELPER: Parse Mock Data Dates ---
   const parseMockDate = (dateStr: string) => {
+    // If it looks like "Oct 15", add year. If it's ISO (from local storage), parse directly.
+    if (dateStr.includes('-') && dateStr.length > 6) return new Date(dateStr);
+    
     const currentYear = new Date().getFullYear();
     const date = new Date(`${dateStr}, ${currentYear}`);
     if (date > new Date()) {
@@ -64,8 +93,8 @@ export function ReviewerDashboard() {
     return date;
   };
 
-  // --- FILTERING LOGIC (For Table) ---
-  const filteredStartups = reviewerStartups.filter(startup => {
+  // --- FILTERING LOGIC (Using dynamic 'startups' state) ---
+  const filteredStartups = startups.filter(startup => {
     const matchesSearch = startup.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDomain = domainFilter === 'all' || startup.domain === domainFilter;
     const matchesAirl = airlFilter === 'all' || startup.airlLevel.toString() === airlFilter;
@@ -74,10 +103,10 @@ export function ReviewerDashboard() {
   });
 
   // --- METRIC CALCULATIONS ---
-  const totalStartups = reviewerStartups.length;
-  const pendingReviews = reviewerStartups.filter(s => s.hasPendingReview).length;
-  const redFlagged = reviewerStartups.filter(s => s.healthStatus === 'Red').length;
-  const graduated = reviewerStartups.filter(s => s.airlLevel >= 7).length;
+  const totalStartups = startups.length;
+  const pendingReviews = startups.filter(s => s.hasPendingReview).length;
+  const redFlagged = startups.filter(s => s.healthStatus === 'Red').length;
+  const graduated = startups.filter(s => s.airlLevel >= 7).length;
 
   // --- CHART 1: PROGRESSION COMPARISON LOGIC ---
   const comparisonData = useMemo(() => {
@@ -91,7 +120,7 @@ export function ReviewerDashboard() {
       endCount: 0
     }));
 
-    reviewerStartups.forEach(startup => {
+    startups.forEach(startup => {
       const reviewDate = parseMockDate(startup.lastReviewDate);
       const currentLevel = startup.airlLevel;
 
@@ -104,13 +133,11 @@ export function ReviewerDashboard() {
 
       // Logic for "Start Date" (Simulated Historical Status)
       if (reviewDate <= start) {
-        // Reviewed BEFORE start date -> They were already at current level
         if (currentLevel >= 1 && currentLevel <= 9) {
           counts[currentLevel - 1].startCount++;
         }
       } else if (reviewDate > start && reviewDate <= end) {
-        // Reviewed BETWEEN start and end -> They moved UP recently.
-        // Assume they were at (Current Level - 1) on the Start Date.
+        // Assume they moved UP recently.
         const prevLevel = currentLevel - 1;
         if (prevLevel >= 1) {
           counts[prevLevel - 1].startCount++;
@@ -119,7 +146,7 @@ export function ReviewerDashboard() {
     });
 
     return counts;
-  }, [startDate, endDate, reviewerStartups]);
+  }, [startDate, endDate, startups]);
 
   // --- CHART 2: CURRENT SNAPSHOT ---
   const snapshotData = useMemo(() => {
@@ -127,12 +154,12 @@ export function ReviewerDashboard() {
       const level = i + 1;
       return {
         name: `${level}`,
-        count: reviewerStartups.filter(s => s.airlLevel === level).length
+        count: startups.filter(s => s.airlLevel === level).length
       };
     });
-  }, [reviewerStartups]);
+  }, [startups]);
 
-  const uniqueDomains = Array.from(new Set(reviewerStartups.map(s => s.domain)));
+  const uniqueDomains = Array.from(new Set(startups.map(s => s.domain)));
 
   return (
     <DashboardLayout role="reviewer" title="Program & Innovation Dashboard">
@@ -171,7 +198,8 @@ export function ReviewerDashboard() {
             <p className="text-sm text-gray-500 font-medium">Total Startups</p>
             <div className="flex items-end justify-between">
               <h3 className="text-3xl font-bold text-gray-900">{totalStartups}</h3>
-              <Badge variant="success" className="mb-1">+2 this month</Badge>
+              {/* Dynamic badge based on actual data changes in real app */}
+              <Badge variant="success" className="mb-1">Active</Badge>
             </div>
           </CardContent>
         </Card>
@@ -216,7 +244,7 @@ export function ReviewerDashboard() {
       {/* 3. Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         
-        {/* CHART 1: PROGRESSION COMPARISON (New Requirement) */}
+        {/* CHART 1: PROGRESSION COMPARISON */}
         <Card>
           <CardHeader>
             <div className="flex flex-col space-y-4">
@@ -291,11 +319,11 @@ export function ReviewerDashboard() {
           </CardContent>
         </Card>
 
-        {/* CHART 2: Current AIRL Snapshot (Maintained) */}
+        {/* CHART 2: Current AIRL Snapshot */}
         <Card>
           <CardHeader>
             <CardTitle>AIRL Progression Pipeline</CardTitle>
-            <p className="text-xs text-gray-500 mt-1">Current status of all active startups</p>
+            <p className="text-xs text-gray-500 mt-1">Current status of all active startups (Including New)</p>
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -470,7 +498,7 @@ export function ReviewerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {reviewerStartups.filter(s => s.hasPendingReview).slice(0, 2).map(task => (
+              {startups.filter(s => s.hasPendingReview).slice(0, 2).map(task => (
                 <div key={task.id} className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer">
                   <div className="flex justify-between items-start mb-2">
                     <Badge variant={task.isHighPriority ? 'danger' : 'info'}>

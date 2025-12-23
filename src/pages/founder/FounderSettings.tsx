@@ -8,7 +8,7 @@ import {
 } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { Textarea } from "../../components/ui/TextArea";
+import { Textarea } from "../../components/ui/TextArea"; // Ensure this path is correct based on your project
 import { Badge } from "../../components/ui/Badge";
 import {
   User,
@@ -20,9 +20,19 @@ import {
   Monitor,
   CheckCircle2,
   AlertCircle,
+  Phone,
+  Building,
+  Lock,
+  Save,
+  Check
 } from "lucide-react";
+<<<<<<< HEAD
 import { compressImage } from "../../utils/imageUtils";
+=======
+import { compressImage } from "../../utils/imageUtils"; 
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
 import { API_URL } from "../../config";
+import { currentUser } from "../../data/mockData"; // Fallback data
 
 export function FounderSettings() {
   const [activeTab, setActiveTab] = useState("general");
@@ -35,21 +45,42 @@ export function FounderSettings() {
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+<<<<<<< HEAD
 
   // Get User ID
   const userStr = localStorage.getItem("artpark_user");
   const user = userStr ? JSON.parse(userStr) : null;
+=======
+  
+  // --- 1. INITIALIZE STATE FROM LOCAL STORAGE (Fixes "Fake Settings") ---
+  const [formData, setFormData] = useState(() => {
+    // Check if we have saved settings specifically for this form
+    const savedProfile = localStorage.getItem('founder_profile');
+    if (savedProfile) {
+      return JSON.parse(savedProfile);
+    }
+    
+    // If not, fall back to the authenticated user info or mock data
+    const userStr = localStorage.getItem("artpark_user");
+    const user = userStr ? JSON.parse(userStr) : currentUser;
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
 
-  const [formData, setFormData] = useState({
-    founderName: "",
-    phone: "",
-    designation: "",
-    avatarUrl: "",
-    startupName: "",
-    website: "",
-    description: "",
-    industry: "",
-    location: "",
+    return {
+      founderName: user.name || "Alex Chen",
+      email: user.email || "alex@greenfield.com",
+      phone: "+91 98765 43210",
+      designation: "Founder & CEO",
+      avatarUrl: user.avatar || "",
+      startupName: "GreenField Tech",
+      website: "www.greenfield.tech",
+      description: "Building the future of sustainable agriculture through IoT and AI-driven insights.",
+      industry: "AgriTech, IoT, AI",
+      location: "Bengaluru, India",
+      // Password fields (usually empty on load)
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: ""
+    };
   });
 
   // --- Theme Effect ---
@@ -60,6 +91,7 @@ export function FounderSettings() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+<<<<<<< HEAD
   // --- Load Profile (Network + User-Specific Cache Strategy) ---
   useEffect(() => {
     if (!user?.id) return;
@@ -93,18 +125,27 @@ export function FounderSettings() {
   }, [user?.id]);
 
   // --- Optimized File Handler ---
+=======
+  // --- 2. LOAD FROM API (Optional Hybrid Approach) ---
+  // If you have a backend, you can fetch fresh data here to override local storage
+  // For now, we will stick to LocalStorage as the primary source of truth for the prototype.
+
+  // --- Handlers ---
+
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const compressedBase64 = await compressImage(file);
-        setFormData((prev) => ({ ...prev, avatarUrl: compressedBase64 }));
+        setFormData((prev: any) => ({ ...prev, avatarUrl: compressedBase64 }));
       } catch (err) {
         console.error("Image compression failed", err);
       }
     }
   };
 
+<<<<<<< HEAD
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
@@ -144,43 +185,90 @@ export function FounderSettings() {
     }
   };
 
+=======
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
+    if (msg) setMsg(null); // Clear message on edit
   };
 
+  // --- 3. SAVE LOGIC (Fixes Persistence) ---
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMsg(null);
+
+    // Simulate Network Delay
+    setTimeout(() => {
+      try {
+        // A. Save to 'founder_profile' Key (This persists the form data)
+        localStorage.setItem("founder_profile", JSON.stringify(formData));
+
+        // B. Update the Global User Object (So Sidebar/Header updates instantly)
+        const userStr = localStorage.getItem("artpark_user");
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          user.name = formData.founderName;
+          user.avatar = formData.avatarUrl; // Update avatar too
+          localStorage.setItem("artpark_user", JSON.stringify(user));
+        }
+
+        // C. Dispatch Event to notify Header component (if listening)
+        window.dispatchEvent(new Event("storage"));
+
+        setMsg({ type: "success", text: "Profile settings saved successfully!" });
+      } catch (err) {
+        setMsg({ type: "error", text: "Failed to save settings." });
+      } finally {
+        setSaving(false);
+        // Clear success message after 3 seconds
+        setTimeout(() => setMsg(null), 3000);
+      }
+    }, 800);
+  };
+
+  // --- Tag Handlers ---
   const handleAddTag = () => {
     const newTag = prompt("Enter domain:");
     if (newTag)
-      setFormData((prev) => ({
+      setFormData((prev: any) => ({
         ...prev,
         industry: prev.industry ? `${prev.industry}, ${newTag}` : newTag,
       }));
   };
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
   const handleRemoveTag = (tag: string) => {
     const tags = formData.industry
       .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t !== tag);
-    setFormData((prev) => ({ ...prev, industry: tags.join(", ") }));
+      .map((t: string) => t.trim())
+      .filter((t: string) => t !== tag);
+    setFormData((prev: any) => ({ ...prev, industry: tags.join(", ") }));
   };
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
   const industryTags = formData.industry
-    ? formData.industry
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
+    ? formData.industry.split(",").map((t: string) => t.trim()).filter(Boolean)
     : [];
-
-  if (!user) return <div>Please log in.</div>;
 
   return (
     <DashboardLayout role="founder" title="Account Settings">
       <div className="flex flex-col md:flex-row gap-6">
+<<<<<<< HEAD
         {/* Sidebar Tabs */}
+=======
+        
+        {/* Sidebar Navigation */}
+>>>>>>> a33ee095c63751a5d68cd3d031df2c1a9907f6bc
         <div className="w-full md:w-64 space-y-2">
           <Card>
             <CardContent className="p-2">
@@ -213,13 +301,15 @@ export function FounderSettings() {
 
         {/* Main Content Area */}
         <div className="flex-1 space-y-6">
+          
+          {/* Feedback Message */}
           {msg && (
             <div
               className={`p-4 rounded-lg flex items-center gap-2 ${
                 msg.type === "success"
                   ? "bg-green-50 text-green-700 border-green-200"
                   : "bg-red-50 text-red-700 border-red-200"
-              } border`}
+              } border animate-in fade-in slide-in-from-top-2`}
             >
               {msg.type === "success" ? (
                 <CheckCircle2 className="w-5 h-5" />
@@ -232,19 +322,18 @@ export function FounderSettings() {
 
           {/* --- Tab: General --- */}
           {activeTab === "general" && (
-            <div className="space-y-6">
+            <form onSubmit={handleSave} className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Personal Profile</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-4">
+                <CardContent className="space-y-6">
+                  {/* Avatar Section */}
+                  <div className="flex items-center space-x-4">
                     <img
-                      src={
-                        formData.avatarUrl || "https://via.placeholder.com/150"
-                      }
+                      src={formData.avatarUrl || "https://ui-avatars.com/api/?name=" + formData.founderName}
                       alt="Avatar"
-                      className="w-16 h-16 rounded-full border-2 border-gray-100 object-cover"
+                      className="w-20 h-20 rounded-full border-2 border-gray-100 object-cover shadow-sm"
                     />
                     <div className="space-y-2">
                       <div className="flex gap-2">
@@ -256,25 +345,27 @@ export function FounderSettings() {
                           onChange={handleFileChange}
                         />
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
                         >
                           Change Avatar
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() =>
-                            setFormData((p) => ({ ...p, avatarUrl: "" }))
-                          }
-                        >
-                          Remove
-                        </Button>
+                        {formData.avatarUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:bg-red-50"
+                            onClick={() => setFormData((p: any) => ({ ...p, avatarUrl: "" }))}
+                          >
+                            Remove
+                          </Button>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        JPG, PNG. Automatically resized.
+                        JPG, PNG. Max 2MB.
                       </p>
                     </div>
                   </div>
@@ -285,14 +376,16 @@ export function FounderSettings() {
                       name="founderName"
                       value={formData.founderName}
                       onChange={handleChange}
-                      placeholder="Alex Chen"
+                      placeholder="e.g. Alex Chen"
                     />
-                    <Input
-                      label="Email Address"
-                      value={user.email}
-                      disabled
-                      className="bg-gray-50 text-gray-500"
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Email Address</label>
+                      <Input
+                        value={formData.email}
+                        disabled
+                        className="bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
                     <Input
                       label="Phone Number"
                       name="phone"
@@ -305,7 +398,7 @@ export function FounderSettings() {
                       name="designation"
                       value={formData.designation}
                       onChange={handleChange}
-                      placeholder="CEO"
+                      placeholder="e.g. CEO"
                     />
                   </div>
                 </CardContent>
@@ -328,52 +421,62 @@ export function FounderSettings() {
                       name="website"
                       value={formData.website}
                       onChange={handleChange}
+                      placeholder="https://..."
                     />
                   </div>
                   <Textarea
-                    label="Short Bio"
+                    label="Short Bio / Description"
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
                     rows={3}
+                    placeholder="Briefly describe your innovation..."
                   />
+                  
+                  {/* Industry Tags */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Primary Domain
+                      Primary Domain(s)
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {industryTags.map((tag, idx) => (
+                      {industryTags.map((tag: string, idx: number) => (
                         <Badge
                           key={idx}
                           variant="info"
-                          className="cursor-pointer"
+                          className="cursor-pointer hover:bg-blue-200 transition-colors"
                           onClick={() => handleRemoveTag(tag)}
                         >
                           {tag} ×
                         </Badge>
                       ))}
                       <Button
+                        type="button"
                         onClick={handleAddTag}
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs border border-dashed border-gray-300"
+                        className="h-6 text-xs border border-dashed border-gray-300 text-gray-500"
                       >
-                        + Add
+                        + Add Tag
                       </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
+              <div className="flex justify-end pt-4">
+                <Button 
+                  type="submit" 
+                  disabled={saving}
+                  className={`min-w-[140px] transition-all ${msg?.type === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                  leftIcon={msg?.type === 'success' ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                >
+                  {saving ? "Saving..." : msg?.type === 'success' ? "Saved!" : "Save Changes"}
                 </Button>
               </div>
-            </div>
+            </form>
           )}
 
-          {/* --- Tab: Appearance (Dark Mode) --- */}
+          {/* --- Tab: Appearance --- */}
           {activeTab === "appearance" && (
             <Card>
               <CardHeader>
@@ -389,12 +492,7 @@ export function FounderSettings() {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <div className="w-full bg-white border border-gray-200 rounded-lg p-2 mb-3 shadow-sm">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-200 rounded"></div>
-                        <div className="h-2 w-1/2 bg-gray-200 rounded"></div>
-                      </div>
-                    </div>
+                    <div className="w-full bg-white border border-gray-200 rounded-lg p-2 mb-3 shadow-sm h-16"></div>
                     <div className="flex items-center font-medium text-gray-900">
                       <Sun className="w-4 h-4 mr-2" /> Light
                     </div>
@@ -408,33 +506,9 @@ export function FounderSettings() {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <div className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 mb-3 shadow-sm">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-slate-700 rounded"></div>
-                        <div className="h-2 w-1/2 bg-slate-700 rounded"></div>
-                      </div>
-                    </div>
-                    <div
-                      className={`flex items-center font-medium ${
-                        theme === "dark" ? "text-white" : "text-gray-900"
-                      }`}
-                    >
+                    <div className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 mb-3 shadow-sm h-16"></div>
+                    <div className={`flex items-center font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
                       <Moon className="w-4 h-4 mr-2" /> Dark
-                    </div>
-                  </button>
-
-                  <button
-                    disabled
-                    className="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 opacity-50 cursor-not-allowed"
-                  >
-                    <div className="w-full bg-gray-100 rounded-lg p-2 mb-3">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-300 rounded"></div>
-                        <div className="h-2 w-1/2 bg-gray-300 rounded"></div>
-                      </div>
-                    </div>
-                    <div className="flex items-center font-medium text-gray-500">
-                      <Monitor className="w-4 h-4 mr-2" /> System
                     </div>
                   </button>
                 </div>
@@ -448,31 +522,19 @@ export function FounderSettings() {
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                    <Mail className="w-4 h-4 mr-2" /> Email Notifications
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      "Weekly AIRL Progress Summary",
-                      "New Reviewer Comments posted",
-                      "Mentor Session reminders",
-                      "Platform announcements & news",
-                    ].map((item, i) => (
-                      <label
-                        key={i}
-                        className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-                      >
-                        <span className="text-sm text-gray-700">{item}</span>
-                        <input
-                          type="checkbox"
-                          defaultChecked
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    "Weekly AIRL Progress Summary",
+                    "New Reviewer Comments posted",
+                    "Mentor Session reminders",
+                    "Platform announcements & news",
+                  ].map((item, i) => (
+                    <label key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer">
+                      <span className="text-sm text-gray-700">{item}</span>
+                      <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    </label>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -480,63 +542,22 @@ export function FounderSettings() {
 
           {/* --- Tab: Security --- */}
           {activeTab === "security" && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Password & Authentication</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Password
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Last changed 3 months ago
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Change Password
-                    </Button>
+            <Card className="border-red-100">
+              <CardHeader>
+                <CardTitle className="text-red-600">Danger Zone</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Delete Account</p>
+                    <p className="text-xs text-gray-500">Permanently remove your account and all data</p>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Two-Factor Authentication
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Add an extra layer of security
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Enable 2FA
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-red-100">
-                <CardHeader>
-                  <CardTitle className="text-red-600">Danger Zone</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Delete Account
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Permanently remove your account and all data
-                      </p>
-                    </div>
-                    <Button variant="danger" size="sm">
-                      Delete Account
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Button variant="danger" size="sm">Delete Account</Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
+
         </div>
       </div>
     </DashboardLayout>

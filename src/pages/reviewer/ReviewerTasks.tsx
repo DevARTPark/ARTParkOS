@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -8,23 +8,42 @@ import {
   ClipboardCheck, 
   FileText, 
   Search, 
-  Filter, 
   Clock, 
   AlertTriangle, 
   CheckCircle2, 
-  ArrowRight,
-  PlayCircle
+  PlayCircle,
+  XCircle // New icon for releasing task
 } from 'lucide-react';
 
-// Import Shared Data
-import { initialTasks } from '../../data/mockReviewerTasks';
+// Import Shared Data types
+import { initialTasks, ReviewTask } from '../../data/mockReviewerTasks';
 
 export function ReviewerTasks() {
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
 
+  // 1. LOAD SHARED STATE
+  const [allTasks, setAllTasks] = useState<ReviewTask[]>(() => {
+    const savedTasks = localStorage.getItem('mock_reviewer_tasks');
+    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
+  });
+
+  // --- NEW: HANDLE RELEASE TASK (Return to Pool) ---
+  const handleReleaseTask = (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation(); // Prevent card click event
+    
+    if (!window.confirm("Are you sure you want to release this task back to the pool?")) return;
+
+    const updatedTasks = allTasks.map(t => 
+      t.id === taskId ? { ...t, assigneeId: null, status: 'Pending' } : t
+    );
+
+    setAllTasks(updatedTasks);
+    localStorage.setItem('mock_reviewer_tasks', JSON.stringify(updatedTasks));
+  };
+
   // Filter: Only show tasks assigned to 'me'
-  const myTasks = initialTasks.filter(t => t.assigneeId === 'me');
+  const myTasks = allTasks.filter(t => t.assigneeId === 'me');
 
   const filteredTasks = myTasks.filter(task => {
     const matchesSearch = task.startup.toLowerCase().includes(search.toLowerCase()) || 
@@ -103,7 +122,7 @@ export function ReviewerTasks() {
                     </div>
                   </div>
 
-                  {/* Right: Action */}
+                  {/* Right: Actions */}
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
                     <div className="text-right">
                       <span className="text-xs font-medium text-gray-500 block mb-1">Due Date</span>
@@ -111,9 +130,24 @@ export function ReviewerTasks() {
                         {task.due}
                       </span>
                     </div>
-                    <Button size="sm" className="w-full group-hover:bg-blue-700 transition-colors">
-                      Start Review <PlayCircle className="w-3 h-3 ml-2" />
-                    </Button>
+                    
+                    <div className="flex gap-2 w-full">
+                      {/* Release Button */}
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        title="Release back to pool"
+                        onClick={(e) => handleReleaseTask(e, task.id)}
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+
+                      {/* Start Button */}
+                      <Button size="sm" className="flex-1 group-hover:bg-blue-700 transition-colors">
+                        Start <PlayCircle className="w-3 h-3 ml-2" />
+                      </Button>
+                    </div>
                   </div>
 
                 </div>
