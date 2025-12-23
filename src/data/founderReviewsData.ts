@@ -5,8 +5,16 @@ export interface Task {
     id: string;
     title: string;
     deadline: string;
-    description?: string; // Added: For the 1-2 sentence plan
+    description?: string;
     status: 'Pending' | 'Completed';
+}
+
+// NEW: Expense Type
+export interface Expense {
+    id: string;
+    item: string;   // e.g., "Server Costs"
+    amount: number; // e.g., 5000
+    date: string;
 }
 
 export interface PromiseItem {
@@ -21,26 +29,19 @@ export interface QuarterlyReport {
     quarter: string;
     status: 'Draft' | 'Submitted' | 'Reviewed';
     date: string;
-
-    // 1. Review of Past Promises
     committedGoals: PromiseItem[];
-
-    // 2. Overall Startup Review
     overallUpdates: {
         highlights: string;
         risks: string;
         strategy: string;
         nextQuarterCheckpoints: PromiseItem[];
     };
-
-    // 3. Project-wise Reviews
     projectUpdates: {
         projectId: string;
         projectName: string;
         highlights: string;
         risks: string;
     }[];
-
     reviewer?: string;
     feedback?: string;
 }
@@ -60,6 +61,7 @@ export interface ReportDetail {
         highlights: string;
         risks: string;
         scheduleTasks: Task[];
+        expenses: Expense[]; // NEW: Added expenses array
         systemRisk: 'Low' | 'Medium' | 'High';
     }[];
 }
@@ -93,6 +95,10 @@ export const monthlyReports: ReportDetail[] = [
                     { id: 't1', title: 'Complete Sensor Calibration', deadline: '2023-11-15', status: 'Pending', description: "Calibrate against gold standard in Lab A." },
                     { id: 't2', title: 'Field Test Report', deadline: '2023-11-20', status: 'Pending' }
                 ],
+                expenses: [
+                    { id: 'e1', item: 'LoRa Modules', amount: 15000, date: '2023-10-10' },
+                    { id: 'e2', item: 'Field Travel', amount: 5000, date: '2023-10-15' }
+                ],
                 systemRisk: 'Low'
             },
             {
@@ -103,6 +109,9 @@ export const monthlyReports: ReportDetail[] = [
                 risks: "Battery supply delayed by 2 weeks.",
                 scheduleTasks: [
                     { id: 't3', title: 'Battery Stress Test', deadline: '2023-11-10', status: 'Pending' }
+                ],
+                expenses: [
+                    { id: 'e3', item: 'Carbon Fiber Sheets', amount: 22000, date: '2023-10-05' }
                 ],
                 systemRisk: 'Medium'
             }
@@ -122,6 +131,7 @@ export const monthlyReports: ReportDetail[] = [
             highlights: "",
             risks: "",
             scheduleTasks: [],
+            expenses: [], // Start with empty expenses
             systemRisk: p.currentAIRL < 4 ? 'Low' : 'Medium'
         }))
     },
