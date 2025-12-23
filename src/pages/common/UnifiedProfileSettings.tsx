@@ -20,11 +20,25 @@ import {
   Monitor,
   CheckCircle2,
   AlertCircle,
+  Briefcase,
+  Building2,
+  MapPin,
+  Linkedin,
+  Phone,
 } from "lucide-react";
 import { compressImage } from "../../utils/imageUtils";
 import { API_URL } from "../../config";
 
-export function FounderSettings() {
+// Defined Type to fix TypeScript errors
+type Role =
+  | "founder"
+  | "admin"
+  | "reviewer"
+  | "supplier"
+  | "mentor"
+  | "lab_owner";
+
+export function UnifiedProfileSettings() {
   const [activeTab, setActiveTab] = useState("general");
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [loading, setLoading] = useState(false);
@@ -36,20 +50,25 @@ export function FounderSettings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get User ID
+  // Get User Context
   const userStr = localStorage.getItem("artpark_user");
+  const storedRole = localStorage.getItem("active_role");
+  const activeRole = (storedRole || "founder") as Role;
+
   const user = userStr ? JSON.parse(userStr) : null;
 
+  // --- UNIFIED SCHEMA STATE ---
   const [formData, setFormData] = useState({
-    founderName: "",
+    fullName: "",
     phone: "",
-    designation: "",
+    title: "", // Designation / Job Title
+    organization: "", // Company / Startup / Institution
     avatarUrl: "",
-    startupName: "",
     website: "",
-    description: "",
-    industry: "",
+    bio: "",
+    tags: "",
     location: "",
+    linkedin: "",
   });
 
   // --- Theme Effect ---
@@ -60,11 +79,11 @@ export function FounderSettings() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // --- Load Profile (Network + User-Specific Cache Strategy) ---
+  // --- Load Profile ---
   useEffect(() => {
     if (!user?.id) return;
 
-    // 1. Try loading from User-Specific Cache first (Instant)
+    // 1. Try User-Specific Cache
     const cacheKey = `artpark_profile_cache_${user.id}`;
     const cachedProfile = localStorage.getItem(cacheKey);
 
@@ -72,19 +91,27 @@ export function FounderSettings() {
       setFormData((prev) => ({ ...prev, ...JSON.parse(cachedProfile) }));
     }
 
-    // 2. Fetch fresh data from API
+    // 2. Fetch API
     setLoading(true);
-    fetch(`${API_URL}/api/founder/profile?userId=${user.id}`)
+    fetch(`${API_URL}/api/user/profile?userId=${user.id}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.id) {
-          setFormData((prev) => ({ ...prev, ...data }));
-          // Update User-Specific Cache
-          localStorage.setItem(cacheKey, JSON.stringify(data));
+          // Map backend fields
+          const mappedData = {
+            ...data,
+            title: data.title || data.designation || "",
+            organization: data.organization || data.startupName || "",
+            bio: data.bio || data.description || "",
+            tags: data.tags || data.industry || "",
+          };
 
-          // Sync Header immediately on load (in case cache was stale)
+          setFormData((prev) => ({ ...prev, ...mappedData }));
+
+          // Update Cache & Sync Header
+          localStorage.setItem(cacheKey, JSON.stringify(mappedData));
           window.dispatchEvent(
-            new CustomEvent("profile-updated", { detail: data })
+            new CustomEvent("profile-updated", { detail: mappedData })
           );
         }
       })
@@ -92,7 +119,7 @@ export function FounderSettings() {
       .finally(() => setLoading(false));
   }, [user?.id]);
 
-  // --- Optimized File Handler ---
+  // --- Handlers ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -110,31 +137,21 @@ export function FounderSettings() {
     setSaving(true);
     setMsg(null);
 
-    // --- INSTANT UI UPDATE ---
-    // 1. Update User-Specific Cache immediately
+    // 1. Optimistic Update
     const cacheKey = `artpark_profile_cache_${user.id}`;
     localStorage.setItem(cacheKey, JSON.stringify(formData));
-
-    // 2. Notify Header immediately
-    const event = new CustomEvent("profile-updated", {
-      detail: {
-        founderName: formData.founderName,
-        designation: formData.designation,
-        avatarUrl: formData.avatarUrl,
-      },
-    });
-    window.dispatchEvent(event);
+    window.dispatchEvent(
+      new CustomEvent("profile-updated", { detail: formData })
+    );
 
     try {
-      // 3. Send to Backend
-      const res = await fetch(`${API_URL}/api/founder/profile`, {
+      const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, data: formData }),
+        body: JSON.stringify({ userId: user.id, ...formData }),
       });
 
       if (!res.ok) throw new Error("Failed to save");
-
       setMsg({ type: "success", text: "Profile updated successfully!" });
       setTimeout(() => setMsg(null), 3000);
     } catch (err) {
@@ -147,45 +164,42 @@ export function FounderSettings() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleAddTag = () => {
-    const newTag = prompt("Enter domain:");
-    if (newTag)
-      setFormData((prev) => ({
-        ...prev,
-        industry: prev.industry ? `${prev.industry}, ${newTag}` : newTag,
-      }));
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    const tags = formData.industry
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t !== tag);
-    setFormData((prev) => ({ ...prev, industry: tags.join(", ") }));
-  };
-
-  const industryTags = formData.industry
-    ? formData.industry
+  // --- Tag Logic ---
+  const tagsList = formData.tags
+    ? formData.tags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean)
     : [];
 
-  if (!user) return <div>Please log in.</div>;
+  const handleAddTag = () => {
+    const newTag = prompt("Add a skill or tag:");
+    if (newTag)
+      setFormData((prev) => ({
+        ...prev,
+        tags: prev.tags ? `${prev.tags}, ${newTag}` : newTag,
+      }));
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    const newTags = tagsList.filter((t) => t !== tag).join(", ");
+    setFormData((prev) => ({ ...prev, tags: newTags }));
+  };
+
+  if (!user) return <div className="p-8 text-center">Please log in.</div>;
 
   return (
-    <DashboardLayout role="founder" title="Account Settings">
+    <DashboardLayout role={activeRole} title="Settings">
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Sidebar Tabs */}
+        {/* SIDEBAR NAVIGATION */}
         <div className="w-full md:w-64 space-y-2">
           <Card>
             <CardContent className="p-2">
               {[
-                { id: "general", label: "Profile & Company", icon: User },
+                { id: "general", label: "Profile", icon: User },
                 { id: "appearance", label: "Appearance", icon: Sun },
                 { id: "notifications", label: "Notifications", icon: Bell },
                 { id: "security", label: "Security", icon: Shield },
@@ -211,15 +225,15 @@ export function FounderSettings() {
           </Card>
         </div>
 
-        {/* Main Content Area */}
+        {/* MAIN CONTENT */}
         <div className="flex-1 space-y-6">
           {msg && (
             <div
-              className={`p-4 rounded-lg flex items-center gap-2 ${
+              className={`p-4 rounded-lg flex items-center gap-2 border ${
                 msg.type === "success"
                   ? "bg-green-50 text-green-700 border-green-200"
                   : "bg-red-50 text-red-700 border-red-200"
-              } border`}
+              }`}
             >
               {msg.type === "success" ? (
                 <CheckCircle2 className="w-5 h-5" />
@@ -230,24 +244,26 @@ export function FounderSettings() {
             </div>
           )}
 
-          {/* --- Tab: General --- */}
+          {/* --- TAB: GENERAL (UNIFIED PROFILE) --- */}
           {activeTab === "general" && (
             <div className="space-y-6">
+              {/* Identity Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Personal Profile</CardTitle>
+                  <CardTitle>Identity</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-4">
+                <CardContent className="space-y-6">
+                  {/* Avatar */}
+                  <div className="flex items-center space-x-6">
                     <img
                       src={
                         formData.avatarUrl || "https://via.placeholder.com/150"
                       }
                       alt="Avatar"
-                      className="w-16 h-16 rounded-full border-2 border-gray-100 object-cover"
+                      className="w-20 h-20 rounded-full border-2 border-gray-100 object-cover shadow-sm"
                     />
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
+                    <div>
+                      <div className="flex gap-2 mb-1">
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -260,7 +276,7 @@ export function FounderSettings() {
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
                         >
-                          Change Avatar
+                          Change Photo
                         </Button>
                         <Button
                           variant="ghost"
@@ -274,24 +290,31 @@ export function FounderSettings() {
                         </Button>
                       </div>
                       <p className="text-xs text-gray-500">
-                        JPG, PNG. Automatically resized.
+                        JPG, PNG or GIF. Max 2MB.
                       </p>
                     </div>
                   </div>
 
+                  {/* Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Full Name"
-                      name="founderName"
-                      value={formData.founderName}
+                      name="fullName"
+                      value={formData.fullName}
                       onChange={handleChange}
-                      placeholder="Alex Chen"
+                      placeholder="e.g. Alex Chen"
                     />
                     <Input
-                      label="Email Address"
+                      label="Email (Locked)"
                       value={user.email}
                       disabled
-                      className="bg-gray-50 text-gray-500"
+                      className="bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                    <Input
+                      label="Role (Locked)"
+                      value={activeRole.toUpperCase().replace("_", " ")}
+                      disabled
+                      className="bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                     <Input
                       label="Phone Number"
@@ -300,53 +323,77 @@ export function FounderSettings() {
                       onChange={handleChange}
                       placeholder="+91..."
                     />
-                    <Input
-                      label="Job Title"
-                      name="designation"
-                      value={formData.designation}
-                      onChange={handleChange}
-                      placeholder="CEO"
-                    />
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Professional Details (STATIC LABELS) */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Startup Details</CardTitle>
+                  <CardTitle>Professional Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
-                      label="Startup Name"
-                      name="startupName"
-                      value={formData.startupName}
+                      label="Designation" // Static Label
+                      name="title"
+                      value={formData.title}
                       onChange={handleChange}
+                      placeholder="e.g. CEO, Senior Reviewer, Manager..."
+                    />
+                    <Input
+                      label="Organization" // Static Label
+                      name="organization"
+                      value={formData.organization}
+                      onChange={handleChange}
+                      placeholder="e.g. Startup Name, Company, University..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Location"
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      placeholder="City, Country"
+                    />
+                    <Input
+                      label="LinkedIn URL"
+                      name="linkedin"
+                      value={formData.linkedin}
+                      onChange={handleChange}
+                      placeholder="https://linkedin.com/in/..."
                     />
                     <Input
                       label="Website"
                       name="website"
                       value={formData.website}
                       onChange={handleChange}
+                      placeholder="https://..."
                     />
                   </div>
+
                   <Textarea
                     label="Short Bio"
-                    name="description"
-                    value={formData.description}
+                    name="bio"
+                    value={formData.bio}
                     onChange={handleChange}
                     rows={3}
+                    placeholder="Tell us a bit about yourself..."
                   />
+
+                  {/* Tags */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Primary Domain
+                      Skills & Tags
                     </label>
-                    <div className="flex flex-wrap gap-2">
-                      {industryTags.map((tag, idx) => (
+                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                      {tagsList.map((tag, idx) => (
                         <Badge
                           key={idx}
-                          variant="info"
-                          className="cursor-pointer"
+                          variant="neutral"
+                          className="bg-white border shadow-sm px-2 py-1 cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
                           onClick={() => handleRemoveTag(tag)}
                         >
                           {tag} ×
@@ -365,15 +412,19 @@ export function FounderSettings() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={saving}>
+              <div className="flex justify-end pt-4">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="min-w-[120px]"
+                >
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* --- Tab: Appearance (Dark Mode) --- */}
+          {/* --- TAB: APPEARANCE (Static) --- */}
           {activeTab === "appearance" && (
             <Card>
               <CardHeader>
@@ -389,153 +440,95 @@ export function FounderSettings() {
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <div className="w-full bg-white border border-gray-200 rounded-lg p-2 mb-3 shadow-sm">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-200 rounded"></div>
-                        <div className="h-2 w-1/2 bg-gray-200 rounded"></div>
-                      </div>
-                    </div>
-                    <div className="flex items-center font-medium text-gray-900">
-                      <Sun className="w-4 h-4 mr-2" /> Light
-                    </div>
+                    <Sun className="w-6 h-6 mb-2 text-orange-500" />
+                    <span className="font-medium">Light Mode</span>
                   </button>
-
                   <button
                     onClick={() => setTheme("dark")}
                     className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
                       theme === "dark"
-                        ? "border-blue-600 bg-slate-800"
+                        ? "border-blue-600 bg-slate-800 text-white"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <div className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 mb-3 shadow-sm">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-slate-700 rounded"></div>
-                        <div className="h-2 w-1/2 bg-slate-700 rounded"></div>
-                      </div>
-                    </div>
-                    <div
-                      className={`flex items-center font-medium ${
-                        theme === "dark" ? "text-white" : "text-gray-900"
-                      }`}
-                    >
-                      <Moon className="w-4 h-4 mr-2" /> Dark
-                    </div>
+                    <Moon className="w-6 h-6 mb-2 text-indigo-400" />
+                    <span className="font-medium">Dark Mode</span>
                   </button>
-
                   <button
                     disabled
                     className="flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 opacity-50 cursor-not-allowed"
                   >
-                    <div className="w-full bg-gray-100 rounded-lg p-2 mb-3">
-                      <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-300 rounded"></div>
-                        <div className="h-2 w-1/2 bg-gray-300 rounded"></div>
-                      </div>
-                    </div>
-                    <div className="flex items-center font-medium text-gray-500">
-                      <Monitor className="w-4 h-4 mr-2" /> System
-                    </div>
+                    <Monitor className="w-6 h-6 mb-2 text-gray-400" />
+                    <span className="font-medium text-gray-500">
+                      System (Soon)
+                    </span>
                   </button>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* --- Tab: Notifications --- */}
           {activeTab === "notifications" && (
             <Card>
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                    <Mail className="w-4 h-4 mr-2" /> Email Notifications
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      "Weekly AIRL Progress Summary",
-                      "New Reviewer Comments posted",
-                      "Mentor Session reminders",
-                      "Platform announcements & news",
-                    ].map((item, i) => (
-                      <label
-                        key={i}
-                        className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-                      >
-                        <span className="text-sm text-gray-700">{item}</span>
-                        <input
-                          type="checkbox"
-                          defaultChecked
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    "Email me about weekly progress",
+                    "Notify me when a reviewer comments",
+                    "Send daily digest of platform news",
+                  ].map((text, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+                    >
+                      <span className="text-sm text-gray-700">{text}</span>
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* --- Tab: Security --- */}
           {activeTab === "security" && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Password & Authentication</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Password
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Last changed 3 months ago
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Change Password
-                    </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Security Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-sm">Password</p>
+                    <p className="text-xs text-gray-500">
+                      Last changed 3 months ago
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Two-Factor Authentication
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Add an extra layer of security
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Enable 2FA
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-red-100">
-                <CardHeader>
-                  <CardTitle className="text-red-600">Danger Zone</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Delete Account
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Permanently remove your account and all data
-                      </p>
-                    </div>
-                    <Button variant="danger" size="sm">
+                  <Button variant="outline" size="sm">
+                    Change
+                  </Button>
+                </div>
+                <div className="flex justify-between items-center p-4 border border-red-100 bg-red-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-sm text-red-700">
                       Delete Account
-                    </Button>
+                    </p>
+                    <p className="text-xs text-red-500">
+                      This action is irreversible
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Button variant="danger" size="sm">
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

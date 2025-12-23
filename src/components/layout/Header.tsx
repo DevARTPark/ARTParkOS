@@ -7,8 +7,8 @@ import {
   User as UserIcon,
   Rocket,
   Building2,
-  Briefcase, // New Icon
-  Check, // New Icon
+  Briefcase,
+  Check,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { projects, startups } from "../../data/mockData";
@@ -17,7 +17,7 @@ import { API_URL } from "../../config";
 export interface HeaderUser {
   name: string;
   role: string;
-  roles?: string[]; // Added roles array
+  roles?: string[];
   avatar?: string;
 }
 
@@ -39,10 +39,23 @@ export function Header({
   const [activeRole, setActiveRole] = useState<string>("");
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  // Initialize with cached profile if available (Instant Load)
+  // --- FIXED: Initialize Profile with USER-SPECIFIC Cache ---
   const [profile, setProfile] = useState<any>(() => {
-    const cached = localStorage.getItem("artpark_profile_cache");
-    return cached ? JSON.parse(cached) : null;
+    try {
+      // 1. Get the current logged-in user FIRST
+      const currentUserStr = localStorage.getItem("artpark_user");
+      if (!currentUserStr) return null;
+
+      const currentUser = JSON.parse(currentUserStr);
+
+      // 2. Look for cache specific to THIS user ID
+      const cacheKey = `artpark_profile_cache_${currentUser.id}`;
+      const cached = localStorage.getItem(cacheKey);
+
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
   });
 
   // Search & Notifications State
@@ -51,7 +64,7 @@ export function Header({
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
+  const [notifications] = useState([
     {
       id: 1,
       title: "New Collaboration Request",
@@ -90,7 +103,11 @@ export function Header({
         .then((data) => {
           if (data.id) {
             setProfile(data);
-            localStorage.setItem("artpark_profile_cache", JSON.stringify(data));
+            // --- FIX: Save to User-Specific Cache Key ---
+            localStorage.setItem(
+              `artpark_profile_cache_${parsedUser.id}`,
+              JSON.stringify(data)
+            );
           }
         })
         .catch((err) => console.error("Header fetch error:", err));
@@ -103,10 +120,15 @@ export function Header({
     // Listen for updates from Settings page
     const handleProfileUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail) {
+      const userStr = localStorage.getItem("artpark_user");
+
+      if (detail && userStr) {
+        const parsedUser = JSON.parse(userStr);
         setProfile((prev: any) => ({ ...prev, ...detail }));
+
+        // --- FIX: Update User-Specific Cache ---
         localStorage.setItem(
-          "artpark_profile_cache",
+          `artpark_profile_cache_${parsedUser.id}`,
           JSON.stringify({ ...profile, ...detail })
         );
       }
@@ -118,20 +140,30 @@ export function Header({
   }, []);
 
   const handleLogout = () => {
+    // --- FIX: Clear only the current user's data (optional, or just leave it) ---
+    const userStr = localStorage.getItem("artpark_user");
+    if (userStr) {
+      try {
+        const parsedUser = JSON.parse(userStr);
+        localStorage.removeItem(`artpark_profile_cache_${parsedUser.id}`);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
     localStorage.removeItem("artpark_user");
-    localStorage.removeItem("artpark_profile_cache");
-    localStorage.removeItem("active_role"); // Clear active role
+    localStorage.removeItem("active_role");
+    localStorage.removeItem("token");
+
     navigate("/login");
   };
 
   // --- ROLE SWITCHING LOGIC ---
   const handleRoleSwitch = (newRole: string) => {
-    // 1. Update State & Storage
     localStorage.setItem("active_role", newRole);
     setActiveRole(newRole);
     setShowRoleMenu(false);
 
-    // 2. Navigate to new dashboard
     const dashboardMap: Record<string, string> = {
       founder: "/founder/dashboard",
       admin: "/admin/dashboard",
@@ -141,17 +173,13 @@ export function Header({
       lab_owner: "/lab-owner/dashboard",
     };
 
-    // Redirect
     navigate(dashboardMap[newRole] || "/");
-
-    // 3. Optional: Reload to ensure clean state for the new role context
     window.location.reload();
   };
 
   const displayName =
     profile?.founderName || user?.name || initialUser?.name || "Guest User";
 
-  // Use Active Role for display
   const displayRole =
     activeRole ||
     profile?.designation ||
@@ -162,7 +190,6 @@ export function Header({
   const displayAvatar = profile?.avatarUrl || initialUser?.avatar;
 
   const getProfilePath = (role?: string) => {
-    // Use the ACTIVE role to determine where the profile link goes
     const targetRole = role || activeRole;
     switch (targetRole) {
       case "founder":
@@ -218,7 +245,6 @@ export function Header({
           {title || "Dashboard"}
         </h1>
 
-        {/* CONDITIONAL ROLE SWITCHER: Only if > 1 role */}
         {user?.roles && user.roles.length > 1 && (
           <div className="relative">
             <button
@@ -359,7 +385,6 @@ export function Header({
                 {user?.email || "guest@artpark.in"}
               </p>
             </div>
-            {/* Dynamic Profile Link based on Active Role */}
             <Link
               to={getProfilePath(activeRole)}
               className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
