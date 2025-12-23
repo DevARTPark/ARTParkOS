@@ -305,13 +305,13 @@ export function UnifiedProfileSettings() {
                       placeholder="e.g. Alex Chen"
                     />
                     <Input
-                      label="Email (Locked)"
+                      label="Email"
                       value={user.email}
                       disabled
                       className="bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                     <Input
-                      label="Role (Locked)"
+                      label="Role"
                       value={activeRole.toUpperCase().replace("_", " ")}
                       disabled
                       className="bg-gray-50 text-gray-500 cursor-not-allowed"
