@@ -10,7 +10,7 @@ import {
   FileText, Upload, CheckCircle2, AlertTriangle, Calendar, Target, 
   Download, ChevronLeft, Save, DollarSign, ShieldAlert, MessageSquare, Info,
   Plus, Trash2, Clock, TrendingUp, Award, BarChart3, Check, X, ArrowRight,
-  Briefcase, Rocket, List
+  Briefcase, Rocket, List, Send, CreditCard
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
@@ -26,7 +26,8 @@ import {
     ReportDetail,
     QuarterlyReport,
     Task,
-    PromiseItem
+    PromiseItem,
+    Expense
 } from '../../data/founderReviewsData';
 
 // IMPORT QUESTIONS FOR DROPDOWN
@@ -38,7 +39,13 @@ export function FounderReviews() {
   const [selectedQuarterly, setSelectedQuarterly] = useState<QuarterlyReport | null>(null);
   
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Inputs
   const [newTaskInput, setNewTaskInput] = useState<Record<string, {title: string, date: string, description: string}>>({});
+  
+  // NEW: Expense Inputs [projectId] -> { item, amount }
+  const [newExpenseInput, setNewExpenseInput] = useState<Record<string, {item: string, amount: string}>>({});
+  
   const [newCheckpoint, setNewCheckpoint] = useState('');
 
   // --- Handlers ---
@@ -56,6 +63,7 @@ export function FounderReviews() {
     setSelectedReport(null);
     setSelectedQuarterly(null);
     setNewTaskInput({});
+    setNewExpenseInput({});
     setNewCheckpoint('');
   };
 
@@ -127,7 +135,7 @@ export function FounderReviews() {
         id: `t-${Date.now()}`, 
         title: input.title, 
         deadline: input.date, 
-        description: input.description, // Added description
+        description: input.description, 
         status: 'Pending' 
     };
     const updatedProjects = selectedReport.projectUpdates.map(p => 
@@ -155,12 +163,58 @@ export function FounderReviews() {
     });
   };
 
+  // --- Monthly Expense Handlers (NEW) ---
+  const handleAddExpense = (projectId: string) => {
+    const input = newExpenseInput[projectId];
+    if (!input || !input.item || !input.amount || !selectedReport) return;
+    
+    const newExpense: Expense = {
+        id: `e-${Date.now()}`,
+        item: input.item,
+        amount: parseFloat(input.amount),
+        date: new Date().toISOString().split('T')[0]
+    };
+
+    const updatedProjects = selectedReport.projectUpdates.map(p => 
+        p.projectId === projectId ? { ...p, expenses: [...p.expenses, newExpense] } : p
+    );
+    setSelectedReport({ ...selectedReport, projectUpdates: updatedProjects });
+    setNewExpenseInput({ ...newExpenseInput, [projectId]: { item: '', amount: '' } });
+  };
+
+  const handleRemoveExpense = (projectId: string, expenseId: string) => {
+    if (!selectedReport) return;
+    const updatedProjects = selectedReport.projectUpdates.map(p => 
+        p.projectId === projectId ? { ...p, expenses: p.expenses.filter(e => e.id !== expenseId) } : p
+    );
+    setSelectedReport({ ...selectedReport, projectUpdates: updatedProjects });
+  };
+
+  const handleExpenseInputChange = (projectId: string, field: 'item' | 'amount', val: string) => {
+    setNewExpenseInput({
+        ...newExpenseInput,
+        [projectId]: { 
+            ...newExpenseInput[projectId], 
+            [field]: val 
+        }
+    });
+  };
+
   const handleSave = () => {
     setIsSaving(true);
     setTimeout(() => {
         setIsSaving(false);
         handleBackToList();
     }, 800);
+  };
+
+  // Helper to fetch Quarterly Promises for the Monthly dropdown
+  const getQuarterlyPromises = (reportMonth: string) => {
+      // In a real app, calculate which quarter 'reportMonth' belongs to.
+      // For demo, we just grab the first Q report's goals.
+      const qReport = quarterlyReports.find(q => q.status !== 'Draft');
+      if (qReport) return qReport.committedGoals.map(g => g.text);
+      return [];
   };
 
   const getStatusColor = (status: string) => {
@@ -298,12 +352,11 @@ export function FounderReviews() {
                         <CardContent className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={performanceChartData}>
-                                    <defs><linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                     <YAxis hide />
-                                    <Tooltip formatter={(value: any) => [`${value}0%`, 'Completion']} />
-                                    <Area type="monotone" dataKey="score" stroke="#3b82f6" fillOpacity={1} fill="url(#colorScore)" />
+                                    <Tooltip />
+                                    <Area type="monotone" dataKey="score" stroke="#3b82f6" fillOpacity={1} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </CardContent>
@@ -358,66 +411,95 @@ export function FounderReviews() {
                                         <Textarea className="min-h-[100px] text-sm" placeholder="Delays?" value={project.risks} onChange={(e) => updateProjectField('monthly', project.projectId, 'risks', e.target.value)} disabled={selectedReport.status === 'Submitted'} />
                                     </div>
                                 </div>
-                                <div className="pt-4 border-t border-gray-100">
-                                    <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex justify-between items-center">
-                                        <span>Propose Deadlines for Level {project.currentAIRL + 1} Milestones</span>
-                                        <span className="text-blue-600 font-normal normal-case text-xs bg-blue-50 px-2 py-1 rounded">Target: AIRL {project.currentAIRL + 1}</span>
-                                    </label>
-                                    <div className="space-y-2 mb-4">
-                                        {project.scheduleTasks.length > 0 ? project.scheduleTasks.map(task => (
-                                            <div key={task.id} className="bg-white border border-gray-200 p-3 rounded-lg">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-3"><List className="w-4 h-4 text-blue-500" /><span className="text-sm font-medium text-gray-700">{task.title}</span></div>
-                                                    <div className="flex items-center gap-4"><Badge variant="neutral">{task.deadline}</Badge>{selectedReport.status !== 'Submitted' && <button onClick={() => handleRemoveTask(project.projectId, task.id)} className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}</div>
-                                                </div>
-                                                {task.description && <p className="text-xs text-gray-500 pl-7">{task.description}</p>}
-                                            </div>
-                                        )) : <p className="text-xs text-gray-400 italic">No milestones set for AIRL {project.currentAIRL + 1}.</p>}
-                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
                                     
-                                    {selectedReport.status !== 'Submitted' && (
-                                        <div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                            <div className="flex flex-col md:flex-row gap-3">
-                                                <div className="flex-1 w-full">
-                                                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Select Milestone</label>
-                                                    <select 
-                                                        className="w-full text-sm border-gray-300 rounded-md p-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none h-10"
-                                                        value={newTaskInput[project.projectId]?.title || ''}
-                                                        onChange={(e) => handleTaskInputChange(project.projectId, 'title', e.target.value)}
-                                                    >
-                                                        <option value="">-- Select from Assessment Questions --</option>
-                                                        {airlQuestions.filter(q => q.airlLevel === project.currentAIRL + 1).map((q) => (
-                                                            <option key={q.id} value={q.text}>
-                                                                {q.category}: {q.text}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                    {/* COL 1: MILESTONES */}
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex justify-between items-center">
+                                            <span>Level {project.currentAIRL + 1} Milestones</span>
+                                            <span className="text-blue-600 font-normal normal-case text-xs bg-blue-50 px-2 py-1 rounded">Target: AIRL {project.currentAIRL + 1}</span>
+                                        </label>
+                                        <div className="space-y-2 mb-4">
+                                            {project.scheduleTasks.length > 0 ? project.scheduleTasks.map(task => (
+                                                <div key={task.id} className="bg-white border border-gray-200 p-3 rounded-lg">
+                                                    <div className="flex justify-between mb-1">
+                                                        <span className="text-sm font-medium">{task.title}</span>
+                                                        <Badge variant="neutral" className="text-[10px]">{task.deadline}</Badge>
+                                                    </div>
+                                                    <div className="flex justify-between items-end">
+                                                        <p className="text-xs text-gray-500 italic flex-1 mr-2">{task.description}</p>
+                                                        {selectedReport.status !== 'Submitted' && <button onClick={() => handleRemoveTask(project.projectId, task.id)} className="text-gray-400 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>}
+                                                    </div>
                                                 </div>
-                                                <div className="w-full md:w-40">
-                                                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Deadline</label>
-                                                    <Input type="date" value={newTaskInput[project.projectId]?.date || ''} onChange={(e) => handleTaskInputChange(project.projectId, 'date', e.target.value)} />
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-3 items-end">
-                                                <div className="flex-1">
-                                                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Execution Plan (1-2 Sentences)</label>
-                                                    <Input 
-                                                        placeholder="How do you plan to achieve this milestone?" 
-                                                        value={newTaskInput[project.projectId]?.description || ''} 
-                                                        onChange={(e) => handleTaskInputChange(project.projectId, 'description', e.target.value)} 
-                                                    />
-                                                </div>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    onClick={() => handleAddTask(project.projectId)} 
-                                                    disabled={!newTaskInput[project.projectId]?.title || !newTaskInput[project.projectId]?.date} 
-                                                    leftIcon={<Plus className="w-4 h-4" />}
-                                                >
-                                                    Add
-                                                </Button>
-                                            </div>
+                                            )) : <p className="text-xs text-gray-400 italic">No milestones set.</p>}
                                         </div>
-                                    )}
+                                        
+                                        {selectedReport.status !== 'Submitted' && (
+                                            <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Add New Milestone</label>
+                                                <select 
+                                                    className="w-full text-xs border-gray-300 rounded-md p-1.5 bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                                                    value={newTaskInput[project.projectId]?.title || ''}
+                                                    onChange={(e) => handleTaskInputChange(project.projectId, 'title', e.target.value)}
+                                                >
+                                                    <option value="">-- Select Milestone --</option>
+                                                    <optgroup label={`AIRL ${project.currentAIRL + 1} Assessment`}>
+                                                        {airlQuestions.filter(q => q.airlLevel === project.currentAIRL + 1).map(q => <option key={q.id} value={q.text}>{q.text}</option>)}
+                                                    </optgroup>
+                                                    <optgroup label="Quarterly Promises">
+                                                        {getQuarterlyPromises(selectedReport.month).map((p, i) => <option key={i} value={p}>{p}</option>)}
+                                                    </optgroup>
+                                                </select>
+                                                <Input type="date" className="h-7 text-xs" value={newTaskInput[project.projectId]?.date || ''} onChange={(e) => handleTaskInputChange(project.projectId, 'date', e.target.value)} />
+                                                <Input placeholder="Plan (1-2 sentences)" className="h-7 text-xs" value={newTaskInput[project.projectId]?.description || ''} onChange={(e) => handleTaskInputChange(project.projectId, 'description', e.target.value)} />
+                                                <Button size="sm" variant="secondary" className="w-full h-7 text-xs mt-1" onClick={() => handleAddTask(project.projectId)} disabled={!newTaskInput[project.projectId]?.title}>Add Milestone</Button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* COL 2: EXPENSES (NEW) */}
+                                    <div className="border-l border-gray-100 pl-6">
+                                        <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex items-center">
+                                            <CreditCard className="w-3 h-3 mr-1.5"/> Expenses Tracking
+                                        </label>
+                                        <div className="space-y-2 mb-4">
+                                            {project.expenses.length > 0 ? project.expenses.map(exp => (
+                                                <div key={exp.id} className="flex justify-between items-center bg-white border border-gray-200 p-2 rounded-lg text-xs">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-gray-800">{exp.item}</span>
+                                                        <span className="text-[10px] text-gray-400">{exp.date}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-gray-900">₹{exp.amount}</span>
+                                                        {selectedReport.status !== 'Submitted' && <button onClick={() => handleRemoveExpense(project.projectId, exp.id)} className="text-gray-300 hover:text-red-500"><X className="w-3 h-3"/></button>}
+                                                    </div>
+                                                </div>
+                                            )) : <p className="text-xs text-gray-400 italic">No expenses recorded.</p>}
+                                        </div>
+
+                                        {selectedReport.status !== 'Submitted' && (
+                                            <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase">Add Expense</label>
+                                                <Input 
+                                                    placeholder="Item / Description" 
+                                                    className="h-7 text-xs" 
+                                                    value={newExpenseInput[project.projectId]?.item || ''}
+                                                    onChange={(e) => handleExpenseInputChange(project.projectId, 'item', e.target.value)}
+                                                />
+                                                <div className="flex gap-2">
+                                                    <Input 
+                                                        type="number" 
+                                                        placeholder="Amount (₹)" 
+                                                        className="h-7 text-xs" 
+                                                        value={newExpenseInput[project.projectId]?.amount || ''}
+                                                        onChange={(e) => handleExpenseInputChange(project.projectId, 'amount', e.target.value)}
+                                                    />
+                                                    <Button size="sm" variant="secondary" className="h-7 text-xs px-3" onClick={() => handleAddExpense(project.projectId)}><Plus className="w-3 h-3"/></Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                 </div>
                             </CardContent>
                         </Card>
