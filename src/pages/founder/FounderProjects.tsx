@@ -11,29 +11,25 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Input, Textarea } from "../../components/ui/Input";
 import Modal from "../../components/ui/Modal";
-import { projects as initialProjects } from "../../data/mockData";
-import { ArrowRight, Plus, Save, Activity } from "lucide-react";
+import { ArrowRight, Plus, Save, Activity, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
-
-// Helper for date calc
-const getDeadlineDate = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 7); // +7 Days
-  return date.toISOString().split('T')[0];
-};
+import { API_URL } from "../../config";
 
 export function FounderProjects() {
   const navigate = useNavigate();
-  
-  // 1. LOAD PROJECTS FROM STORAGE (Persistence Fix)
-  // This ensures we see projects added in previous sessions
-  const [myProjects, setMyProjects] = useState(() => {
-    const savedProjects = localStorage.getItem('founder_projects');
-    return savedProjects ? JSON.parse(savedProjects) : initialProjects;
-  });
+
+  // User Context
+  const userStr = localStorage.getItem("artpark_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+
+  const [myProjects, setMyProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [creating, setCreating] = useState(false);
 
+  // Form State
   const [newProject, setNewProject] = useState({
     name: "",
     domain: "",
@@ -42,36 +38,75 @@ export function FounderProjects() {
     estimatedAIRL: "1",
   });
 
-  const handleAddProject = (e: React.FormEvent) => {
+  // --- 1. FETCH PROJECTS ---
+  const fetchProjects = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/projects?userId=${user.id}`);
+      if (!res.ok) throw new Error("Failed to fetch projects");
+      const data = await res.json();
+      setMyProjects(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setMyProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, [user?.id]);
+
+  // --- 2. CREATE PROJECT ---
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) return;
 
-    const estLevel = parseInt(newProject.estimatedAIRL);
+    setCreating(true);
+    setError(null);
 
-    const projectToAdd = {
-      id: `p-${Date.now()}`,
-      name: newProject.name,
-      domain: newProject.domain,
-      description: newProject.description,
-      currentAIRL: 0, // Officially 0 until validated
-      estimatedAIRL: estLevel,
-      isNew: true, 
-      baselineDeadline: getDeadlineDate(),
-      foundedDate: newProject.foundedDate,
-      teamSize: "1",
-    };
+    try {
+      const res = await fetch(`${API_URL}/api/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          name: newProject.name,
+          description: newProject.description,
+          domain: newProject.domain, // <--- Sending Domain/Industry to Backend
+        }),
+      });
 
-    const updatedProjects = [...myProjects, projectToAdd];
-    setMyProjects(updatedProjects);
-    
-    // 2. SAVE TO LOCAL STORAGE
-    // This makes the project available to the Assessment Page
-    localStorage.setItem('founder_projects', JSON.stringify(updatedProjects));
+      const data = await res.json();
 
-    setShowAddModal(false);
-    setNewProject({ name: "", domain: "", description: "", foundedDate: "", estimatedAIRL: "1" });
-    
-    // Navigate to assessment with the new project ID
-    navigate(`/founder/assessment?projectId=${projectToAdd.id}`);
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error(
+            "Please complete your Startup Profile in Settings before creating a project."
+          );
+        }
+        throw new Error(data.error || "Failed to create project");
+      }
+
+      // Success
+      await fetchProjects();
+      setShowAddModal(false);
+      setNewProject({
+        name: "",
+        domain: "",
+        description: "",
+        foundedDate: "",
+        estimatedAIRL: "1",
+      });
+
+      navigate(`/founder/assessment?projectId=${data.project.id}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const container = {
@@ -86,72 +121,81 @@ export function FounderProjects() {
 
   return (
     <DashboardLayout role="founder" title="My Projects">
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {myProjects.map((project: any) => (
-          <motion.div key={project.id} variants={item}>
-            <Card
-              className="h-full flex flex-col hover:shadow-lg transition-all cursor-pointer group border-l-4 border-l-blue-600"
-              onClick={() => navigate(`/founder/project/${project.id}`)}
-            >
-              <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
-                <CardTitle className="text-xl font-bold text-gray-900 line-clamp-1">
-                  {project.name}
-                </CardTitle>
-                <Badge
-                  variant={project.currentAIRL >= 7 ? "success" : "info"}
-                  className="whitespace-nowrap ml-2"
-                >
-                  {project.isNew ? "Unverified" : `AIR Level ${project.currentAIRL}`}
-                </Badge>
-              </CardHeader>
+      {loading ? (
+        <div className="p-8 text-center text-gray-500">
+          Loading your innovations...
+        </div>
+      ) : (
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {myProjects.map((project: any) => (
+            <motion.div key={project.id} variants={item}>
+              <Card
+                className="h-full flex flex-col hover:shadow-lg transition-all cursor-pointer group border-l-4 border-l-blue-600"
+                onClick={() => navigate(`/founder/project/${project.id}`)}
+              >
+                <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xl font-bold text-gray-900 line-clamp-1">
+                    {project.name}
+                  </CardTitle>
+                  <Badge
+                    variant={project.currentAIRL >= 7 ? "success" : "info"}
+                    className="whitespace-nowrap ml-2"
+                  >
+                    AIRL {project.currentAIRL}
+                  </Badge>
+                </CardHeader>
 
-              <CardContent className="flex-1 flex flex-col mt-2">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-3">
-                    {project.description}
-                  </p>
-                  <p className="text-xs text-gray-400 font-medium">
-                    {project.domain}
-                  </p>
-                  {project.isNew && (
-                    <div className="mt-2 bg-yellow-50 text-yellow-700 text-xs p-2 rounded border border-yellow-100">
-                      <strong>Baseline Pending:</strong> Validate Level {project.estimatedAIRL} by {project.baselineDeadline}
-                    </div>
-                  )}
-                </div>
+                <CardContent className="flex-1 flex flex-col mt-2">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-3">
+                      {project.description || "No description provided."}
+                    </p>
+                    <p className="text-xs text-gray-400 font-medium bg-gray-50 inline-block px-2 py-1 rounded">
+                      {project.domain || "General"}
+                    </p>
 
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <div className="flex items-center text-blue-600 font-semibold group-hover:translate-x-1 transition-transform duration-200">
-                    Go To "{project.name}"{" "}
-                    <ArrowRight className="ml-2 w-4 h-4" />
+                    {project.currentAIRL === 1 && (
+                      <div className="mt-2 bg-yellow-50 text-yellow-700 text-xs p-2 rounded border border-yellow-100">
+                        <strong>Baseline Pending:</strong> Validate Level 1
+                        status.
+                      </div>
+                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
 
-        <motion.div variants={item}>
-          <div
-            className="h-full min-h-[280px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 bg-gray-50/50 hover:bg-blue-50/50 hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer group"
-            onClick={() => setShowAddModal(true)}
-          >
-            <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
-              <Plus className="w-8 h-8" />
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <div className="flex items-center text-blue-600 font-semibold group-hover:translate-x-1 transition-transform duration-200">
+                      Go To "{project.name}"{" "}
+                      <ArrowRight className="ml-2 w-4 h-4" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+
+          <motion.div variants={item}>
+            <div
+              className="h-full min-h-[280px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 bg-gray-50/50 hover:bg-blue-50/50 hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer group"
+              onClick={() => setShowAddModal(true)}
+            >
+              <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200">
+                <Plus className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold">Add New Project</h3>
+              <p className="text-sm text-center mt-2 max-w-[200px] opacity-80">
+                Register a new innovation to begin tracking its AIR Level
+              </p>
             </div>
-            <h3 className="text-lg font-semibold">Add New Project</h3>
-            <p className="text-sm text-center mt-2 max-w-[200px] opacity-80">
-              Register a new innovation to begin tracking its AIR Level
-            </p>
-          </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
 
+      {/* ADD PROJECT MODAL */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -159,6 +203,12 @@ export function FounderProjects() {
         size="md"
       >
         <form onSubmit={handleAddProject} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2" /> {error}
+            </div>
+          )}
+
           <Input
             label="Project Name"
             placeholder="e.g. SolarX Drone"
@@ -177,7 +227,6 @@ export function FounderProjects() {
               onChange={(e) =>
                 setNewProject({ ...newProject, domain: e.target.value })
               }
-              required
             />
             <Input
               label="Founded Date"
@@ -186,7 +235,6 @@ export function FounderProjects() {
               onChange={(e) =>
                 setNewProject({ ...newProject, foundedDate: e.target.value })
               }
-              required
             />
           </div>
 
@@ -201,7 +249,6 @@ export function FounderProjects() {
             required
           />
 
-          {/* Estimated AIRL Selection */}
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-bold text-blue-900 flex items-center">
@@ -210,12 +257,14 @@ export function FounderProjects() {
               </label>
               <Badge variant="neutral">Level {newProject.estimatedAIRL}</Badge>
             </div>
-            <input 
-              type="range" 
-              min="1" 
-              max="9" 
+            <input
+              type="range"
+              min="1"
+              max="9"
               value={newProject.estimatedAIRL}
-              onChange={(e) => setNewProject({...newProject, estimatedAIRL: e.target.value})}
+              onChange={(e) =>
+                setNewProject({ ...newProject, estimatedAIRL: e.target.value })
+              }
               className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-gray-500 mt-1 px-1">
@@ -224,8 +273,8 @@ export function FounderProjects() {
               <span>Scale (9)</span>
             </div>
             <p className="text-xs text-blue-700 mt-3 leading-relaxed">
-              Based on your selection (Level {newProject.estimatedAIRL}), you will be required to submit a 
-              <strong> Baseline Assessment</strong> covering all criteria from Level 1 to {newProject.estimatedAIRL}.
+              Based on your selection, you will be asked to baseline your
+              technology level.
             </p>
           </div>
 
@@ -237,8 +286,12 @@ export function FounderProjects() {
             >
               Cancel
             </Button>
-            <Button type="submit" leftIcon={<Save className="w-4 h-4" />}>
-              Start Baseline Assessment
+            <Button
+              type="submit"
+              disabled={creating}
+              leftIcon={<Save className="w-4 h-4" />}
+            >
+              {creating ? "Creating..." : "Start Baseline Assessment"}
             </Button>
           </div>
         </form>

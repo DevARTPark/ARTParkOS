@@ -70,8 +70,9 @@ async function createAuthToken(userId: string, type: 'account_activation' | 'pas
 // AUTH ROUTES
 // ==========================================
 
+// 1. Invite User (Updated to accept startupId)
 app.post('/api/auth/invite-user', async (req, res) => {
-    const { email, role } = req.body;
+    const { email, role, startupId } = req.body;
     try {
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return res.status(400).json({ error: "User already exists" });
@@ -85,9 +86,23 @@ app.post('/api/auth/invite-user', async (req, res) => {
             }
         });
 
-        const token = await createAuthToken(user.id, 'account_activation');
-        const link = `${finalFrontendUrl}/set-password?token=${token}&type=activation`;
+        // Generate Token with Metadata (startupId)
+        const tokenString = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
 
+        await prisma.authToken.create({
+            data: {
+                token: tokenString,
+                user_id: user.id,
+                type: 'account_activation',
+                expires_at: expiresAt,
+                // Store startupId in metadata so we can auto-join them later
+                metadata: startupId ? { startupId } : undefined
+            }
+        });
+
+        const link = `${finalFrontendUrl}/set-password?token=${tokenString}&type=activation`;
         console.log(`📨 INVITE LINK FOR ${email}: ${link}`);
 
         const emailHtml = `
@@ -103,6 +118,7 @@ app.post('/api/auth/invite-user', async (req, res) => {
     }
 });
 
+// 2. Login
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -133,6 +149,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// 3. Forgot Password
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
@@ -151,6 +168,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 });
 
+// 4. Set Password (Updated to handle auto-join)
 app.post('/api/auth/set-password', async (req, res) => {
     const { token, password } = req.body;
     if (!password) return res.status(400).json({ error: "Password is required" });
@@ -166,18 +184,40 @@ app.post('/api/auth/set-password', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // 1. Activate User
         await prisma.user.update({
             where: { id: authToken.user_id! },
             data: { password_hash: hashedPassword, status: 'active' }
         });
 
+        // 2. Mark Token Used
         await prisma.authToken.update({
             where: { id: authToken.id },
             data: { is_used: true }
         });
 
+        // 3. AUTO-JOIN STARTUP (If invite had metadata)
+        const meta = authToken.metadata as any;
+        if (meta?.startupId) {
+            await prisma.userProfile.create({
+                data: {
+                    userId: authToken.user_id!,
+                    fullName: "", // They will fill this later in settings
+                    startupId: meta.startupId // <--- LINK IMMEDIATELY
+                }
+            });
+            console.log(`🔗 Auto-linked user ${authToken.user_id} to startup ${meta.startupId}`);
+        } else {
+            // Check if profile exists, if not create empty one
+            const existingProfile = await prisma.userProfile.findUnique({ where: { userId: authToken.user_id! } });
+            if (!existingProfile) {
+                await prisma.userProfile.create({ data: { userId: authToken.user_id! } });
+            }
+        }
+
         res.json({ message: "Password updated successfully!" });
     } catch (err) {
+        console.error("Set Password Error:", err);
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -212,9 +252,9 @@ app.get('/api/user/profile', async (req, res) => {
     }
 });
 
-// 6. SAVE Profile
+// 6. SAVE Profile (Fixed for new Schema)
 app.post('/api/user/profile', async (req, res) => {
-    // Log the incoming request to debug
+    // Log request for debugging
     console.log("👉 SAVE PROFILE REQUEST:", JSON.stringify(req.body, null, 2));
 
     const { userId, role, profile, startup } = req.body;
@@ -246,10 +286,13 @@ app.post('/api/user/profile', async (req, res) => {
                 website: startup.website || "",
                 industry: startup.industry || "",
                 location: startup.location || "",
-                stage: startup.stage || "",
+
+                // --- CHANGED FIELDS ---
+                // Removed 'stage'
+                pitchDeckUrl: startup.pitchDeckUrl || "", // Added
+
                 foundedYear: safeFoundedYear,
                 teamSize: safeTeamSize,
-                // Check completeness
                 isProfileComplete: !!(startup.name && startup.description && startup.industry)
             };
 
@@ -287,13 +330,13 @@ app.post('/api/user/profile', async (req, res) => {
             where: { userId },
             update: {
                 ...profileData,
-                // --- FIX: WRITE TO SCALAR COLUMN DIRECTLY ---
-                startupId: startupId || null
+                // --- KEY FIX: Use startupId directly ---
+                startupId: startupId || undefined
             },
             create: {
                 userId,
                 ...profileData,
-                // --- FIX: WRITE TO SCALAR COLUMN DIRECTLY ---
+                // --- KEY FIX: Use startupId directly ---
                 startupId: startupId || null
             }
         });
@@ -304,6 +347,96 @@ app.post('/api/user/profile', async (req, res) => {
     } catch (err: any) {
         console.error("❌ Save Profile Error Details:", err);
         res.status(500).json({ error: "Failed to save profile", details: err.message });
+    }
+});
+
+// ==========================================
+// PROJECT ROUTES
+// ==========================================
+
+// ==========================================
+// PROJECT MANAGEMENT ROUTES
+// ==========================================
+
+// 7. Create Project
+app.post('/api/projects', async (req, res) => {
+    const { userId, name, description, domain } = req.body;
+
+    if (!userId || !name) return res.status(400).json({ error: "Missing fields" });
+
+    try {
+        const userProfile = await prisma.userProfile.findUnique({
+            where: { userId },
+            select: { startupId: true }
+        });
+
+        if (!userProfile?.startupId) return res.status(403).json({ error: "No Startup Found" });
+
+        const project = await prisma.project.create({
+            data: {
+                name,
+                description,
+                domain,
+                startupId: userProfile.startupId,
+                createdBy: userId,
+                currentAIRL: 1
+            }
+        });
+        res.json({ message: "Project created", project });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to create project" });
+    }
+});
+
+// 8. Get Projects
+app.get('/api/projects', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
+
+    try {
+        const userProfile = await prisma.userProfile.findUnique({
+            where: { userId },
+            select: { startupId: true }
+        });
+
+        if (!userProfile?.startupId) return res.json([]);
+
+        const projects = await prisma.project.findMany({
+            where: { startupId: userProfile.startupId },
+            orderBy: { updatedAt: 'desc' }
+        });
+        res.json(projects);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch projects" });
+    }
+});
+
+// 9. Get Single Project
+app.get('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const project = await prisma.project.findUnique({ where: { id } });
+        if (!project) return res.status(404).json({ error: "Not found" });
+        res.json(project);
+    } catch (err) {
+        res.status(500).json({ error: "Internal error" });
+    }
+});
+
+// 10. UPDATE Project (The logic you are missing)
+app.put('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, description, domain } = req.body;
+
+    try {
+        const project = await prisma.project.update({
+            where: { id },
+            data: { name, description, domain }
+        });
+        res.json({ message: "Project updated", project });
+    } catch (err) {
+        console.error("Update error:", err);
+        res.status(500).json({ error: "Failed to update project" });
     }
 });
 
