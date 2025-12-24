@@ -39,19 +39,14 @@ export function Header({
   const [activeRole, setActiveRole] = useState<string>("");
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  // --- FIXED: Initialize Profile with USER-SPECIFIC Cache ---
+  // Initialize Profile from Cache
   const [profile, setProfile] = useState<any>(() => {
     try {
-      // 1. Get the current logged-in user FIRST
       const currentUserStr = localStorage.getItem("artpark_user");
       if (!currentUserStr) return null;
-
       const currentUser = JSON.parse(currentUserStr);
-
-      // 2. Look for cache specific to THIS user ID
       const cacheKey = `artpark_profile_cache_${currentUser.id}`;
       const cached = localStorage.getItem(cacheKey);
-
       return cached ? JSON.parse(cached) : null;
     } catch (e) {
       return null;
@@ -93,20 +88,22 @@ export function Header({
       const parsedUser = JSON.parse(userStr);
       setUser(parsedUser);
 
-      // Set Active Role (Default to first role if missing)
+      // Set Active Role
       const currentRole = roleStr || parsedUser.roles?.[0] || "founder";
       setActiveRole(currentRole);
 
-      // Background Fetch to keep cache updated
-      fetch(`${API_URL}/api/founder/profile?userId=${parsedUser.id}`)
+      // --- FIX 1: Call the NEW Endpoint ---
+      fetch(`${API_URL}/api/user/profile?userId=${parsedUser.id}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.id) {
-            setProfile(data);
-            // --- FIX: Save to User-Specific Cache Key ---
+          // --- FIX 2: Handle new response structure { profile: {...}, startup: {...} } ---
+          const profileData = data.profile || {};
+
+          if (profileData && Object.keys(profileData).length > 0) {
+            setProfile(profileData);
             localStorage.setItem(
               `artpark_profile_cache_${parsedUser.id}`,
-              JSON.stringify(data)
+              JSON.stringify(profileData)
             );
           }
         })
@@ -117,7 +114,7 @@ export function Header({
   useEffect(() => {
     loadData();
 
-    // Listen for updates from Settings page
+    // Listen for updates
     const handleProfileUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       const userStr = localStorage.getItem("artpark_user");
@@ -125,8 +122,6 @@ export function Header({
       if (detail && userStr) {
         const parsedUser = JSON.parse(userStr);
         setProfile((prev: any) => ({ ...prev, ...detail }));
-
-        // --- FIX: Update User-Specific Cache ---
         localStorage.setItem(
           `artpark_profile_cache_${parsedUser.id}`,
           JSON.stringify({ ...profile, ...detail })
@@ -140,7 +135,6 @@ export function Header({
   }, []);
 
   const handleLogout = () => {
-    // --- FIX: Clear only the current user's data (optional, or just leave it) ---
     const userStr = localStorage.getItem("artpark_user");
     if (userStr) {
       try {
@@ -150,15 +144,12 @@ export function Header({
         /* ignore */
       }
     }
-
     localStorage.removeItem("artpark_user");
     localStorage.removeItem("active_role");
     localStorage.removeItem("token");
-
     navigate("/login");
   };
 
-  // --- ROLE SWITCHING LOGIC ---
   const handleRoleSwitch = (newRole: string) => {
     localStorage.setItem("active_role", newRole);
     setActiveRole(newRole);
@@ -177,15 +168,11 @@ export function Header({
     window.location.reload();
   };
 
+  // --- FIX 3: Use 'fullName' instead of 'founderName' ---
   const displayName =
-    profile?.founderName || user?.name || initialUser?.name || "Guest User";
+    profile?.fullName || user?.name || initialUser?.name || "Guest User";
 
-  const displayRole =
-    activeRole ||
-    profile?.designation ||
-    user?.role ||
-    initialRole ||
-    "Visitor";
+  const displayRole = activeRole || user?.role || initialRole || "Visitor";
 
   const displayAvatar = profile?.avatarUrl || initialUser?.avatar;
 
@@ -239,7 +226,7 @@ export function Header({
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
-      {/* --- LEFT SECTION: Title & Role Switcher --- */}
+      {/* LEFT: Title & Role Switcher */}
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold text-gray-800">
           {title || "Dashboard"}
@@ -289,7 +276,7 @@ export function Header({
         )}
       </div>
 
-      {/* --- RIGHT SECTION: Search, Notifications, Profile --- */}
+      {/* RIGHT: Search, Notifications, Profile */}
       <div className="flex items-center space-x-6">
         {/* Search */}
         <div className="relative hidden md:block group" ref={searchRef}>

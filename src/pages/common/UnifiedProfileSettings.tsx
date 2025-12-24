@@ -16,8 +16,6 @@ import {
   Shield,
   Moon,
   Sun,
-  Mail,
-  Monitor,
   CheckCircle2,
   AlertCircle,
   Briefcase,
@@ -25,6 +23,7 @@ import {
   MapPin,
   Linkedin,
   Phone,
+  Monitor,
 } from "lucide-react";
 import { compressImage } from "../../utils/imageUtils";
 import { API_URL } from "../../config";
@@ -58,15 +57,16 @@ export function UnifiedProfileSettings() {
   const user = userStr ? JSON.parse(userStr) : null;
 
   // --- UNIFIED SCHEMA STATE ---
+  // Keeping the flat state structure as requested for the UI
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
-    title: "", // Designation / Job Title
-    organization: "", // Company / Startup / Institution
+    title: "", // Maps to UserProfile.designation
+    organization: "", // Maps to Startup.name (Founder) OR UserProfile.organization (Others)
     avatarUrl: "",
-    website: "",
+    website: "", // Maps to Startup.website (Founder)
     bio: "",
-    tags: "",
+    tags: "", // Maps to Startup.industry (Founder)
     location: "",
     linkedin: "",
   });
@@ -96,28 +96,45 @@ export function UnifiedProfileSettings() {
     fetch(`${API_URL}/api/user/profile?userId=${user.id}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.id) {
-          // Map backend fields
-          const mappedData = {
-            ...data,
-            title: data.title || data.designation || "",
-            organization: data.organization || data.startupName || "",
-            bio: data.bio || data.description || "",
-            tags: data.tags || data.industry || "",
-          };
+        // Handle the new response structure: { profile: {...}, startup: {...} }
+        const profile = data.profile || {};
+        const startup = data.startup || {};
 
-          setFormData((prev) => ({ ...prev, ...mappedData }));
+        // Logic to Map Backend Data -> Frontend State
+        const mappedData = {
+          fullName: profile.fullName || "",
+          phone: profile.phone || "",
+          title: profile.designation || "", // Schema uses 'designation'
+          avatarUrl: profile.avatarUrl || "",
+          linkedin: profile.linkedin || "",
+          location: profile.location || "",
+          bio: profile.bio || "",
 
-          // Update Cache & Sync Header
-          localStorage.setItem(cacheKey, JSON.stringify(mappedData));
-          window.dispatchEvent(
-            new CustomEvent("profile-updated", { detail: mappedData })
-          );
-        }
+          // CONDITIONAL MAPPING BASED ON ROLE
+          // If Founder -> Organization = Startup Name
+          // If Reviewer -> Organization = Profile Organization (Affiliation)
+          organization:
+            activeRole === "founder"
+              ? startup.name || ""
+              : profile.organization || "", // We will add 'organization' to UserProfile for non-founders
+
+          website: activeRole === "founder" ? startup.website || "" : "",
+
+          // Map Startup Industry to Tags
+          tags: activeRole === "founder" ? startup.industry || "" : "",
+        };
+
+        setFormData((prev) => ({ ...prev, ...mappedData }));
+
+        // Update Cache & Sync Header
+        localStorage.setItem(cacheKey, JSON.stringify(mappedData));
+        window.dispatchEvent(
+          new CustomEvent("profile-updated", { detail: mappedData })
+        );
       })
       .catch((err) => console.error("Failed to load profile", err))
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.id, activeRole]);
 
   // --- Handlers ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,10 +162,41 @@ export function UnifiedProfileSettings() {
     );
 
     try {
+      // 2. Construct Payload
+      // We split the flat 'formData' back into 'profile' and 'startup' objects
+      const payload = {
+        userId: user.id,
+        role: activeRole,
+
+        // Data for UserProfile Table
+        profile: {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          designation: formData.title,
+          avatarUrl: formData.avatarUrl,
+          linkedin: formData.linkedin,
+          location: formData.location,
+          bio: formData.bio,
+          // Only save organization to profile if NOT a founder
+          organization:
+            activeRole !== "founder" ? formData.organization : undefined,
+        },
+
+        // Data for Startup Table (Founders Only)
+        startup:
+          activeRole === "founder"
+            ? {
+                name: formData.organization, // Map Org -> Startup Name
+                website: formData.website,
+                industry: formData.tags, // Map Tags -> Industry
+              }
+            : null,
+      };
+
       const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, ...formData }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Failed to save");

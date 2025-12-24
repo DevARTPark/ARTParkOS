@@ -19,17 +19,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const SECRET_KEY = process.env.JWT_SECRET || "super_secret_key_123";
 
-// --- DYNAMIC FRONTEND URL ---
-// Now purely relies on .env. If missing, defaults to localhost but logs a warning.
 const FRONTEND_URL = process.env.FRONTEND_URL;
-
 if (!FRONTEND_URL) {
     console.warn("⚠️  WARNING: FRONTEND_URL is not defined in .env! Defaulting to http://localhost:5173");
 }
 const finalFrontendUrl = FRONTEND_URL || "http://localhost:5173";
 
-
-// --- SMTP CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 465,
@@ -55,7 +50,6 @@ async function sendEmail(to: string, subject: string, html: string) {
     }
 }
 
-// --- HELPER: Generate Token ---
 async function createAuthToken(userId: string, type: 'account_activation' | 'password_reset') {
     const tokenString = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -76,18 +70,15 @@ async function createAuthToken(userId: string, type: 'account_activation' | 'pas
 // AUTH ROUTES
 // ==========================================
 
-// 1. Invite User
 app.post('/api/auth/invite-user', async (req, res) => {
     const { email, role } = req.body;
     try {
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return res.status(400).json({ error: "User already exists" });
 
-        // Inside app.post('/api/auth/invite-user' ...
         const user = await prisma.user.create({
             data: {
                 email,
-                // CHANGE: Store the invited role as the first item in the array
                 roles: [role || 'founder'],
                 status: 'invited',
                 password_hash: null,
@@ -95,14 +86,9 @@ app.post('/api/auth/invite-user', async (req, res) => {
         });
 
         const token = await createAuthToken(user.id, 'account_activation');
-
-        // --- USE DYNAMIC URL ---
         const link = `${finalFrontendUrl}/set-password?token=${token}&type=activation`;
 
-        console.log("---------------------------------------------------");
-        console.log(`📨 INVITE LINK FOR ${email} (${role}):`);
-        console.log(link);
-        console.log("---------------------------------------------------");
+        console.log(`📨 INVITE LINK FOR ${email}: ${link}`);
 
         const emailHtml = `
       <h2>Welcome to ARTPark!</h2>
@@ -117,7 +103,6 @@ app.post('/api/auth/invite-user', async (req, res) => {
     }
 });
 
-// 2. Login
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -128,9 +113,7 @@ app.post('/api/auth/login', async (req, res) => {
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) return res.status(401).json({ error: "Invalid password" });
 
-        // Inside app.post('/api/auth/login' ...
         const token = jwt.sign(
-            // CHANGE: Include 'roles' (plural) in token
             { userId: user.id, roles: user.roles, email: user.email },
             SECRET_KEY,
             { expiresIn: '12h' }
@@ -141,7 +124,7 @@ app.post('/api/auth/login', async (req, res) => {
             user: {
                 id: user.id,
                 name: email.split('@')[0],
-                roles: user.roles, // CHANGE: Send array
+                roles: user.roles,
                 email: user.email
             }
         });
@@ -150,51 +133,27 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 3. Forgot Password
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { email } = req.body;
-
     try {
         const user = await prisma.user.findUnique({ where: { email } });
-
-        if (!user) {
-            return res.json({ message: "If that email exists, a reset link has been sent." });
-        }
+        if (!user) return res.json({ message: "If that email exists, a reset link has been sent." });
 
         const token = await createAuthToken(user.id, 'password_reset');
-
-        // --- USE DYNAMIC URL ---
         const resetLink = `${finalFrontendUrl}/set-password?token=${token}&type=reset`;
 
-        console.log("---------------------------------------------------");
-        console.log(`🔑 PASSWORD RESET LINK FOR ${email}:`);
-        console.log(resetLink);
-        console.log("---------------------------------------------------");
+        console.log(`🔑 RESET LINK: ${resetLink}`);
 
-        const emailHtml = `
-      <h2>Reset Your Password</h2>
-      <p>Click the link below to reset your password. Valid for 24 hours.</p>
-      <a href="${resetLink}">Reset Password</a>
-    `;
-        await sendEmail(email, "Password Reset Request", emailHtml);
-
+        await sendEmail(email, "Password Reset Request", `<a href="${resetLink}">Reset Password</a>`);
         res.json({ message: "If that email exists, a reset link has been sent." });
-
     } catch (err) {
-        console.error("Forgot Password Error:", err);
         res.status(500).json({ error: "Internal server error" });
     }
 });
 
-// 4. Set Password
 app.post('/api/auth/set-password', async (req, res) => {
     const { token, password } = req.body;
-
-    console.log("👉 SET PASSWORD REQUEST:", { token, passwordRecieved: !!password });
-
-    if (!password) {
-        return res.status(400).json({ error: "Password is required" });
-    }
+    if (!password) return res.status(400).json({ error: "Password is required" });
 
     try {
         const authToken = await prisma.authToken.findUnique({
@@ -208,11 +167,8 @@ app.post('/api/auth/set-password', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         await prisma.user.update({
-            where: { id: authToken.user_id },
-            data: {
-                password_hash: hashedPassword,
-                status: 'active',
-            }
+            where: { id: authToken.user_id! },
+            data: { password_hash: hashedPassword, status: 'active' }
         });
 
         await prisma.authToken.update({
@@ -221,67 +177,133 @@ app.post('/api/auth/set-password', async (req, res) => {
         });
 
         res.json({ message: "Password updated successfully!" });
-
     } catch (err) {
-        console.error("Set Password Error:", err);
         res.status(500).json({ error: "Internal server error" });
     }
 });
 
-// 5. Get Profile
-app.get('/api/founder/profile', async (req, res) => {
+// ==========================================
+// UNIFIED PROFILE ROUTES (UPDATED)
+// ==========================================
+
+// 5. GET Profile
+app.get('/api/user/profile', async (req, res) => {
     const { userId } = req.query;
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
 
     try {
-        const profile = await prisma.founderProfile.findUnique({ where: { userId } });
-        res.json(profile || {});
+        // Fetch profile AND linked startup
+        const userProfile = await prisma.userProfile.findUnique({
+            where: { userId },
+            include: { startup: true }
+        });
+
+        if (!userProfile) {
+            return res.json({ profile: null, startup: null });
+        }
+
+        // Separate objects for frontend
+        const { startup, ...profile } = userProfile;
+        res.json({ profile, startup: startup || null });
+
     } catch (err) {
-        console.error(err);
+        console.error("Get Profile Error:", err);
         res.status(500).json({ error: "Failed to fetch profile" });
     }
 });
 
-// 6. Save Profile
-app.post('/api/founder/profile', async (req, res) => {
-    const { userId, data } = req.body;
+// 6. SAVE Profile
+app.post('/api/user/profile', async (req, res) => {
+    // Log the incoming request to debug
+    console.log("👉 SAVE PROFILE REQUEST:", JSON.stringify(req.body, null, 2));
+
+    const { userId, role, profile, startup } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: "User ID missing in payload" });
+    }
+
     try {
-        const profile = await prisma.founderProfile.upsert({
+        let startupId = null;
+
+        // A. Handle Startup Logic (Founders Only)
+        if (role === 'founder' && startup) {
+            console.log("🚀 Processing Founder Startup Logic...");
+
+            // Check if user already has a startup
+            const existingProfile = await prisma.userProfile.findUnique({
+                where: { userId },
+                select: { startupId: true }
+            });
+
+            // Ensure numeric fields are parsed safely
+            const safeFoundedYear = parseInt(startup.foundedYear) || new Date().getFullYear();
+            const safeTeamSize = parseInt(startup.teamSize) || 1;
+
+            const startupData = {
+                name: startup.name || "My Startup",
+                description: startup.description || "",
+                website: startup.website || "",
+                industry: startup.industry || "",
+                location: startup.location || "",
+                stage: startup.stage || "",
+                foundedYear: safeFoundedYear,
+                teamSize: safeTeamSize,
+                // Check completeness
+                isProfileComplete: !!(startup.name && startup.description && startup.industry)
+            };
+
+            if (existingProfile?.startupId) {
+                console.log(`🔄 Updating Existing Startup: ${existingProfile.startupId}`);
+                await prisma.startup.update({
+                    where: { id: existingProfile.startupId },
+                    data: startupData
+                });
+                startupId = existingProfile.startupId;
+            } else {
+                console.log("✨ Creating New Startup Entity...");
+                const newStartup = await prisma.startup.create({
+                    data: startupData
+                });
+                startupId = newStartup.id;
+            }
+        }
+
+        // B. Handle User Profile Logic (Upsert)
+        console.log("👤 Processing User Profile Logic...");
+
+        const profileData = {
+            fullName: profile.fullName || "",
+            phone: profile.phone || "",
+            designation: profile.designation || "",
+            organization: profile.organization || null,
+            avatarUrl: profile.avatarUrl || null,
+            linkedin: profile.linkedin || "",
+            location: profile.location || "",
+            bio: profile.bio || "",
+        };
+
+        const updatedProfile = await prisma.userProfile.upsert({
             where: { userId },
             update: {
-                founderName: data.founderName,
-                phone: data.phone,
-                designation: data.designation,
-                avatarUrl: data.avatarUrl,
-                startupName: data.startupName,
-                tagline: data.tagline,
-                description: data.description,
-                website: data.website,
-                industry: data.industry,
-                location: data.location,
-                teamSize: parseInt(data.teamSize) || 0,
-                foundedYear: parseInt(data.foundedYear) || new Date().getFullYear(),
+                ...profileData,
+                // --- FIX: WRITE TO SCALAR COLUMN DIRECTLY ---
+                startupId: startupId || null
             },
             create: {
                 userId,
-                founderName: data.founderName,
-                phone: data.phone,
-                designation: data.designation,
-                avatarUrl: data.avatarUrl,
-                startupName: data.startupName || "My Startup",
-                tagline: data.tagline,
-                description: data.description,
-                website: data.website,
-                industry: data.industry,
-                location: data.location,
-                teamSize: parseInt(data.teamSize) || 0,
-                foundedYear: parseInt(data.foundedYear) || new Date().getFullYear(),
+                ...profileData,
+                // --- FIX: WRITE TO SCALAR COLUMN DIRECTLY ---
+                startupId: startupId || null
             }
         });
-        res.json({ message: "Profile saved!", profile });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to save profile" });
+
+        console.log("✅ Profile Saved Successfully!");
+        res.json({ message: "Profile saved!", profile: updatedProfile });
+
+    } catch (err: any) {
+        console.error("❌ Save Profile Error Details:", err);
+        res.status(500).json({ error: "Failed to save profile", details: err.message });
     }
 });
 
