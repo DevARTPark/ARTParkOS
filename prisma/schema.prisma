@@ -112,23 +112,24 @@ model UserProfile {
 model Startup {
   id          String   @id @default(uuid())
   
-  // Company Profile
   name        String
   description String?  @db.Text
   website     String?
   logoUrl     String?
   industry    String?
   location    String?
-  stage       String?  // e.g. "Idea", "MVP"
+  
+  // --- UPDATED FIELDS ---
+  pitchDeckUrl String? // <--- Added
+  // stage     String? // <--- Removed
+  
   foundedYear Int?     @default(2024)
   teamSize    Int?     @default(1)
 
-  // Gatekeeper: Must be true to invite co-founders
   isProfileComplete Boolean @default(false) 
 
-  // Relationships
-  team        UserProfile[] // Founders & Employees belong here
-  projects    Project[]     // Projects belong to the Startup
+  team        UserProfile[]
+  projects    Project[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -165,20 +166,21 @@ model AssessmentQuestion {
 }
 
 // The Innovation (Managed by FOUNDERS)
+
 model Project {
   id          String   @id @default(uuid())
-  
-  // Linked to Startup Entity
   startupId   String
   startup     Startup  @relation(fields: [startupId], references: [id])
   
   name        String
   description String?  @db.Text
-  currentAIRL Int      @default(0) // The verified level
+  domain      String?  // <--- ADD THIS (e.g. "AgriTech", "Drone")
+  
+  currentAIRL Int      @default(0) 
   
   submissions AssessmentSubmission[]
 
-  createdBy   String?  // Audit trail (UserId)
+  createdBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
