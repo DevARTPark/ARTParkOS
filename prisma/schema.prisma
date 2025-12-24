@@ -2,6 +2,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// --- DATASOURCE (Managed by prisma.config.ts) ---
 datasource db {
   provider = "postgresql"
   // URL is configured in prisma.config.ts
@@ -27,17 +28,25 @@ enum UserStatus {
 enum TokenType {
   account_activation
   password_reset
+  cofounder_invite
 }
 
-// --- CORE IDENTITY ---
+enum AssessmentStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  COMPLETED
+  REJECTED
+}
+
+// --- 1. CORE IDENTITY ---
 
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
   password_hash String?
   
-  // CHANGE: 'role' becomes 'roles' (Array)
-  roles         Role[]    @default([founder]) 
+  roles         Role[]    @default([founder])
   
   status        UserStatus @default(invited)
   last_login    DateTime?
@@ -45,54 +54,179 @@ model User {
   updated_at    DateTime  @updatedAt
 
   tokens        AuthToken[]
-  founderProfile FounderProfile?
-
+  
+  // ✅ Link to the Unified Profile (One profile for any role)
+  profile       UserProfile? 
+  
   @@map("users")
 }
 
 model AuthToken {
   id         String    @id @default(uuid())
-  user_id    String
-  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  // Optional: User might not exist yet if it's a fresh invite
+  user_id    String?   
+  user       User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
   token      String    @unique
   type       TokenType
   expires_at DateTime
   is_used    Boolean   @default(false)
+  
+  // Stores context like { "startupId": "xyz", "email": "..." }
+  metadata   Json?     
+
   created_at DateTime  @default(now())
 
   @@map("auth_tokens")
 }
 
-// ... (Previous User model remains the same)
+// --- 2. UNIFIED PROFILE (The "Person") ---
 
-// ... existing code ...
-
-model FounderProfile {
+model UserProfile {
   id          String   @id @default(uuid())
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id])
 
-  // Personal Details
-  founderName String?
+  // --- Common Fields ---
+  fullName    String?
   phone       String?
   designation String?
-  avatarUrl   String?  @db.Text // <--- NEW: Store Base64 image string here
-
-  // Company Details
-  startupName String   @default("My Startup")
-  tagline     String?
-  description String?
-  website     String?
-  logoUrl     String?
-  
-  // Business Info
-  industry    String?
-  stage       String?
+  organization String? // <--- ADD THIS LINE (For non-founders)
+  avatarUrl   String?  @db.Text
+  linkedin    String?
   location    String?
-  teamSize    Int?     @default(1)
-  foundedYear Int?     @default(2024)
+  bio         String?  @db.Text
+
+  // --- Founder Extension ---
+  startupId   String?  
+  startup     Startup? @relation(fields: [startupId], references: [id])
 
   updatedAt   DateTime @updatedAt
   
-  @@map("founder_profiles")
+  @@map("user_profiles")
+}
+
+// --- 3. STARTUP ENTITY (The "Business") ---
+
+model Startup {
+  id          String   @id @default(uuid())
+  
+  // Company Profile
+  name        String
+  description String?  @db.Text
+  website     String?
+  logoUrl     String?
+  industry    String?
+  location    String?
+  stage       String?  // e.g. "Idea", "MVP"
+  foundedYear Int?     @default(2024)
+  teamSize    Int?     @default(1)
+
+  // Gatekeeper: Must be true to invite co-founders
+  isProfileComplete Boolean @default(false) 
+
+  // Relationships
+  team        UserProfile[] // Founders & Employees belong here
+  projects    Project[]     // Projects belong to the Startup
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("startups")
+}
+
+// --- 4. ASSESSMENT ENGINE ---
+
+// The Rulebook (Managed by REVIEWERS)
+model AssessmentQuestion {
+  id             String   @id @default(uuid())
+  text           String
+  category       String   
+  legacyCategory String?  // Stores old category name if deleted
+  airlLevel      Int
+  
+  // Toggles
+  isCritical     Boolean  @default(true)      // "Compulsory" flag
+  scope          String   @default("project") // "project" or "company"
+  
+  expectations   String[]
+  commentPrompt  String?  
+  
+  answers        AssessmentAnswer[]
+  
+  // Audit: Which Reviewer changed this?
+  updatedBy      String?  
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("assessment_questions")
+}
+
+// The Innovation (Managed by FOUNDERS)
+model Project {
+  id          String   @id @default(uuid())
+  
+  // Linked to Startup Entity
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id])
+  
+  name        String
+  description String?  @db.Text
+  currentAIRL Int      @default(0) // The verified level
+  
+  submissions AssessmentSubmission[]
+
+  createdBy   String?  // Audit trail (UserId)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("projects")
+}
+
+// The Application (Snapshot of an attempt)
+model AssessmentSubmission {
+  id          String   @id @default(uuid())
+  
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  
+  targetLevel Int
+  status      AssessmentStatus @default(DRAFT)
+  
+  // The Reviewer handling this specific ticket
+  reviewerId  String?  // Null = Open Pool
+  
+  answers     AssessmentAnswer[]
+  
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("assessment_submissions")
+}
+
+// The Data (Founders Input + Reviewer Grade)
+model AssessmentAnswer {
+  id           String   @id @default(uuid())
+  submissionId String
+  submission   AssessmentSubmission @relation(fields: [submissionId], references: [id])
+  
+  questionId   String
+  question     AssessmentQuestion   @relation(fields: [questionId], references: [id])
+  
+  // Founder Response
+  response     String?  // "met", "partial", "not_met"
+  notes        String?
+  evidenceUrl  String?
+  
+  // Reviewer Evaluation
+  rating       String?  // "yes", "no", "partial"
+  comments     String?
+  
+  updatedAt    DateTime @updatedAt
+
+  @@map("assessment_answers")
 }
