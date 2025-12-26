@@ -39,6 +39,24 @@ enum AssessmentStatus {
   REJECTED
 }
 
+// --- NEW ENUMS FOR ASSESSMENT ---
+enum QuestionScope {
+  project
+  company
+}
+
+enum FounderResponse {
+  met
+  partial
+  not_met
+}
+
+enum ReviewerRating {
+  yes
+  no
+  partial
+}
+
 // --- 1. CORE IDENTITY ---
 
 model User {
@@ -139,26 +157,43 @@ model Startup {
 
 // --- 4. ASSESSMENT ENGINE ---
 
-// The Rulebook (Managed by REVIEWERS)
+// 1. Categories (NEW MODEL)
+// Replaces: localStorage.getItem("airl_categories")
+model AssessmentCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  order     Int      @default(0) // To keep the order in the UI
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("assessment_categories")
+}
+
+// 2. The Rulebook (Managed by REVIEWERS)
 model AssessmentQuestion {
   id             String   @id @default(uuid())
   text           String
+  
+  // We keep this as a String (instead of a relation) to support 
+  // your "Legacy Category" logic without complex foreign key constraints.
   category       String   
-  legacyCategory String?  // Stores old category name if deleted
+  legacyCategory String?  
+  
   airlLevel      Int
   
   // Toggles
-  isCritical     Boolean  @default(true)      // "Compulsory" flag
-  scope          String   @default("project") // "project" or "company"
+  isCritical     Boolean       @default(true) 
+  scope          QuestionScope @default(project) // Updated to Enum
   
-  expectations   String[]
-  commentPrompt  String?  
+  // In Postgres, this creates a native array column text[]
+  expectations   String[]      
+  commentPrompt  String?       @default("Founder's Comments")
   
   answers        AssessmentAnswer[]
   
-  // Audit: Which Reviewer changed this?
+  // Audit
   updatedBy      String?  
-  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -210,25 +245,27 @@ model AssessmentSubmission {
   @@map("assessment_submissions")
 }
 
-// The Data (Founders Input + Reviewer Grade)
+// 3. The Data (Founders Input + Reviewer Grade)
 model AssessmentAnswer {
   id           String   @id @default(uuid())
+  
   submissionId String
   submission   AssessmentSubmission @relation(fields: [submissionId], references: [id])
   
   questionId   String
   question     AssessmentQuestion   @relation(fields: [questionId], references: [id])
   
-  // Founder Response
-  response     String?  // "met", "partial", "not_met"
-  notes        String?
+  // Founder Response (Updated to Enum)
+  response     FounderResponse? 
+  notes        String?          @db.Text
   evidenceUrl  String?
+  evidenceFile String?          // Added to store filename if uploaded
   
-  // Reviewer Evaluation
-  rating       String?  // "yes", "no", "partial"
-  comments     String?
+  // Reviewer Evaluation (Updated to Enum)
+  rating       ReviewerRating?  
+  comments     String?          @db.Text
   
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime         @updatedAt
 
   @@map("assessment_answers")
 }

@@ -10,7 +10,6 @@ import { Button } from "../../components/ui/Button";
 import { Input, Textarea } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { Badge } from "../../components/ui/Badge";
-import { airlQuestions as defaultQuestions } from "../../data/mockData";
 import {
   Plus,
   Trash2,
@@ -24,47 +23,24 @@ import {
   Edit2,
   X,
   Settings,
-  Building2,
-  Target,
   AlertTriangle,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
-
-// Initial Defaults
-const DEFAULT_CATEGORIES = [
-  "Technology",
-  "Product Engineering",
-  "Market Research",
-  "Organization Structure",
-  "Target Market Engagement",
-];
+import { API_URL } from "../../config";
 
 export function ReviewerAssessmentConfig() {
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // --- 1. STATE MANAGEMENT ---
 
-  // Categories (Dynamic)
-  const [categories, setCategories] = useState<string[]>(() => {
-    const savedCats = localStorage.getItem("airl_categories");
-    return savedCats ? JSON.parse(savedCats) : DEFAULT_CATEGORIES;
-  });
+  // Categories (Fetched from API)
+  const [categories, setCategories] = useState<string[]>([]);
 
-  // Questions (Dynamic)
-  const [questions, setQuestions] = useState(() => {
-    const savedConfig = localStorage.getItem("airl_framework_config");
-    const initialData = savedConfig
-      ? JSON.parse(savedConfig)
-      : defaultQuestions;
-    return initialData.map((q: any) => ({
-      ...q,
-      isCritical: q.isCritical !== undefined ? q.isCritical : true, // Default to Compulsory
-      scope: q.scope || "project",
-      legacyCategory: q.legacyCategory || null,
-    }));
-  });
+  // Questions (Fetched from API)
+  const [questions, setQuestions] = useState<any[]>([]);
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,12 +63,44 @@ export function ReviewerAssessmentConfig() {
     new: string;
   } | null>(null);
 
-  // --- 2. COMPUTED DATA ---
+  // --- 2. LOAD DATA FROM BACKEND ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [catsRes, qsRes] = await Promise.all([
+          fetch(`${API_URL}/api/assessment/categories`),
+          fetch(`${API_URL}/api/assessment/questions`),
+        ]);
 
-  // Filter visible categories (Exclude 'Uncategorized')
+        if (catsRes.ok && qsRes.ok) {
+          const catsData = await catsRes.json();
+          // API returns objects {id, name}, we map to strings for UI
+          setCategories(catsData.map((c: any) => c.name));
+
+          const qsData = await qsRes.json();
+          setQuestions(
+            qsData.map((q: any) => ({
+              ...q,
+              // Ensure default flags exist
+              isCritical: q.isCritical !== undefined ? q.isCritical : true,
+              scope: q.scope || "project",
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load config:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // --- 3. COMPUTED DATA ---
+
   const visibleCategories = categories.filter((c) => c !== "Uncategorized");
 
-  // Questions for current view
   const currentLevelQuestions = questions.filter(
     (q: any) => q.airlLevel === selectedLevel
   );
@@ -116,9 +124,9 @@ export function ReviewerAssessmentConfig() {
     });
   };
 
-  // --- 3. QUESTION HANDLERS ---
+  // --- 4. QUESTION HANDLERS (API CONNECTED) ---
 
-  const handleAddOrUpdateQuestion = () => {
+  const handleAddOrUpdateQuestion = async () => {
     if (!formData.text.trim()) return;
 
     const expectationsArray = formData.expectations
@@ -126,28 +134,40 @@ export function ReviewerAssessmentConfig() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    if (editingId) {
-      // UPDATE
-      setQuestions(
-        questions.map((q: any) =>
-          q.id === editingId
-            ? { ...q, ...formData, expectations: expectationsArray }
-            : q
-        )
-      );
-      setEditingId(null);
-    } else {
-      // CREATE
-      const newQ = {
-        id: `q-${Date.now()}`,
-        airlLevel: selectedLevel,
-        ...formData,
-        expectations: expectationsArray,
-        required: true,
-      };
-      setQuestions([...questions, newQ]);
+    const payload = {
+      id: editingId, // If ID exists, backend updates; else creates
+      airlLevel: selectedLevel,
+      ...formData,
+      expectations: expectationsArray,
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/api/assessment/questions`, {
+        method: "POST", // We use POST for both create and update (upsert logic in backend)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const savedQ = await res.json();
+
+        if (editingId) {
+          // Update local state
+          setQuestions(
+            questions.map((q: any) => (q.id === editingId ? savedQ : q))
+          );
+          setEditingId(null);
+        } else {
+          // Add to local state
+          setQuestions([...questions, savedQ]);
+        }
+        resetForm();
+      } else {
+        throw new Error("Failed to save");
+      }
+    } catch (err) {
+      alert("Error saving question to backend.");
     }
-    resetForm();
   };
 
   const handleEditClick = (q: any) => {
@@ -165,110 +185,130 @@ export function ReviewerAssessmentConfig() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this question?")) {
-      setQuestions(questions.filter((q: any) => q.id !== id));
-      if (editingId === id) resetForm();
+      try {
+        await fetch(`${API_URL}/api/assessment/questions/${id}`, {
+          method: "DELETE",
+        });
+        setQuestions(questions.filter((q: any) => q.id !== id));
+        if (editingId === id) resetForm();
+      } catch (err) {
+        alert("Failed to delete question.");
+      }
     }
   };
 
-  // --- 4. CATEGORY HANDLERS ---
+  // --- 5. CATEGORY HANDLERS (API CONNECTED) ---
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const trimmed = newCatName.trim();
     if (trimmed && !categories.includes(trimmed)) {
-      const updated = [...categories, trimmed];
-      setCategories(updated);
-      localStorage.setItem("airl_categories", JSON.stringify(updated));
-      setNewCatName("");
+      try {
+        const res = await fetch(`${API_URL}/api/assessment/categories`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+
+        if (res.ok) {
+          setCategories([...categories, trimmed]);
+          setNewCatName("");
+        }
+      } catch (err) {
+        alert("Failed to add category.");
+      }
     }
   };
 
-  const handleRenameCategory = () => {
+  const handleRenameCategory = async () => {
     if (!editingCat || !editingCat.new.trim()) return;
     const oldName = editingCat.old;
     const newName = editingCat.new.trim();
 
-    const updatedCats = categories.map((c) => (c === oldName ? newName : c));
-    setCategories(updatedCats);
-    localStorage.setItem("airl_categories", JSON.stringify(updatedCats));
+    try {
+      const res = await fetch(`${API_URL}/api/assessment/categories`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName }),
+      });
 
-    const updatedQuestions = questions.map((q: any) =>
-      q.category === oldName ? { ...q, category: newName } : q
-    );
-    setQuestions(updatedQuestions);
-    setEditingCat(null);
-  };
+      if (res.ok) {
+        // Update Categories List
+        const updatedCats = categories.map((c) =>
+          c === oldName ? newName : c
+        );
+        setCategories(updatedCats);
 
-  const handleDeleteCategory = (cat: string) => {
-    if (
-      window.confirm(
-        `Delete "${cat}"? Questions will be hidden (moved to Uncategorized).`
-      )
-    ) {
-      const updatedQuestions = questions.map((q: any) =>
-        q.category === cat
-          ? { ...q, category: "Uncategorized", legacyCategory: cat }
-          : q
-      );
-      setQuestions(updatedQuestions);
-
-      const updatedCats = categories.filter((c) => c !== cat);
-      setCategories(updatedCats);
-      localStorage.setItem("airl_categories", JSON.stringify(updatedCats));
+        // Update Questions that used this category
+        const updatedQuestions = questions.map((q: any) =>
+          q.category === oldName ? { ...q, category: newName } : q
+        );
+        setQuestions(updatedQuestions);
+        setEditingCat(null);
+      }
+    } catch (err) {
+      alert("Failed to rename category.");
     }
   };
 
-  // 1. Open the Confirmation Modal
   const initiateDeleteCategory = (cat: string) => {
     setDeleteTarget(cat);
-    setDeleteInput(""); // Reset input
+    setDeleteInput("");
   };
 
-  // 2. Execute Delete (Only runs if names match)
-  const executeDeleteCategory = () => {
+  const executeDeleteCategory = async () => {
     if (!deleteTarget || deleteInput !== deleteTarget) return;
 
-    // --- Existing Logic Starts Here ---
-    const updatedQuestions = questions.map((q: any) =>
-      q.category === deleteTarget
-        ? { ...q, category: "Uncategorized", legacyCategory: deleteTarget }
-        : q
-    );
-    setQuestions(updatedQuestions);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/assessment/categories/${deleteTarget}`,
+        { method: "DELETE" }
+      );
 
-    const updatedCats = categories.filter((c) => c !== deleteTarget);
-    setCategories(updatedCats);
-    localStorage.setItem("airl_categories", JSON.stringify(updatedCats));
-    // --- Existing Logic Ends Here ---
+      if (res.ok) {
+        // Update Questions (Move to Uncategorized)
+        const updatedQuestions = questions.map((q: any) =>
+          q.category === deleteTarget
+            ? { ...q, category: "Uncategorized", legacyCategory: deleteTarget }
+            : q
+        );
+        setQuestions(updatedQuestions);
 
-    setDeleteTarget(null); // Close modal
+        // Remove Category
+        const updatedCats = categories.filter((c) => c !== deleteTarget);
+        setCategories(updatedCats);
+      }
+    } catch (err) {
+      alert("Failed to delete category.");
+    }
+
+    setDeleteTarget(null);
   };
 
-  // --- 5. SAVE GLOBAL ---
-
+  // --- 6. SAVE GLOBAL (Visual Only) ---
+  // Since we are now saving immediately on Add/Update, this button is less critical
+  // but good for user reassurance.
   const handleSaveGlobal = () => {
     setIsSaving(true);
     setSaveSuccess(false);
-
     setTimeout(() => {
-      try {
-        localStorage.setItem(
-          "airl_framework_config",
-          JSON.stringify(questions)
-        );
-        localStorage.setItem("airl_categories", JSON.stringify(categories));
-        setSaveSuccess(true);
-        window.dispatchEvent(new Event("storage"));
-      } catch (err) {
-        console.error("Failed to save config:", err);
-        alert("Failed to save configuration.");
-      } finally {
-        setIsSaving(false);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      }
+      setSaveSuccess(true);
+      setIsSaving(false);
+      setTimeout(() => setSaveSuccess(false), 3000);
     }, 800);
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout role="reviewer" title="AIRL Framework Configuration">
+        <div className="flex flex-col items-center justify-center h-[60vh]">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+          <p className="text-gray-500">Loading Configuration...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout role="reviewer" title="AIRL Framework Configuration">
@@ -703,7 +743,7 @@ export function ReviewerAssessmentConfig() {
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => initiateDeleteCategory(cat)} // <-- CHANGED THIS
+                    onClick={() => initiateDeleteCategory(cat)}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                     title="Delete"
                   >
