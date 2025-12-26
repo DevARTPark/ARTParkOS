@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -17,55 +17,52 @@ import {
   Upload,
   Info,
   Lightbulb,
-  Link,
+  Link as LinkIcon,
   Save,
   Clock,
-  CheckCheck,
   FileText,
   X,
+  CheckCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL } from "../../config";
 
-const getTodayString = () =>
-  new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
 export function AIRLAssessment() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [questions] = useState(defaultQuestions);
 
-  // --- 1. Fetch Real Projects for Dropdown ---
+  // --- 1. Fetch Real Projects ---
   const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const userStr = localStorage.getItem("artpark_user");
   const user = userStr ? JSON.parse(userStr) : null;
 
   useEffect(() => {
     if (!user?.id) return;
+    setIsLoading(true);
+
     fetch(`${API_URL}/api/projects?userId=${user.id}`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setAllProjects(data);
-          // If no ID selected, select first
-          if (!searchParams.get("projectId")) {
+          if (data.length > 0 && !searchParams.get("projectId")) {
             setSearchParams({ projectId: data[0].id });
             setSelectedProjectId(data[0].id);
           }
         }
       })
-      .catch((err) => console.error("Assessment fetch error:", err));
+      .catch((err) => console.error("Assessment fetch error:", err))
+      .finally(() => setIsLoading(false));
   }, [user?.id]);
 
   const initialProjectId = searchParams.get("projectId") || "";
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
 
-  // Ensure selectedProjectId updates if URL changes externally
   useEffect(() => {
     const pid = searchParams.get("projectId");
     if (pid) setSelectedProjectId(pid);
@@ -91,62 +88,50 @@ export function AIRLAssessment() {
   const selectedProject =
     allProjects.find((p: any) => p.id === selectedProjectId) || allProjects[0];
 
-  if (!selectedProject && allProjects.length === 0)
-    return (
-      <DashboardLayout role="founder" title="Assessment">
-        <div>Loading...</div>
-      </DashboardLayout>
-    );
-  if (!selectedProject)
-    return (
-      <DashboardLayout role="founder" title="Assessment">
-        <div>Select a project</div>
-      </DashboardLayout>
-    );
-
-  // Logic for Levels (Using Real Project Data)
-  const currentOfficialLevel = selectedProject.currentAIRL || 0;
-  const targetLevel = currentOfficialLevel + 1; // Always aim for next level
-
-  const relevantQuestions = questions
-    .filter((q: any) => q.airlLevel === targetLevel)
-    .sort((a: any, b: any) => a.airlLevel - b.airlLevel);
-  const currentQuestion = relevantQuestions[currentQuestionIndex];
-  const totalQuestions = relevantQuestions.length;
-  const progress =
-    totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
-
-  // --- SAVE/LOAD Logic (Local for now) ---
+  // --- LOAD SAVED DATA ---
   useEffect(() => {
+    if (!selectedProject) return;
+    const targetLevel = (selectedProject.currentAIRL || 0) + 1;
     const storageKey = `artpark_assessment_${selectedProjectId}_AIRL${targetLevel}`;
     const savedData = localStorage.getItem(storageKey);
+
     if (savedData) {
       const parsed = JSON.parse(savedData);
       setAnswers(parsed.answers || {});
       setCompletedQuestions(parsed.completedQuestions || []);
+      setFounderNotes(parsed.founderNotes || {});
+      setEvidenceLinks(parsed.evidenceLinks || {});
+      setEvidenceFiles(parsed.evidenceFiles || {});
       setSubmissionStatus(parsed.status || "draft");
     } else {
       setAnswers({});
       setCompletedQuestions([]);
+      setFounderNotes({});
+      setEvidenceFiles({});
       setSubmissionStatus("draft");
     }
     setCurrentQuestionIndex(0);
-  }, [selectedProjectId, targetLevel]);
+  }, [selectedProjectId, selectedProject?.currentAIRL]);
 
+  // --- SAVE DATA ---
   const saveToStorage = (status: "draft" | "submitted") => {
+    if (!selectedProject) return;
+    const targetLevel = (selectedProject.currentAIRL || 0) + 1;
     const storageKey = `artpark_assessment_${selectedProjectId}_AIRL${targetLevel}`;
+
     const dataToSave = {
       answers,
       completedQuestions,
       founderNotes,
       evidenceLinks,
+      evidenceFiles,
       status,
     };
     localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     setSubmissionStatus(status);
   };
 
-  // Handlers
+  // --- HANDLERS ---
   const handleAnswer = (val: string) => {
     if (!currentQuestion || submissionStatus === "submitted") return;
     setAnswers({ ...answers, [currentQuestion.id]: val });
@@ -166,6 +151,60 @@ export function AIRLAssessment() {
     }
   };
 
+  const handleRemoveFile = (e: any) => {
+    e.stopPropagation();
+    const updated = { ...evidenceFiles };
+    delete updated[currentQuestion?.id];
+    setEvidenceFiles(updated);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleFileClick = () => {
+    if (submissionStatus !== "submitted" && fileInputRef.current)
+      fileInputRef.current.click();
+  };
+
+  // --- RENDER GUARDS ---
+  if (isLoading)
+    return (
+      <DashboardLayout role="founder" title="Assessment">
+        <div className="p-8 text-center text-gray-500">Loading projects...</div>
+      </DashboardLayout>
+    );
+
+  if (allProjects.length === 0)
+    return (
+      <DashboardLayout role="founder" title="Assessment">
+        <div className="p-12 text-center">
+          <h3 className="text-lg font-semibold mb-2">No Projects Found</h3>
+          <p className="text-gray-500 mb-6">
+            Create a project first to start assessment.
+          </p>
+          <Button onClick={() => navigate("/founder/projects")}>
+            Create Project
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+
+  if (!selectedProject)
+    return (
+      <DashboardLayout role="founder" title="Assessment">
+        <div className="p-8">Please select a project.</div>
+      </DashboardLayout>
+    );
+
+  // --- DERIVED STATE ---
+  const currentOfficialLevel = selectedProject.currentAIRL || 0;
+  const targetLevel = currentOfficialLevel + 1;
+  const relevantQuestions = questions
+    .filter((q: any) => q.airlLevel === targetLevel)
+    .sort((a: any, b: any) => a.airlLevel - b.airlLevel);
+  const currentQuestion = relevantQuestions[currentQuestionIndex];
+  const totalQuestions = relevantQuestions.length;
+  const progress =
+    totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
+
   return (
     <DashboardLayout role="founder" title="AIRL Assessment">
       <input
@@ -175,6 +214,7 @@ export function AIRLAssessment() {
         onChange={handleFileChange}
       />
 
+      {/* HEADER */}
       <div className="mb-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1 max-w-md">
           <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
@@ -228,6 +268,7 @@ export function AIRLAssessment() {
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row h-auto min-h-[600px] gap-6">
+          {/* LEFT: QUESTION CARD */}
           <div className="flex-1 flex flex-col">
             <Card className="flex-1 flex flex-col shadow-md border-0 h-full">
               {relevantQuestions.length === 0 ? (
@@ -246,6 +287,7 @@ export function AIRLAssessment() {
                       animate={{ opacity: 1, x: 0 }}
                       className="flex-1 flex flex-col"
                     >
+                      {/* Question Text */}
                       <div className="mb-6">
                         <div className="flex items-center justify-between mb-4">
                           <Badge variant="neutral">
@@ -261,26 +303,72 @@ export function AIRLAssessment() {
                         <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-4">
                           {currentQuestion.text}
                         </h2>
+
+                        {/* Expectations Dropdown */}
+                        <AnimatePresence>
+                          {showInfo && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
+                                <div className="flex items-center gap-2 mb-2 text-blue-800 font-semibold text-sm">
+                                  <Lightbulb className="w-4 h-4" /> Expectations
+                                </div>
+                                <ul className="list-disc list-inside space-y-1">
+                                  {currentQuestion.expectations?.map(
+                                    (point: string, i: number) => (
+                                      <li
+                                        key={i}
+                                        className="text-sm text-blue-700 leading-relaxed"
+                                      >
+                                        {point}
+                                      </li>
+                                    )
+                                  ) || (
+                                    <li className="text-sm text-gray-500">
+                                      No guidance.
+                                    </li>
+                                  )}
+                                </ul>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
 
                       <div className="space-y-8 flex-1">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {["met", "partial", "not_met"].map((status) => (
-                            <button
-                              key={status}
-                              onClick={() => handleAnswer(status)}
-                              className={`py-3 px-4 rounded-lg border-2 transition-all capitalize font-bold text-sm ${
-                                answers[currentQuestion.id] === status
-                                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                              }`}
-                            >
-                              {status.replace("_", " ")}
-                            </button>
-                          ))}
+                        {/* 1. Answer Buttons */}
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium text-gray-700 block">
+                            Compliance Status
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {["met", "partial", "not_met"].map((status) => (
+                              <button
+                                key={status}
+                                onClick={() => handleAnswer(status)}
+                                className={`py-3 px-4 rounded-lg border-2 transition-all capitalize font-bold text-sm ${
+                                  answers[currentQuestion.id] === status
+                                    ? status === "met"
+                                      ? "border-green-600 bg-green-50 text-green-700"
+                                      : status === "partial"
+                                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                                      : "border-red-500 bg-red-50 text-red-700"
+                                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                                }`}
+                              >
+                                {status.replace("_", " ")}
+                              </button>
+                            ))}
+                          </div>
                         </div>
+
+                        {/* 2. Notes */}
                         <Textarea
-                          label="Notes"
+                          label="Founder Notes / Context"
                           rows={3}
                           value={founderNotes[currentQuestion.id] || ""}
                           onChange={(e) =>
@@ -291,6 +379,73 @@ export function AIRLAssessment() {
                           }
                         />
 
+                        {/* 3. Evidence Link */}
+                        <div className="relative">
+                          <Input
+                            label="Evidence Link"
+                            placeholder="https://..."
+                            value={evidenceLinks[currentQuestion.id] || ""}
+                            onChange={(e) =>
+                              setEvidenceLinks({
+                                ...evidenceLinks,
+                                [currentQuestion.id]: e.target.value,
+                              })
+                            }
+                          />
+                          <LinkIcon className="absolute right-3 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+
+                        {/* 4. Evidence Upload */}
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 block mb-2">
+                            Evidence File
+                          </label>
+                          <div
+                            onClick={handleFileClick}
+                            className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
+                              evidenceFiles[currentQuestion.id]
+                                ? "border-green-300 bg-green-50 hover:bg-green-100"
+                                : "border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {evidenceFiles[currentQuestion.id] ? (
+                              <>
+                                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                                  <FileText className="w-5 h-5 text-green-600" />
+                                </div>
+                                <p className="text-sm font-medium text-gray-900 break-all px-4">
+                                  {evidenceFiles[currentQuestion.id]}
+                                </p>
+                                <div className="mt-2 flex gap-2">
+                                  <span className="text-xs text-green-600 font-bold uppercase">
+                                    Uploaded
+                                  </span>
+                                  <button
+                                    onClick={handleRemoveFile}
+                                    className="z-10 p-1 bg-white rounded-full shadow hover:bg-red-50 text-red-500"
+                                    title="Remove File"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                                  <Upload className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  Click to upload or drag and drop
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  PDF, DOCX, JPG up to 10MB
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Navigation */}
                         <div className="flex justify-between items-center pt-6 mt-4 border-t border-gray-100">
                           <Button
                             variant="outline"
@@ -326,6 +481,8 @@ export function AIRLAssessment() {
               )}
             </Card>
           </div>
+
+          {/* RIGHT: SIDEBAR */}
           <div className="w-full lg:w-80 flex flex-col">
             <Card className="h-full flex flex-col border-0 shadow-md">
               <CardHeader className="bg-blue-600 text-white rounded-t-lg">
@@ -377,7 +534,7 @@ export function AIRLAssessment() {
               <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-lg space-y-3">
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
                   onClick={() => saveToStorage("draft")}
                   leftIcon={<Save className="w-4 h-4" />}
                 >
