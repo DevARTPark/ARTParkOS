@@ -11,7 +11,13 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// --- 1. IMPROVED CORS (Fixes frontend connection issues) ---
+app.use(cors({
+    origin: '*', // Allow all origins for development
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Increase payload limit for images
 app.use(express.json({ limit: '50mb' }));
@@ -70,7 +76,7 @@ async function createAuthToken(userId: string, type: 'account_activation' | 'pas
 // AUTH ROUTES
 // ==========================================
 
-// 1. Invite User (Updated to accept startupId)
+// 1. Invite User
 app.post('/api/auth/invite-user', async (req, res) => {
     const { email, role, startupId } = req.body;
     try {
@@ -86,7 +92,7 @@ app.post('/api/auth/invite-user', async (req, res) => {
             }
         });
 
-        // Generate Token with Metadata (startupId)
+        // Generate Token
         const tokenString = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24);
@@ -97,7 +103,6 @@ app.post('/api/auth/invite-user', async (req, res) => {
                 user_id: user.id,
                 type: 'account_activation',
                 expires_at: expiresAt,
-                // Store startupId in metadata so we can auto-join them later
                 metadata: startupId ? { startupId } : undefined
             }
         });
@@ -168,7 +173,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 });
 
-// 4. Set Password (Updated to handle auto-join)
+// 4. Set Password
 app.post('/api/auth/set-password', async (req, res) => {
     const { token, password } = req.body;
     if (!password) return res.status(400).json({ error: "Password is required" });
@@ -196,19 +201,18 @@ app.post('/api/auth/set-password', async (req, res) => {
             data: { is_used: true }
         });
 
-        // 3. AUTO-JOIN STARTUP (If invite had metadata)
+        // 3. AUTO-JOIN STARTUP
         const meta = authToken.metadata as any;
         if (meta?.startupId) {
             await prisma.userProfile.create({
                 data: {
                     userId: authToken.user_id!,
-                    fullName: "", // They will fill this later in settings
-                    startupId: meta.startupId // <--- LINK IMMEDIATELY
+                    fullName: "",
+                    startupId: meta.startupId
                 }
             });
             console.log(`🔗 Auto-linked user ${authToken.user_id} to startup ${meta.startupId}`);
         } else {
-            // Check if profile exists, if not create empty one
             const existingProfile = await prisma.userProfile.findUnique({ where: { userId: authToken.user_id! } });
             if (!existingProfile) {
                 await prisma.userProfile.create({ data: { userId: authToken.user_id! } });
@@ -223,7 +227,7 @@ app.post('/api/auth/set-password', async (req, res) => {
 });
 
 // ==========================================
-// UNIFIED PROFILE ROUTES (UPDATED)
+// UNIFIED PROFILE ROUTES
 // ==========================================
 
 // 5. GET Profile
@@ -232,7 +236,6 @@ app.get('/api/user/profile', async (req, res) => {
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
 
     try {
-        // Fetch profile AND linked startup
         const userProfile = await prisma.userProfile.findUnique({
             where: { userId },
             include: { startup: true }
@@ -242,7 +245,6 @@ app.get('/api/user/profile', async (req, res) => {
             return res.json({ profile: null, startup: null });
         }
 
-        // Separate objects for frontend
         const { startup, ...profile } = userProfile;
         res.json({ profile, startup: startup || null });
 
@@ -252,9 +254,8 @@ app.get('/api/user/profile', async (req, res) => {
     }
 });
 
-// 6. SAVE Profile (Fixed for new Schema)
+// 6. SAVE Profile
 app.post('/api/user/profile', async (req, res) => {
-    // Log request for debugging
     console.log("👉 SAVE PROFILE REQUEST:", JSON.stringify(req.body, null, 2));
 
     const { userId, role, profile, startup } = req.body;
@@ -268,15 +269,11 @@ app.post('/api/user/profile', async (req, res) => {
 
         // A. Handle Startup Logic (Founders Only)
         if (role === 'founder' && startup) {
-            console.log("🚀 Processing Founder Startup Logic...");
-
-            // Check if user already has a startup
             const existingProfile = await prisma.userProfile.findUnique({
                 where: { userId },
                 select: { startupId: true }
             });
 
-            // Ensure numeric fields are parsed safely
             const safeFoundedYear = parseInt(startup.foundedYear) || new Date().getFullYear();
             const safeTeamSize = parseInt(startup.teamSize) || 1;
 
@@ -286,25 +283,19 @@ app.post('/api/user/profile', async (req, res) => {
                 website: startup.website || "",
                 industry: startup.industry || "",
                 location: startup.location || "",
-
-                // --- CHANGED FIELDS ---
-                // Removed 'stage'
-                pitchDeckUrl: startup.pitchDeckUrl || "", // Added
-
+                pitchDeckUrl: startup.pitchDeckUrl || "",
                 foundedYear: safeFoundedYear,
                 teamSize: safeTeamSize,
                 isProfileComplete: !!(startup.name && startup.description && startup.industry)
             };
 
             if (existingProfile?.startupId) {
-                console.log(`🔄 Updating Existing Startup: ${existingProfile.startupId}`);
                 await prisma.startup.update({
                     where: { id: existingProfile.startupId },
                     data: startupData
                 });
                 startupId = existingProfile.startupId;
             } else {
-                console.log("✨ Creating New Startup Entity...");
                 const newStartup = await prisma.startup.create({
                     data: startupData
                 });
@@ -312,9 +303,7 @@ app.post('/api/user/profile', async (req, res) => {
             }
         }
 
-        // B. Handle User Profile Logic (Upsert)
-        console.log("👤 Processing User Profile Logic...");
-
+        // B. Handle User Profile Logic
         const profileData = {
             fullName: profile.fullName || "",
             phone: profile.phone || "",
@@ -330,18 +319,15 @@ app.post('/api/user/profile', async (req, res) => {
             where: { userId },
             update: {
                 ...profileData,
-                // --- KEY FIX: Use startupId directly ---
                 startupId: startupId || undefined
             },
             create: {
                 userId,
                 ...profileData,
-                // --- KEY FIX: Use startupId directly ---
                 startupId: startupId || null
             }
         });
 
-        console.log("✅ Profile Saved Successfully!");
         res.json({ message: "Profile saved!", profile: updatedProfile });
 
     } catch (err: any) {
@@ -351,17 +337,12 @@ app.post('/api/user/profile', async (req, res) => {
 });
 
 // ==========================================
-// PROJECT ROUTES
-// ==========================================
-
-// ==========================================
-// PROJECT MANAGEMENT ROUTES
+// PROJECT ROUTES (Restored)
 // ==========================================
 
 // 7. Create Project
 app.post('/api/projects', async (req, res) => {
     const { userId, name, description, domain } = req.body;
-
     if (!userId || !name) return res.status(400).json({ error: "Missing fields" });
 
     try {
@@ -423,11 +404,10 @@ app.get('/api/projects/:id', async (req, res) => {
     }
 });
 
-// 10. UPDATE Project (The logic you are missing)
+// 10. Update Project
 app.put('/api/projects/:id', async (req, res) => {
     const { id } = req.params;
     const { name, description, domain } = req.body;
-
     try {
         const project = await prisma.project.update({
             where: { id },
@@ -435,12 +415,171 @@ app.put('/api/projects/:id', async (req, res) => {
         });
         res.json({ message: "Project updated", project });
     } catch (err) {
-        console.error("Update error:", err);
         res.status(500).json({ error: "Failed to update project" });
+    }
+});
+
+// ==========================================
+// ASSESSMENT CONFIGURATION ROUTES (FIXED)
+// ==========================================
+
+// --- CATEGORIES ---
+
+// 1. Get All Categories
+app.get('/api/assessment/categories', async (req, res) => {
+    try {
+        const categories = await prisma.assessmentCategory.findMany({
+            orderBy: { order: 'asc' }
+        });
+        console.log("📂 Fetched Categories:", categories.length);
+        res.json(categories);
+    } catch (err: any) {
+        console.error("❌ Get Categories Error:", err.message);
+        res.status(500).json({ error: "Failed to fetch categories" });
+    }
+});
+
+// 2. Add Category
+app.post('/api/assessment/categories', async (req, res) => {
+    const { name } = req.body;
+    console.log("➕ Add Category Request:", name);
+
+    if (!name || !name.trim()) {
+        return res.status(400).json({ error: "Category name is required" });
+    }
+
+    try {
+        // Check for duplicates manually to be safe
+        const existing = await prisma.assessmentCategory.findUnique({
+            where: { name: name.trim() }
+        });
+
+        if (existing) {
+            console.warn("⚠️ Category already exists:", name);
+            return res.status(409).json({ error: "Category already exists" });
+        }
+
+        const category = await prisma.assessmentCategory.create({
+            data: { name: name.trim() }
+        });
+
+        console.log("✅ Category Created:", category);
+        res.json(category);
+    } catch (err: any) {
+        console.error("❌ Add Category Error:", err.message);
+        res.status(500).json({ error: "Failed to add category" });
+    }
+});
+
+// 3. Rename Category
+app.put('/api/assessment/categories', async (req, res) => {
+    const { oldName, newName } = req.body;
+    console.log(`✏️ Renaming Category: ${oldName} -> ${newName}`);
+
+    try {
+        // Transaction to ensure both happen or neither
+        await prisma.$transaction([
+            prisma.assessmentCategory.update({
+                where: { name: oldName },
+                data: { name: newName }
+            }),
+            prisma.assessmentQuestion.updateMany({
+                where: { category: oldName },
+                data: { category: newName }
+            })
+        ]);
+
+        console.log("✅ Rename Successful");
+        res.json({ message: "Category updated" });
+    } catch (err: any) {
+        console.error("❌ Rename Error:", err.message);
+        res.status(500).json({ error: "Failed to update category" });
+    }
+});
+
+// 4. Delete Category
+app.delete('/api/assessment/categories/:name', async (req, res) => {
+    const { name } = req.params;
+    console.log(`🗑️ Deleting Category: ${name}`);
+
+    try {
+        await prisma.$transaction([
+            prisma.assessmentQuestion.updateMany({
+                where: { category: name },
+                data: { category: "Uncategorized", legacyCategory: name }
+            }),
+            prisma.assessmentCategory.delete({
+                where: { name }
+            })
+        ]);
+
+        console.log("✅ Delete Successful");
+        res.json({ message: "Category deleted" });
+    } catch (err: any) {
+        console.error("❌ Delete Error:", err.message);
+        res.status(500).json({ error: "Failed to delete category" });
+    }
+});
+
+// --- QUESTIONS ---
+
+// 5. Get All Questions
+app.get('/api/assessment/questions', async (req, res) => {
+    try {
+        const questions = await prisma.assessmentQuestion.findMany({
+            orderBy: { airlLevel: 'asc' }
+        });
+        res.json(questions);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch questions" });
+    }
+});
+
+// 6. Create or Update Question
+app.post('/api/assessment/questions', async (req, res) => {
+    const { id, text, category, airlLevel, isCritical, scope, expectations, commentPrompt } = req.body;
+    console.log(`📝 Upsert Question: [${id ? 'UPDATE' : 'NEW'}] ${text?.substring(0, 20)}...`);
+
+    try {
+        // Validate ID format (avoid crashing if frontend sends temporary IDs like "q-123")
+        const isRealId = id && id.length > 20;
+
+        if (isRealId) {
+            const updated = await prisma.assessmentQuestion.update({
+                where: { id },
+                data: {
+                    text, category, airlLevel, isCritical, scope,
+                    expectations, commentPrompt
+                }
+            });
+            res.json(updated);
+        } else {
+            const newQuestion = await prisma.assessmentQuestion.create({
+                data: {
+                    text, category, airlLevel, isCritical, scope,
+                    expectations, commentPrompt
+                }
+            });
+            res.json(newQuestion);
+        }
+    } catch (err: any) {
+        console.error("❌ Save Question Error:", err.message);
+        res.status(500).json({ error: "Failed to save question" });
+    }
+});
+
+// 7. Delete Question
+app.delete('/api/assessment/questions/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.assessmentQuestion.delete({ where: { id } });
+        res.json({ message: "Question deleted" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to delete question" });
     }
 });
 
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`Backend Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Backend Server running on http://localhost:${PORT}`);
 });

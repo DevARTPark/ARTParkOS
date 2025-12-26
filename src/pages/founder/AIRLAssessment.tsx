@@ -7,7 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Input, Textarea } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
-import { airlQuestions as defaultQuestions } from "../../data/mockData";
+// Removed defaultQuestions import
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,32 +32,57 @@ export function AIRLAssessment() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [questions] = useState(defaultQuestions);
+  // --- State for Questions (Fetched from API) ---
+  const [questions, setQuestions] = useState<any[]>([]);
 
-  // --- 1. Fetch Real Projects ---
+  // --- State for Projects ---
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const userStr = localStorage.getItem("artpark_user");
   const user = userStr ? JSON.parse(userStr) : null;
 
+  // --- 1. Fetch Data (Projects + Questions) ---
   useEffect(() => {
     if (!user?.id) return;
     setIsLoading(true);
 
-    fetch(`${API_URL}/api/projects?userId=${user.id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAllProjects(data);
-          if (data.length > 0 && !searchParams.get("projectId")) {
-            setSearchParams({ projectId: data[0].id });
-            setSelectedProjectId(data[0].id);
+    const fetchData = async () => {
+      try {
+        // Run fetches in parallel for speed
+        const [projectsRes, questionsRes] = await Promise.all([
+          fetch(`${API_URL}/api/projects?userId=${user.id}`),
+          fetch(`${API_URL}/api/assessment/questions`),
+        ]);
+
+        // Handle Projects Response
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          if (Array.isArray(projectsData)) {
+            setAllProjects(projectsData);
+            // Auto-select first project if none in URL
+            if (projectsData.length > 0 && !searchParams.get("projectId")) {
+              setSearchParams({ projectId: projectsData[0].id });
+              setSelectedProjectId(projectsData[0].id);
+            }
           }
         }
-      })
-      .catch((err) => console.error("Assessment fetch error:", err))
-      .finally(() => setIsLoading(false));
+
+        // Handle Questions Response
+        if (questionsRes.ok) {
+          const questionsData = await questionsRes.json();
+          if (Array.isArray(questionsData)) {
+            setQuestions(questionsData);
+          }
+        }
+      } catch (err) {
+        console.error("Assessment data fetch error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [user?.id]);
 
   const initialProjectId = searchParams.get("projectId") || "";
@@ -168,7 +193,7 @@ export function AIRLAssessment() {
   if (isLoading)
     return (
       <DashboardLayout role="founder" title="Assessment">
-        <div className="p-8 text-center text-gray-500">Loading projects...</div>
+        <div className="p-8 text-center text-gray-500">Loading data...</div>
       </DashboardLayout>
     );
 
