@@ -21,6 +21,8 @@ import {
   ArrowRight,
   ExternalLink,
   Wallet,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { API_URL } from "../../config";
 
@@ -39,6 +41,11 @@ export function FounderProjectDetail() {
     domain: "",
     description: "",
   });
+
+  // Delete State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 1. Fetch Real Data
   useEffect(() => {
@@ -84,6 +91,26 @@ export function FounderProjectDetail() {
       alert("Failed to save changes.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 3. Handle Delete
+  const handleDeleteProject = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete");
+
+      // Redirect to projects list after deletion
+      navigate("/founder/projects");
+    } catch (err) {
+      alert("Failed to delete project. Please try again.");
+      setIsDeleting(false);
     }
   };
 
@@ -139,7 +166,18 @@ export function FounderProjectDetail() {
             onClick={() => setShowEditModal(true)}
             leftIcon={<Pencil className="w-4 h-4" />}
           >
-            Edit Details
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+            onClick={() => {
+              setDeleteConfirmation("");
+              setShowDeleteModal(true);
+            }}
+            leftIcon={<Trash2 className="w-4 h-4" />}
+          >
+            Delete
           </Button>
         </div>
       </div>
@@ -298,6 +336,58 @@ export function FounderProjectDetail() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Project"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex gap-3">
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
+            <div>
+              <h4 className="font-bold text-red-900 text-sm">
+                This action is permanent!
+              </h4>
+              <p className="text-red-700 text-xs mt-1">
+                Are you sure you want to delete{" "}
+                <strong>{projectData.name}</strong>? This will delete the
+                project and all associated assessment data.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-700 mb-2">
+              Type <strong>{projectData.name}</strong> to confirm:
+            </label>
+            <Input
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder={projectData.name}
+              className="border-red-300 focus:ring-red-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteConfirmation !== projectData.name || isDeleting}
+              onClick={handleDeleteProject}
+            >
+              {isDeleting ? "Deleting..." : "I understand, delete this project"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DashboardLayout>
   );
