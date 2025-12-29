@@ -92,11 +92,9 @@ export function Header({
       const currentRole = roleStr || parsedUser.roles?.[0] || "founder";
       setActiveRole(currentRole);
 
-      // --- FIX 1: Call the NEW Endpoint ---
       fetch(`${API_URL}/api/user/profile?userId=${parsedUser.id}`)
         .then((res) => res.json())
         .then((data) => {
-          // --- FIX 2: Handle new response structure { profile: {...}, startup: {...} } ---
           const profileData = data.profile || {};
 
           if (profileData && Object.keys(profileData).length > 0) {
@@ -164,11 +162,11 @@ export function Header({
       lab_owner: "/lab-owner/dashboard",
     };
 
+    // Navigate smoothly without reloading the page
     navigate(dashboardMap[newRole] || "/");
-    window.location.reload();
+    // REMOVED: window.location.reload();
   };
 
-  // --- FIX 3: Use 'fullName' instead of 'founderName' ---
   const displayName =
     profile?.fullName || user?.name || initialUser?.name || "Guest User";
 
