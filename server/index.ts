@@ -5,8 +5,7 @@ import { prisma } from './prismaClient';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { Resend } from 'resend'; //
 
 dotenv.config();
 
@@ -31,28 +30,33 @@ if (!FRONTEND_URL) {
 }
 const finalFrontendUrl = FRONTEND_URL || "http://localhost:5173";
 
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASSWORD,
-    },
-    family: 4,
-} as SMTPTransport.Options);
+// --- RESEND EMAIL CONFIGURATION ---
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendEmail(to: string, subject: string, html: string) {
     try {
-        await transporter.sendMail({
-            from: `"ARTPark Portal" <${process.env.SMTP_EMAIL}>`,
-            to,
-            subject,
-            html,
+        const { data, error } = await resend.emails.send({
+            // 1. Send FROM the verified subdomain
+            from: process.env.FROM_EMAIL || 'onboarding@info.artpark.online',
+
+            // 2. Send TO the user
+            to: [to],
+
+            // 3. Replies go to YOUR real email (not the subdomain)
+            reply_to: process.env.REPLY_TO_EMAIL || 'dev@artpark.com',
+
+            subject: subject,
+            html: html,
         });
-        console.log(`✅ Email sent to ${to}`);
+
+        if (error) {
+            console.error(`❌ Resend Error to ${to}:`, error);
+            return;
+        }
+
+        console.log(`✅ Email sent to ${to}`, data);
     } catch (error) {
-        console.error(`❌ Email failed to ${to}:`, error);
+        console.error(`❌ System Error sending to ${to}:`, error);
     }
 }
 
@@ -111,9 +115,12 @@ app.post('/api/auth/invite-user', async (req, res) => {
         console.log(`📨 INVITE LINK FOR ${email}: ${link}`);
 
         const emailHtml = `
-      <h2>Welcome to ARTPark!</h2>
-      <p>You have been invited as a <strong>${role}</strong>.</p>
-      <a href="${link}">Activate Account</a>
+      <div style="font-family: sans-serif; padding: 20px;">
+        <h2>Welcome to ARTPark!</h2>
+        <p>You have been invited as a <strong>${role}</strong>.</p>
+        <p>Click the button below to activate your account:</p>
+        <a href="${link}" style="display: inline-block; background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Activate Account</a>
+      </div>
     `;
         await sendEmail(email, "Welcome to ARTPark", emailHtml);
         res.json({ message: "Invitation sent!" });
@@ -166,7 +173,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
         console.log(`🔑 RESET LINK: ${resetLink}`);
 
-        await sendEmail(email, "Password Reset Request", `<a href="${resetLink}">Reset Password</a>`);
+        const emailHtml = `
+            <div style="font-family: sans-serif; padding: 20px;">
+                <h2>Password Reset Request</h2>
+                <p>Click below to reset your password:</p>
+                <a href="${resetLink}" style="color: #2563EB;">Reset Password</a>
+            </div>
+        `;
+
+        await sendEmail(email, "Password Reset Request", emailHtml);
         res.json({ message: "If that email exists, a reset link has been sent." });
     } catch (err) {
         res.status(500).json({ error: "Internal server error" });
@@ -337,7 +352,7 @@ app.post('/api/user/profile', async (req, res) => {
 });
 
 // ==========================================
-// PROJECT ROUTES (Restored)
+// PROJECT ROUTES
 // ==========================================
 
 // 7. Create Project
@@ -419,30 +434,23 @@ app.put('/api/projects/:id', async (req, res) => {
     }
 });
 
-// Add this to server/index.ts
-
 // 11. Delete Project (Cascading Delete)
 app.delete('/api/projects/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        // 1. Find all submissions related to this project
         const submissions = await prisma.assessmentSubmission.findMany({
             where: { projectId: id },
             select: { id: true }
         });
         const submissionIds = submissions.map(s => s.id);
 
-        // 2. Perform Transactional Delete (Answers -> Submissions -> Project)
         await prisma.$transaction([
-            // Delete all answers linked to these submissions
             prisma.assessmentAnswer.deleteMany({
                 where: { submissionId: { in: submissionIds } }
             }),
-            // Delete the submissions themselves
             prisma.assessmentSubmission.deleteMany({
                 where: { projectId: id }
             }),
-            // Finally, delete the project
             prisma.project.delete({
                 where: { id }
             })
@@ -456,10 +464,8 @@ app.delete('/api/projects/:id', async (req, res) => {
 });
 
 // ==========================================
-// ASSESSMENT CONFIGURATION ROUTES (FIXED)
+// ASSESSMENT CONFIGURATION ROUTES
 // ==========================================
-
-// --- CATEGORIES ---
 
 // 1. Get All Categories
 app.get('/api/assessment/categories', async (req, res) => {
@@ -485,7 +491,6 @@ app.post('/api/assessment/categories', async (req, res) => {
     }
 
     try {
-        // Check for duplicates manually to be safe
         const existing = await prisma.assessmentCategory.findUnique({
             where: { name: name.trim() }
         });
@@ -513,7 +518,6 @@ app.put('/api/assessment/categories', async (req, res) => {
     console.log(`✏️ Renaming Category: ${oldName} -> ${newName}`);
 
     try {
-        // Transaction to ensure both happen or neither
         await prisma.$transaction([
             prisma.assessmentCategory.update({
                 where: { name: oldName },
@@ -577,7 +581,6 @@ app.post('/api/assessment/questions', async (req, res) => {
     console.log(`📝 Upsert Question: [${id ? 'UPDATE' : 'NEW'}] ${text?.substring(0, 20)}...`);
 
     try {
-        // Validate ID format (avoid crashing if frontend sends temporary IDs like "q-123")
         const isRealId = id && id.length > 20;
 
         if (isRealId) {
@@ -615,19 +618,15 @@ app.delete('/api/assessment/questions/:id', async (req, res) => {
     }
 });
 
-// Add this to server/index.ts (before app.listen)
-
 // ==========================================
 // ASSESSMENT SUBMISSION & REVIEW ROUTES
 // ==========================================
 
-// 1. [Founder] Submit Assessment
+// 1. Submit Assessment
 app.post('/api/assessment/submit', async (req, res) => {
     const { projectId, targetLevel, answers, founderNotes, evidenceLinks, evidenceFiles } = req.body;
 
     try {
-        // 1. Find or Create Submission Draft
-        // We look for an existing submission for this project/level that isn't completed yet
         let submission = await prisma.assessmentSubmission.findFirst({
             where: {
                 projectId,
@@ -652,25 +651,16 @@ app.post('/api/assessment/submit', async (req, res) => {
             });
         }
 
-        // 2. Save Answers (Upsert)
         const answerPromises = Object.keys(answers).map(async (questionId) => {
-            const response = answers[questionId]; // met, partial, not_met
-
-            // Map string response to Enum if needed, or ensure frontend sends matching enum strings
-            // Assuming frontend sends "met", "partial", "not_met" which matches DB Enum keys (mostly)
-
+            const response = answers[questionId];
             return prisma.assessmentAnswer.upsert({
                 where: {
-                    // This requires a unique compound key in schema or we search first. 
-                    // For simplicity in this stack, we'll delete old answers for this q or findFirst.
-                    // Since standard Prisma upsert requires @unique, we'll use deleteMany + create for safety/simplicity here
-                    // OR better: find the answer by submissionId + questionId
-                    id: "temp-ignored" // We'll handle this manually below
+                    id: "temp-ignored"
                 },
                 create: {
                     submissionId: submission!.id,
                     questionId,
-                    response: response as any, // Cast to Enum
+                    response: response as any,
                     notes: founderNotes[questionId],
                     evidenceUrl: evidenceLinks[questionId],
                     evidenceFile: evidenceFiles[questionId]
@@ -682,7 +672,6 @@ app.post('/api/assessment/submit', async (req, res) => {
                     evidenceFile: evidenceFiles[questionId]
                 }
             }).catch(async () => {
-                // Fallback if upsert fails on ID: Delete & Create
                 await prisma.assessmentAnswer.deleteMany({
                     where: { submissionId: submission!.id, questionId }
                 });
@@ -700,7 +689,6 @@ app.post('/api/assessment/submit', async (req, res) => {
         });
 
         await Promise.all(answerPromises);
-
         res.json({ message: "Assessment submitted successfully", submissionId: submission.id });
 
     } catch (err: any) {
@@ -709,7 +697,7 @@ app.post('/api/assessment/submit', async (req, res) => {
     }
 });
 
-// 2. [Reviewer] Get Task Pool (Unassigned Submissions)
+// 2. Get Task Pool
 app.get('/api/reviewer/pool', async (req, res) => {
     try {
         const submissions = await prisma.assessmentSubmission.findMany({
@@ -727,15 +715,14 @@ app.get('/api/reviewer/pool', async (req, res) => {
             orderBy: { submittedAt: 'desc' }
         });
 
-        // Transform to UI "ReviewTask" format
         const tasks = submissions.map(sub => ({
             id: sub.id,
             title: `AIRL Assessment - Level ${sub.targetLevel}`,
             startup: sub.project.startup.name,
             project: sub.project.name,
             type: 'AIRL Assessment',
-            priority: 'Medium', // Logic could be added to determine high priority
-            due: '3 Days', // Static for now, or calc based on submittedAt
+            priority: 'Medium',
+            due: '3 Days',
             status: 'Pending',
             assigneeId: null,
             submittedDate: sub.submittedAt
@@ -747,16 +734,16 @@ app.get('/api/reviewer/pool', async (req, res) => {
     }
 });
 
-// 3. [Reviewer] Get My Tasks (Assigned to Me)
+// 3. Get My Tasks
 app.get('/api/reviewer/my-tasks', async (req, res) => {
-    const { userId } = req.query; // Pass reviewer's User ID
+    const { userId } = req.query;
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
 
     try {
         const submissions = await prisma.assessmentSubmission.findMany({
             where: {
                 reviewerId: userId,
-                status: { in: ['IN_REVIEW', 'SUBMITTED'] } // Show submitted & in-review
+                status: { in: ['IN_REVIEW', 'SUBMITTED'] }
             },
             include: {
                 project: { include: { startup: true } }
@@ -781,7 +768,7 @@ app.get('/api/reviewer/my-tasks', async (req, res) => {
     }
 });
 
-// 4. [Reviewer] Assign Task
+// 4. Assign Task
 app.post('/api/reviewer/assign', async (req, res) => {
     const { submissionId, reviewerId } = req.body;
     try {
@@ -798,7 +785,7 @@ app.post('/api/reviewer/assign', async (req, res) => {
     }
 });
 
-// 5. [Reviewer] Release Task (Unassign)
+// 5. Release Task
 app.post('/api/reviewer/release', async (req, res) => {
     const { submissionId } = req.body;
     try {
@@ -806,7 +793,7 @@ app.post('/api/reviewer/release', async (req, res) => {
             where: { id: submissionId },
             data: {
                 reviewerId: null,
-                status: 'SUBMITTED' // Return to pool
+                status: 'SUBMITTED'
             }
         });
         res.json({ message: "Task released" });
@@ -815,9 +802,7 @@ app.post('/api/reviewer/release', async (req, res) => {
     }
 });
 
-// Add to server/index.ts
-
-// 6. Get Submission Status (To check if Locked)
+// 6. Get Submission Status
 app.get('/api/assessment/submission', async (req, res) => {
     const { projectId, targetLevel } = req.query;
     if (!projectId || !targetLevel) return res.status(400).json({ error: "Missing params" });
@@ -827,7 +812,6 @@ app.get('/api/assessment/submission', async (req, res) => {
             where: {
                 projectId: String(projectId),
                 targetLevel: parseInt(String(targetLevel)),
-                // Get the latest active one
                 status: { not: 'REJECTED' }
             }
         });
@@ -837,13 +821,12 @@ app.get('/api/assessment/submission', async (req, res) => {
     }
 });
 
-// 7. Recall Submission (Founder moves back to Draft)
+// 7. Recall Submission
 app.post('/api/assessment/recall', async (req, res) => {
     const { submissionId } = req.body;
     try {
         const submission = await prisma.assessmentSubmission.findUnique({ where: { id: submissionId } });
 
-        // Security Check: Can only recall if NOT yet reviewed
         if (submission?.status !== 'SUBMITTED') {
             return res.status(403).json({ error: "Cannot recall. Reviewer has already started." });
         }
@@ -858,8 +841,6 @@ app.post('/api/assessment/recall', async (req, res) => {
     }
 });
 
-// Add to server/index.ts
-
 // 8. Get Submission Details for Reviewer
 app.get('/api/reviewer/submission/:id', async (req, res) => {
     const { id } = req.params;
@@ -870,7 +851,7 @@ app.get('/api/reviewer/submission/:id', async (req, res) => {
                 project: {
                     include: { startup: true }
                 },
-                answers: true // Include the founder's answers
+                answers: true
             }
         });
 
@@ -882,14 +863,12 @@ app.get('/api/reviewer/submission/:id', async (req, res) => {
     }
 });
 
-// 9. Submit Review (Save Ratings & Comments)
+// 9. Submit Review
 app.post('/api/reviewer/submission/:id/review', async (req, res) => {
     const { id } = req.params;
     const { evaluations, status } = req.body;
-    // evaluations format: { [questionId]: { rating: 'yes'|'no'|'partial', comment: '...' } }
 
     try {
-        // 1. Update Answers with Ratings
         const updatePromises = Object.keys(evaluations).map(questionId => {
             const ev = evaluations[questionId];
             return prisma.assessmentAnswer.updateMany({
@@ -906,16 +885,14 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
 
         await prisma.$transaction(updatePromises);
 
-        // 2. Update Submission Status
         await prisma.assessmentSubmission.update({
             where: { id },
             data: {
-                status: status || 'COMPLETED', // 'COMPLETED' or 'REJECTED'
+                status: status || 'COMPLETED',
                 reviewedAt: new Date()
             }
         });
 
-        // 3. (Optional) If Passed, Upgrade Project Level
         if (status === 'COMPLETED') {
             const sub = await prisma.assessmentSubmission.findUnique({ where: { id } });
             if (sub) {
