@@ -1,87 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Card, CardContent } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { Tabs } from '../../components/ui/Tabs';
-import { 
-  ClipboardCheck, 
-  FileText, 
-  Search, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle2, 
+import React, { useState, useEffect } from "react";
+import { DashboardLayout } from "../../components/layout/DashboardLayout";
+import { Card, CardContent } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import { Tabs } from "../../components/ui/Tabs";
+import {
+  ClipboardCheck,
+  FileText,
+  Search,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
   PlayCircle,
-  XCircle // New icon for releasing task
-} from 'lucide-react';
+  XCircle,
+  Loader2,
+} from "lucide-react";
+import { API_URL } from "../../config";
 
-// Import Shared Data types
-import { initialTasks, ReviewTask } from '../../data/mockReviewerTasks';
+const getUser = () => JSON.parse(localStorage.getItem("artpark_user") || "{}");
 
 export function ReviewerTasks() {
-  const [activeTab, setActiveTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 1. LOAD SHARED STATE
-  const [allTasks, setAllTasks] = useState<ReviewTask[]>(() => {
-    const savedTasks = localStorage.getItem('mock_reviewer_tasks');
-    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
-  });
+  useEffect(() => {
+    fetchMyTasks();
+  }, []);
 
-  // --- NEW: HANDLE RELEASE TASK (Return to Pool) ---
-  const handleReleaseTask = (e: React.MouseEvent, taskId: string) => {
-    e.stopPropagation(); // Prevent card click event
-    
-    if (!window.confirm("Are you sure you want to release this task back to the pool?")) return;
+  const fetchMyTasks = async () => {
+    const user = getUser();
+    if (!user.id) return;
+    setLoading(true);
 
-    const updatedTasks = allTasks.map(t => 
-      t.id === taskId ? { ...t, assigneeId: null, status: 'Pending' } : t
-    );
-
-    setAllTasks(updatedTasks);
-    localStorage.setItem('mock_reviewer_tasks', JSON.stringify(updatedTasks));
+    try {
+      const res = await fetch(
+        `${API_URL}/api/reviewer/my-tasks?userId=${user.id}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setTasks(data);
+      }
+    } catch (err) {
+      console.error("Fetch Tasks Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Filter: Only show tasks assigned to 'me'
-  const myTasks = allTasks.filter(t => t.assigneeId === 'me');
+  const handleReleaseTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    if (
+      !window.confirm(
+        "Are you sure you want to release this task back to the pool?"
+      )
+    )
+      return;
 
-  const filteredTasks = myTasks.filter(task => {
-    const matchesSearch = task.startup.toLowerCase().includes(search.toLowerCase()) || 
-                          task.title.toLowerCase().includes(search.toLowerCase());
-    if (activeTab === 'all') return matchesSearch;
-    if (activeTab === 'high_priority') return matchesSearch && task.priority === 'High';
-    return matchesSearch;
+    try {
+      const res = await fetch(`${API_URL}/api/reviewer/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: taskId }),
+      });
+
+      if (res.ok) {
+        // Optimistic UI update
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      }
+    } catch (err) {
+      alert("Failed to release task");
+    }
+  };
+
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch =
+      (task.startup || "").toLowerCase().includes(search.toLowerCase()) ||
+      (task.title || "").toLowerCase().includes(search.toLowerCase());
+    if (activeTab === "all") return matchesSearch;
+    return matchesSearch; // Add status filter logic here if needed
   });
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'AIRL Assessment': return <ClipboardCheck className="w-5 h-5 text-blue-600" />;
-      case 'Monthly Report': return <FileText className="w-5 h-5 text-purple-600" />;
-      case 'Quarterly Review': return <AlertTriangle className="w-5 h-5 text-amber-600" />;
-      default: return <CheckCircle2 className="w-5 h-5 text-gray-600" />;
+      case "AIRL Assessment":
+        return <ClipboardCheck className="w-5 h-5 text-blue-600" />;
+      default:
+        return <CheckCircle2 className="w-5 h-5 text-gray-600" />;
     }
   };
 
   return (
     <DashboardLayout role="reviewer" title="My Assigned Tasks">
-      
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <Tabs 
+        <Tabs
           tabs={[
-            { id: 'all', label: `All Tasks (${myTasks.length})` },
-            { id: 'high_priority', label: 'High Priority' },
-          ]} 
-          activeTab={activeTab} 
-          onChange={setActiveTab} 
+            { id: "all", label: `All Tasks (${tasks.length})` },
+            { id: "high_priority", label: "High Priority" },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
         />
-        
+
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Search my tasks..." 
+            <input
+              type="text"
+              placeholder="Search my tasks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
@@ -92,13 +120,21 @@ export function ReviewerTasks() {
 
       {/* Task List */}
       <div className="space-y-4">
-        {filteredTasks.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+          </div>
+        ) : filteredTasks.length > 0 ? (
           filteredTasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-md transition-shadow group cursor-pointer border-l-4 border-l-blue-500" 
-                  onClick={() => window.location.href = `/reviewer/review/${task.id}`}>
+            <Card
+              key={task.id}
+              className="hover:shadow-md transition-shadow group cursor-pointer border-l-4 border-l-blue-500"
+              onClick={() =>
+                (window.location.href = `/reviewer/review/${task.id}`)
+              }
+            >
               <CardContent className="p-5">
                 <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                  
                   {/* Left: Icon & Info */}
                   <div className="flex gap-4 items-start flex-1">
                     <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
@@ -106,13 +142,24 @@ export function ReviewerTasks() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{task.title}</h3>
-                        {task.priority === 'High' && (
-                          <Badge variant="danger" className="text-[10px] px-1.5 py-0 h-5">High Priority</Badge>
+                        <h3 className="font-semibold text-gray-900">
+                          {task.title}
+                        </h3>
+                        {task.priority === "High" && (
+                          <Badge
+                            variant="danger"
+                            className="text-[10px] px-1.5 py-0 h-5"
+                          >
+                            High Priority
+                          </Badge>
                         )}
-                        <Badge variant="success" className="text-[10px]">Assigned to Me</Badge>
+                        <Badge variant="success" className="text-[10px]">
+                          Assigned to Me
+                        </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{task.description}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        Status: {task.status}
+                      </p>
                       <div className="flex items-center gap-4 text-xs text-gray-400 mt-2">
                         <span className="flex items-center text-gray-600 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
@@ -125,16 +172,24 @@ export function ReviewerTasks() {
                   {/* Right: Actions */}
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
                     <div className="text-right">
-                      <span className="text-xs font-medium text-gray-500 block mb-1">Due Date</span>
-                      <span className={`text-sm font-bold ${task.priority === 'High' ? 'text-red-600' : 'text-gray-900'}`}>
+                      <span className="text-xs font-medium text-gray-500 block mb-1">
+                        Due Date
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          task.priority === "High"
+                            ? "text-red-600"
+                            : "text-gray-900"
+                        }`}
+                      >
                         {task.due}
                       </span>
                     </div>
-                    
+
                     <div className="flex gap-2 w-full">
                       {/* Release Button */}
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="outline"
                         className="text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                         title="Release back to pool"
@@ -144,12 +199,14 @@ export function ReviewerTasks() {
                       </Button>
 
                       {/* Start Button */}
-                      <Button size="sm" className="flex-1 group-hover:bg-blue-700 transition-colors">
-                        Start <PlayCircle className="w-3 h-3 ml-2" />
+                      <Button
+                        size="sm"
+                        className="flex-1 group-hover:bg-blue-700 transition-colors"
+                      >
+                        Start Review <PlayCircle className="w-3 h-3 ml-2" />
                       </Button>
                     </div>
                   </div>
-
                 </div>
               </CardContent>
             </Card>
@@ -161,12 +218,18 @@ export function ReviewerTasks() {
             </div>
             <h3 className="text-gray-900 font-medium">No active tasks</h3>
             <p className="text-gray-500 text-sm mt-1">
-              Go to the <a href="/reviewer/pool" className="text-blue-600 hover:underline">Task Pool</a> to claim new work.
+              Go to the{" "}
+              <a
+                href="/reviewer/pool"
+                className="text-blue-600 hover:underline"
+              >
+                Task Pool
+              </a>{" "}
+              to claim new work.
             </p>
           </div>
         )}
       </div>
-
     </DashboardLayout>
   );
 }

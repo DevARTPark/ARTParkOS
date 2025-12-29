@@ -360,7 +360,7 @@ app.post('/api/projects', async (req, res) => {
                 domain,
                 startupId: userProfile.startupId,
                 createdBy: userId,
-                currentAIRL: 1
+                currentAIRL: 0
             }
         });
         res.json({ message: "Project created", project });
@@ -416,6 +416,42 @@ app.put('/api/projects/:id', async (req, res) => {
         res.json({ message: "Project updated", project });
     } catch (err) {
         res.status(500).json({ error: "Failed to update project" });
+    }
+});
+
+// Add this to server/index.ts
+
+// 11. Delete Project (Cascading Delete)
+app.delete('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // 1. Find all submissions related to this project
+        const submissions = await prisma.assessmentSubmission.findMany({
+            where: { projectId: id },
+            select: { id: true }
+        });
+        const submissionIds = submissions.map(s => s.id);
+
+        // 2. Perform Transactional Delete (Answers -> Submissions -> Project)
+        await prisma.$transaction([
+            // Delete all answers linked to these submissions
+            prisma.assessmentAnswer.deleteMany({
+                where: { submissionId: { in: submissionIds } }
+            }),
+            // Delete the submissions themselves
+            prisma.assessmentSubmission.deleteMany({
+                where: { projectId: id }
+            }),
+            // Finally, delete the project
+            prisma.project.delete({
+                where: { id }
+            })
+        ]);
+
+        res.json({ message: "Project and related data deleted successfully" });
+    } catch (err: any) {
+        console.error("Delete Project Error:", err);
+        res.status(500).json({ error: "Failed to delete project", details: err.message });
     }
 });
 
@@ -576,6 +612,324 @@ app.delete('/api/assessment/questions/:id', async (req, res) => {
         res.json({ message: "Question deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete question" });
+    }
+});
+
+// Add this to server/index.ts (before app.listen)
+
+// ==========================================
+// ASSESSMENT SUBMISSION & REVIEW ROUTES
+// ==========================================
+
+// 1. [Founder] Submit Assessment
+app.post('/api/assessment/submit', async (req, res) => {
+    const { projectId, targetLevel, answers, founderNotes, evidenceLinks, evidenceFiles } = req.body;
+
+    try {
+        // 1. Find or Create Submission Draft
+        // We look for an existing submission for this project/level that isn't completed yet
+        let submission = await prisma.assessmentSubmission.findFirst({
+            where: {
+                projectId,
+                targetLevel: parseInt(targetLevel),
+                status: { notIn: ['COMPLETED', 'REJECTED'] }
+            }
+        });
+
+        if (!submission) {
+            submission = await prisma.assessmentSubmission.create({
+                data: {
+                    projectId,
+                    targetLevel: parseInt(targetLevel),
+                    status: 'SUBMITTED',
+                    submittedAt: new Date()
+                }
+            });
+        } else {
+            await prisma.assessmentSubmission.update({
+                where: { id: submission.id },
+                data: { status: 'SUBMITTED', submittedAt: new Date() }
+            });
+        }
+
+        // 2. Save Answers (Upsert)
+        const answerPromises = Object.keys(answers).map(async (questionId) => {
+            const response = answers[questionId]; // met, partial, not_met
+
+            // Map string response to Enum if needed, or ensure frontend sends matching enum strings
+            // Assuming frontend sends "met", "partial", "not_met" which matches DB Enum keys (mostly)
+
+            return prisma.assessmentAnswer.upsert({
+                where: {
+                    // This requires a unique compound key in schema or we search first. 
+                    // For simplicity in this stack, we'll delete old answers for this q or findFirst.
+                    // Since standard Prisma upsert requires @unique, we'll use deleteMany + create for safety/simplicity here
+                    // OR better: find the answer by submissionId + questionId
+                    id: "temp-ignored" // We'll handle this manually below
+                },
+                create: {
+                    submissionId: submission!.id,
+                    questionId,
+                    response: response as any, // Cast to Enum
+                    notes: founderNotes[questionId],
+                    evidenceUrl: evidenceLinks[questionId],
+                    evidenceFile: evidenceFiles[questionId]
+                },
+                update: {
+                    response: response as any,
+                    notes: founderNotes[questionId],
+                    evidenceUrl: evidenceLinks[questionId],
+                    evidenceFile: evidenceFiles[questionId]
+                }
+            }).catch(async () => {
+                // Fallback if upsert fails on ID: Delete & Create
+                await prisma.assessmentAnswer.deleteMany({
+                    where: { submissionId: submission!.id, questionId }
+                });
+                return prisma.assessmentAnswer.create({
+                    data: {
+                        submissionId: submission!.id,
+                        questionId,
+                        response: response as any,
+                        notes: founderNotes[questionId],
+                        evidenceUrl: evidenceLinks[questionId],
+                        evidenceFile: evidenceFiles[questionId]
+                    }
+                });
+            });
+        });
+
+        await Promise.all(answerPromises);
+
+        res.json({ message: "Assessment submitted successfully", submissionId: submission.id });
+
+    } catch (err: any) {
+        console.error("Submit Error:", err);
+        res.status(500).json({ error: "Failed to submit assessment" });
+    }
+});
+
+// 2. [Reviewer] Get Task Pool (Unassigned Submissions)
+app.get('/api/reviewer/pool', async (req, res) => {
+    try {
+        const submissions = await prisma.assessmentSubmission.findMany({
+            where: {
+                status: 'SUBMITTED',
+                reviewerId: null
+            },
+            include: {
+                project: {
+                    include: {
+                        startup: true
+                    }
+                }
+            },
+            orderBy: { submittedAt: 'desc' }
+        });
+
+        // Transform to UI "ReviewTask" format
+        const tasks = submissions.map(sub => ({
+            id: sub.id,
+            title: `AIRL Assessment - Level ${sub.targetLevel}`,
+            startup: sub.project.startup.name,
+            project: sub.project.name,
+            type: 'AIRL Assessment',
+            priority: 'Medium', // Logic could be added to determine high priority
+            due: '3 Days', // Static for now, or calc based on submittedAt
+            status: 'Pending',
+            assigneeId: null,
+            submittedDate: sub.submittedAt
+        }));
+
+        res.json(tasks);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch task pool" });
+    }
+});
+
+// 3. [Reviewer] Get My Tasks (Assigned to Me)
+app.get('/api/reviewer/my-tasks', async (req, res) => {
+    const { userId } = req.query; // Pass reviewer's User ID
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
+
+    try {
+        const submissions = await prisma.assessmentSubmission.findMany({
+            where: {
+                reviewerId: userId,
+                status: { in: ['IN_REVIEW', 'SUBMITTED'] } // Show submitted & in-review
+            },
+            include: {
+                project: { include: { startup: true } }
+            }
+        });
+
+        const tasks = submissions.map(sub => ({
+            id: sub.id,
+            title: `AIRL Assessment - Level ${sub.targetLevel}`,
+            startup: sub.project.startup.name,
+            type: 'AIRL Assessment',
+            priority: 'Medium',
+            due: '2 Days',
+            status: 'In Progress',
+            assigneeId: 'me',
+            submittedDate: sub.submittedAt
+        }));
+
+        res.json(tasks);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch my tasks" });
+    }
+});
+
+// 4. [Reviewer] Assign Task
+app.post('/api/reviewer/assign', async (req, res) => {
+    const { submissionId, reviewerId } = req.body;
+    try {
+        await prisma.assessmentSubmission.update({
+            where: { id: submissionId },
+            data: {
+                reviewerId,
+                status: 'IN_REVIEW'
+            }
+        });
+        res.json({ message: "Task assigned" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to assign task" });
+    }
+});
+
+// 5. [Reviewer] Release Task (Unassign)
+app.post('/api/reviewer/release', async (req, res) => {
+    const { submissionId } = req.body;
+    try {
+        await prisma.assessmentSubmission.update({
+            where: { id: submissionId },
+            data: {
+                reviewerId: null,
+                status: 'SUBMITTED' // Return to pool
+            }
+        });
+        res.json({ message: "Task released" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to release task" });
+    }
+});
+
+// Add to server/index.ts
+
+// 6. Get Submission Status (To check if Locked)
+app.get('/api/assessment/submission', async (req, res) => {
+    const { projectId, targetLevel } = req.query;
+    if (!projectId || !targetLevel) return res.status(400).json({ error: "Missing params" });
+
+    try {
+        const submission = await prisma.assessmentSubmission.findFirst({
+            where: {
+                projectId: String(projectId),
+                targetLevel: parseInt(String(targetLevel)),
+                // Get the latest active one
+                status: { not: 'REJECTED' }
+            }
+        });
+        res.json(submission || null);
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching submission" });
+    }
+});
+
+// 7. Recall Submission (Founder moves back to Draft)
+app.post('/api/assessment/recall', async (req, res) => {
+    const { submissionId } = req.body;
+    try {
+        const submission = await prisma.assessmentSubmission.findUnique({ where: { id: submissionId } });
+
+        // Security Check: Can only recall if NOT yet reviewed
+        if (submission?.status !== 'SUBMITTED') {
+            return res.status(403).json({ error: "Cannot recall. Reviewer has already started." });
+        }
+
+        await prisma.assessmentSubmission.update({
+            where: { id: submissionId },
+            data: { status: 'DRAFT' }
+        });
+        res.json({ message: "Recalled to draft" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to recall" });
+    }
+});
+
+// Add to server/index.ts
+
+// 8. Get Submission Details for Reviewer
+app.get('/api/reviewer/submission/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const submission = await prisma.assessmentSubmission.findUnique({
+            where: { id },
+            include: {
+                project: {
+                    include: { startup: true }
+                },
+                answers: true // Include the founder's answers
+            }
+        });
+
+        if (!submission) return res.status(404).json({ error: "Submission not found" });
+        res.json(submission);
+    } catch (err) {
+        console.error("Get Submission Error:", err);
+        res.status(500).json({ error: "Failed to fetch submission" });
+    }
+});
+
+// 9. Submit Review (Save Ratings & Comments)
+app.post('/api/reviewer/submission/:id/review', async (req, res) => {
+    const { id } = req.params;
+    const { evaluations, status } = req.body;
+    // evaluations format: { [questionId]: { rating: 'yes'|'no'|'partial', comment: '...' } }
+
+    try {
+        // 1. Update Answers with Ratings
+        const updatePromises = Object.keys(evaluations).map(questionId => {
+            const ev = evaluations[questionId];
+            return prisma.assessmentAnswer.updateMany({
+                where: {
+                    submissionId: id,
+                    questionId: questionId
+                },
+                data: {
+                    rating: ev.rating,
+                    comments: ev.comment
+                }
+            });
+        });
+
+        await prisma.$transaction(updatePromises);
+
+        // 2. Update Submission Status
+        await prisma.assessmentSubmission.update({
+            where: { id },
+            data: {
+                status: status || 'COMPLETED', // 'COMPLETED' or 'REJECTED'
+                reviewedAt: new Date()
+            }
+        });
+
+        // 3. (Optional) If Passed, Upgrade Project Level
+        if (status === 'COMPLETED') {
+            const sub = await prisma.assessmentSubmission.findUnique({ where: { id } });
+            if (sub) {
+                await prisma.project.update({
+                    where: { id: sub.projectId },
+                    data: { currentAIRL: sub.targetLevel }
+                });
+            }
+        }
+
+        res.json({ message: "Review submitted successfully" });
+    } catch (err) {
+        console.error("Submit Review Error:", err);
+        res.status(500).json({ error: "Failed to save review" });
     }
 });
 
