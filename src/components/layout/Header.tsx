@@ -7,8 +7,9 @@ import {
   User as UserIcon,
   Rocket,
   Building2,
-  Briefcase,
   Check,
+  Menu,
+  Briefcase,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { projects, startups } from "../../data/mockData";
@@ -25,21 +26,26 @@ interface HeaderProps {
   title?: string;
   user?: HeaderUser;
   userRole?: string;
+  onMenuClick?: () => void;
 }
 
 export function Header({
   title,
   user: initialUser,
   userRole: initialRole,
+  onMenuClick,
 }: HeaderProps) {
   const navigate = useNavigate();
 
-  // --- USER & ROLE STATE ---
+  // --- STATE ---
   const [user, setUser] = useState<any>(null);
   const [activeRole, setActiveRole] = useState<string>("");
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  // Initialize Profile from Cache
+  // Changed to click-toggle for better mobile support
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Profile
   const [profile, setProfile] = useState<any>(() => {
     try {
       const currentUserStr = localStorage.getItem("artpark_user");
@@ -53,12 +59,14 @@ export function Header({
     }
   });
 
-  // Search & Notifications State
+  // Search & Notifications
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
   const [notifications] = useState([
     {
       id: 1,
@@ -80,6 +88,32 @@ export function Header({
     },
   ]);
 
+  // --- CLICK OUTSIDE HANDLER ---
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
+        setShowResults(false);
+      }
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const loadData = () => {
     const userStr = localStorage.getItem("artpark_user");
     const roleStr = localStorage.getItem("active_role");
@@ -87,8 +121,6 @@ export function Header({
     if (userStr) {
       const parsedUser = JSON.parse(userStr);
       setUser(parsedUser);
-
-      // Set Active Role
       const currentRole = roleStr || parsedUser.roles?.[0] || "founder";
       setActiveRole(currentRole);
 
@@ -96,7 +128,6 @@ export function Header({
         .then((res) => res.json())
         .then((data) => {
           const profileData = data.profile || {};
-
           if (profileData && Object.keys(profileData).length > 0) {
             setProfile(profileData);
             localStorage.setItem(
@@ -111,12 +142,9 @@ export function Header({
 
   useEffect(() => {
     loadData();
-
-    // Listen for updates
     const handleProfileUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       const userStr = localStorage.getItem("artpark_user");
-
       if (detail && userStr) {
         const parsedUser = JSON.parse(userStr);
         setProfile((prev: any) => ({ ...prev, ...detail }));
@@ -126,7 +154,6 @@ export function Header({
         );
       }
     };
-
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () =>
       window.removeEventListener("profile-updated", handleProfileUpdate);
@@ -151,7 +178,7 @@ export function Header({
   const handleRoleSwitch = (newRole: string) => {
     localStorage.setItem("active_role", newRole);
     setActiveRole(newRole);
-    setShowRoleMenu(false);
+    setIsProfileOpen(false); // Close menu after switching
 
     const dashboardMap: Record<string, string> = {
       founder: "/founder/dashboard",
@@ -161,17 +188,12 @@ export function Header({
       mentor: "/mentor/dashboard",
       lab_owner: "/lab-owner/dashboard",
     };
-
-    // Navigate smoothly without reloading the page
     navigate(dashboardMap[newRole] || "/");
-    // REMOVED: window.location.reload();
   };
 
   const displayName =
     profile?.fullName || user?.name || initialUser?.name || "Guest User";
-
   const displayRole = activeRole || user?.role || initialRole || "Visitor";
-
   const displayAvatar = profile?.avatarUrl || initialUser?.avatar;
 
   const getProfilePath = (role?: string) => {
@@ -223,66 +245,32 @@ export function Header({
   }, [searchQuery]);
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
-      {/* LEFT: Title & Role Switcher */}
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold text-gray-800">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
+      {/* LEFT: Mobile Menu Button & Title */}
+      <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        )}
+
+        <h1 className="text-lg md:text-xl font-semibold text-gray-800 truncate max-w-[200px] md:max-w-none">
           {title || "Dashboard"}
         </h1>
-
-        {user?.roles && user.roles.length > 1 && (
-          <div className="relative">
-            <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
-            >
-              <Briefcase className="w-4 h-4" />
-              <span className="capitalize">
-                {activeRole.replace("_", " ")} View
-              </span>
-              <ChevronDown className="w-3 h-3" />
-            </button>
-
-            {showRoleMenu && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
-                <div className="px-4 py-2 border-b border-gray-50 text-xs font-semibold text-gray-400">
-                  SWITCH CONTEXT
-                </div>
-                {user.roles.map((role: string) => (
-                  <button
-                    key={role}
-                    onClick={() => handleRoleSwitch(role)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group"
-                  >
-                    <span
-                      className={`text-sm capitalize ${
-                        activeRole === role
-                          ? "font-semibold text-blue-600"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {role.replace("_", " ")}
-                    </span>
-                    {activeRole === role && (
-                      <Check className="w-4 h-4 text-blue-600" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* RIGHT: Search, Notifications, Profile */}
-      <div className="flex items-center space-x-6">
-        {/* Search */}
-        <div className="relative hidden md:block group" ref={searchRef}>
+      <div className="flex items-center space-x-2 md:space-x-6">
+        {/* Search (Hidden on small mobile) */}
+        <div className="relative hidden sm:block group" ref={searchRef}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             placeholder="Search..."
-            className="pl-10 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-blue-500 w-64 bg-gray-50 transition-all"
+            className="pl-10 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:ring-2 focus:ring-blue-500 w-48 md:w-64 bg-gray-50 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
@@ -307,7 +295,7 @@ export function Header({
         </div>
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notificationRef}>
           <button
             className="p-2 rounded-full hover:bg-gray-100 relative"
             onClick={() => setShowNotifications(!showNotifications)}
@@ -318,7 +306,7 @@ export function Header({
             )}
           </button>
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
+            <div className="absolute right-0 mt-2 w-72 md:w-80 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
               <div className="px-4 py-2 border-b border-gray-50">
                 <h3 className="font-semibold text-sm">Notifications</h3>
               </div>
@@ -336,9 +324,12 @@ export function Header({
           )}
         </div>
 
-        {/* Profile */}
-        <div className="relative group">
-          <button className="flex items-center space-x-3 border-l border-gray-200 pl-6 outline-none">
+        {/* Profile Dropdown (Now contains Role Switcher) */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center space-x-2 md:space-x-3 md:border-l md:border-gray-200 md:pl-6 outline-none"
+          >
             <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-gray-100 bg-slate-100 flex items-center justify-center">
               {displayAvatar ? (
                 <img
@@ -360,29 +351,73 @@ export function Header({
                 {displayRole.replace("_", " ")}
               </p>
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown
+              className={`w-4 h-4 text-gray-400 transition-transform ${
+                isProfileOpen ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 hidden group-hover:block z-50">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-sm font-medium text-gray-900">Signed in as</p>
-              <p className="text-xs text-gray-500 truncate">
-                {user?.email || "guest@artpark.in"}
-              </p>
+          {isProfileOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+              {/* User Info */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {displayName}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.email || "guest@artpark.in"}
+                </p>
+              </div>
+
+              {/* ROLE SWITCHER SECTION */}
+              {user?.roles && user.roles.length > 1 && (
+                <div className="py-1 border-b border-gray-100">
+                  <div className="px-4 py-1.5 flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                    <Briefcase className="w-3 h-3" /> Switch View
+                  </div>
+                  {user.roles.map((role: string) => (
+                    <button
+                      key={role}
+                      onClick={() => handleRoleSwitch(role)}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group transition-colors"
+                    >
+                      <span
+                        className={`text-sm capitalize ${
+                          activeRole === role
+                            ? "font-medium text-blue-600"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {role.replace("_", " ")}
+                      </span>
+                      {activeRole === role && (
+                        <Check className="w-3.5 h-3.5 text-blue-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Navigation Links */}
+              <div className="py-1">
+                <Link
+                  to={getProfilePath(activeRole)}
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setIsProfileOpen(false)}
+                >
+                  <UserIcon className="w-4 h-4 mr-2 text-gray-400" /> Profile
+                  Settings
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4 mr-2" /> Sign out
+                </button>
+              </div>
             </div>
-            <Link
-              to={getProfilePath(activeRole)}
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              <UserIcon className="w-4 h-4 mr-2" /> Profile
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              <LogOut className="w-4 h-4 mr-2" /> Sign out
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </header>
