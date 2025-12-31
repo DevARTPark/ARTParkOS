@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
-import { Header, HeaderUser } from "./Header"; 
+import { Header, HeaderUser } from "./Header";
 import { Role } from "../../types";
 import { motion } from "framer-motion";
 
@@ -18,8 +18,10 @@ export function DashboardLayout({
   role,
   title,
 }: DashboardLayoutProps) {
-  // State to manage sidebar collapse
+  // State to manage desktop sidebar collapse
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // State to manage mobile sidebar visibility
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Explicitly type the state as HeaderUser
   const [user, setUser] = useState<HeaderUser>({
@@ -62,23 +64,30 @@ export function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-slate-900">
-      {/* Pass state and toggle function to Sidebar */}
+      {/* Sidebar handles its own responsive rendering based on props */}
       <Sidebar
         role={role}
         isCollapsed={isCollapsed}
         toggleSidebar={() => setIsCollapsed(!isCollapsed)}
+        isMobileOpen={isMobileOpen}
+        setIsMobileOpen={setIsMobileOpen}
       />
 
-      {/* Adjust margin based on collapsed state */}
+      {/* Main Content Area */}
+      {/* On Mobile: ml-0 (full width). On Desktop: ml-20 or ml-64 based on collapse */}
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
-          isCollapsed ? "ml-20" : "ml-64"
-        }`}
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out w-full
+          ${isCollapsed ? "md:ml-20" : "md:ml-64"} 
+          ml-0`}
       >
-        {/* Pass userRole prop here */}
-        <Header title={title} user={user} userRole={role} />
+        <Header
+          title={title}
+          user={user}
+          userRole={role}
+          onMenuClick={() => setIsMobileOpen(true)} // Pass toggle to header
+        />
 
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

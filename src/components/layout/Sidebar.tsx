@@ -19,6 +19,7 @@ import {
   UserPlus,
   Shield,
   Globe,
+  X, // Import X icon for closing mobile menu
 } from "lucide-react";
 import { Role } from "../../types";
 import artparkLogo from "../../../public/artpark_in_logo.jpg";
@@ -27,9 +28,17 @@ interface SidebarProps {
   role: Role;
   isCollapsed: boolean;
   toggleSidebar: () => void;
+  isMobileOpen?: boolean;
+  setIsMobileOpen?: (isOpen: boolean) => void;
 }
 
-export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
+export function Sidebar({
+  role,
+  isCollapsed,
+  toggleSidebar,
+  isMobileOpen = false,
+  setIsMobileOpen,
+}: SidebarProps) {
   const getNavItems = () => {
     switch (role) {
       case "founder":
@@ -153,152 +162,187 @@ export function Sidebar({ role, isCollapsed, toggleSidebar }: SidebarProps) {
     return "/settings";
   };
 
+  const closeMobileMenu = () => {
+    if (setIsMobileOpen) setIsMobileOpen(false);
+  };
+
   return (
-    <div
-      className={`bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 z-20 transition-all duration-300 ease-in-out border-r border-slate-800 ${
-        isCollapsed ? "w-20" : "w-64"
-      }`}
-    >
+    <>
+      {/* MOBILE OVERLAY BACKDROP */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      {/* SIDEBAR COMPONENT */}
       <div
-        className={`p-4 border-b border-slate-800 flex items-center justify-between h-20 transition-colors ${
-          isCollapsed ? "cursor-pointer hover:bg-slate-800" : ""
-        }`}
-        onClick={() => isCollapsed && toggleSidebar()} // Click to Expand Logic
-        title={isCollapsed ? "Click to Expand" : ""}
+        className={`bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out border-r border-slate-800
+          ${/* Mobile: Slide in/out */ ""}
+          md:translate-x-0 
+          ${
+            isMobileOpen
+              ? "translate-x-0 w-64"
+              : "-translate-x-full md:translate-x-0"
+          }
+          
+          ${/* Desktop: Width based on collapse */ ""}
+          ${isCollapsed ? "md:w-20" : "md:w-64"}
+        `}
       >
         <div
-          className={`flex items-center transition-all duration-300 ${
-            isCollapsed ? "justify-center w-full" : "space-x-3"
+          className={`p-4 border-b border-slate-800 flex items-center justify-between h-20 transition-colors ${
+            isCollapsed ? "md:cursor-pointer md:hover:bg-slate-800" : ""
           }`}
+          onClick={() => isCollapsed && toggleSidebar()}
+          title={isCollapsed ? "Click to Expand" : ""}
         >
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
-            <img
-              src={artparkLogo}
-              alt="AP"
-              className="w-full h-full object-contain p-1"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                if (e.currentTarget.parentElement) {
-                  e.currentTarget.parentElement.innerText = "A";
-                  e.currentTarget.parentElement.className =
-                    "w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg font-bold text-lg";
-                }
-              }}
-            />
-          </div>
           <div
-            className={`overflow-hidden transition-all duration-300 ${
-              isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+            className={`flex items-center transition-all duration-300 ${
+              isCollapsed ? "md:justify-center w-full" : "space-x-3"
             }`}
           >
-            <span className="font-bold text-xl tracking-tight block whitespace-nowrap">
-              ARTPARK
-            </span>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
-              {role} Portal
-            </p>
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
+              <img
+                src={artparkLogo}
+                alt="AP"
+                className="w-full h-full object-contain p-1"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  if (e.currentTarget.parentElement) {
+                    e.currentTarget.parentElement.innerText = "A";
+                    e.currentTarget.parentElement.className =
+                      "w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg font-bold text-lg";
+                  }
+                }}
+              />
+            </div>
+            <div
+              className={`overflow-hidden transition-all duration-300 ${
+                isCollapsed ? "md:w-0 md:opacity-0" : "w-auto opacity-100"
+              }`}
+            >
+              <span className="font-bold text-xl tracking-tight block whitespace-nowrap">
+                ARTPARK
+              </span>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
+                {role} Portal
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* TOGGLE BUTTON: 
-            Hidden when collapsed. Visible only when expanded.
-        */}
-        {!isCollapsed && (
+          {/* CLOSE BUTTON (Mobile Only) */}
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Prevent triggering the logo click
-              toggleSidebar();
+              e.stopPropagation();
+              closeMobileMenu();
             }}
-            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="md:hidden p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
-        )}
-      </div>
 
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 custom-scrollbar">
-        <ul className="space-y-1 px-3">
-          {navItems.map((item) => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800"
-                  } ${isCollapsed ? "justify-center px-2" : ""}`
-                }
-              >
-                <item.icon
-                  className={`w-5 h-5 flex-shrink-0 ${
-                    isCollapsed ? "mx-auto" : ""
-                  }`}
-                />
-                <span
-                  className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
-                    isCollapsed
-                      ? "w-0 opacity-0 overflow-hidden"
-                      : "w-auto opacity-100"
-                  }`}
+          {/* COLLAPSE BUTTON (Desktop Only) */}
+          {!isCollapsed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSidebar();
+              }}
+              className="hidden md:block p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 custom-scrollbar">
+          <ul className="space-y-1 px-3">
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  onClick={closeMobileMenu} // Close menu on nav click (mobile)
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    } ${isCollapsed ? "md:justify-center md:px-2" : ""}`
+                  }
                 >
-                  {item.label}
-                </span>
-                {isCollapsed && (
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
+                  <item.icon
+                    className={`w-5 h-5 flex-shrink-0 ${
+                      isCollapsed ? "md:mx-auto" : ""
+                    }`}
+                  />
+                  <span
+                    className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+                      isCollapsed
+                        ? "md:w-0 md:opacity-0 md:overflow-hidden"
+                        : "w-auto opacity-100"
+                    }`}
+                  >
                     {item.label}
-                  </div>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+                  </span>
+                  {/* Tooltip for collapsed state */}
+                  {isCollapsed && (
+                    <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
+                      {item.label}
+                    </div>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        {/* Removed the bottom expand button as requested */}
-        <NavLink
-          to={getSettingsPath(role)}
-          className={({ isActive }) =>
-            `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
-              isActive
-                ? "bg-slate-800 text-white"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            } ${isCollapsed ? "justify-center" : ""}`
-          }
-        >
-          <Settings className="w-5 h-5 flex-shrink-0" />
-          <span
-            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
-              isCollapsed
-                ? "w-0 opacity-0 overflow-hidden"
-                : "w-auto opacity-100"
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+          <NavLink
+            to={getSettingsPath(role)}
+            onClick={closeMobileMenu}
+            className={({ isActive }) =>
+              `flex items-center space-x-3 w-full px-3 py-2 rounded-lg transition-colors ${
+                isActive
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800"
+              } ${isCollapsed ? "md:justify-center" : ""}`
+            }
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            <span
+              className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+                isCollapsed
+                  ? "md:w-0 md:opacity-0 md:overflow-hidden"
+                  : "w-auto opacity-100"
+              }`}
+            >
+              Settings
+            </span>
+          </NavLink>
+          <button
+            onClick={() => {
+              localStorage.removeItem("artpark_user");
+              window.location.href = "/";
+            }}
+            className={`flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1 ${
+              isCollapsed ? "md:justify-center" : ""
             }`}
           >
-            Settings
-          </span>
-        </NavLink>
-        <button
-          onClick={() => {
-            localStorage.removeItem("artpark_user");
-            window.location.href = "/";
-          }}
-          className={`flex items-center space-x-3 text-slate-400 hover:text-red-400 w-full px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors mt-1 ${
-            isCollapsed ? "justify-center" : ""
-          }`}
-        >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          <span
-            className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
-              isCollapsed
-                ? "w-0 opacity-0 overflow-hidden"
-                : "w-auto opacity-100"
-            }`}
-          >
-            Logout
-          </span>
-        </button>
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <span
+              className={`font-medium text-sm whitespace-nowrap transition-all duration-300 ${
+                isCollapsed
+                  ? "md:w-0 md:opacity-0 md:overflow-hidden"
+                  : "w-auto opacity-100"
+              }`}
+            >
+              Logout
+            </span>
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
