@@ -17,6 +17,7 @@ enum Role {
   mentor
   supplier
   lab_owner
+  applicant
 }
 
 enum UserStatus {
@@ -75,6 +76,8 @@ model User {
   
   // ✅ Link to the Unified Profile (One profile for any role)
   profile       UserProfile? 
+
+  onboardingApplication OnboardingApplication?
   
   @@map("users")
 }
@@ -268,4 +271,23 @@ model AssessmentAnswer {
   updatedAt    DateTime         @updatedAt
 
   @@map("assessment_answers")
+}
+
+model OnboardingApplication {
+  id        String   @id @default(uuid())
+  
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  
+  // Stores the entire JSON state from the Onboarding App
+  // (Founder profile, startup details, answers, uploads)
+  data      Json     
+  
+  status    String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  
+  submittedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("onboarding_applications")
 }

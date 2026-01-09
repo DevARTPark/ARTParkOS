@@ -910,6 +910,115 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
     }
 });
 
+// ==========================================
+// ONBOARDING (APPLICANT) ROUTES
+// ==========================================
+
+// 1. Applicant Registration
+app.post('/api/auth/register', async (req, res) => {
+    const { email, password, fullName } = req.body;
+
+    if (!email || !password || !fullName) {
+        return res.status(400).json({ error: "Missing fields" });
+    }
+
+    try {
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) return res.status(409).json({ error: "User already exists." });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Transaction: Create User + Profile + Empty Application
+        const user = await prisma.$transaction(async (tx) => {
+            const newUser = await tx.user.create({
+                data: {
+                    email,
+                    password_hash: hashedPassword,
+                    roles: ['applicant'], // <--- Force role to 'applicant'
+                    status: 'active',
+                }
+            });
+
+            await tx.userProfile.create({
+                data: {
+                    userId: newUser.id,
+                    fullName: fullName
+                }
+            });
+
+            await tx.onboardingApplication.create({
+                data: {
+                    userId: newUser.id,
+                    data: {}, // Start empty
+                    status: 'DRAFT'
+                }
+            });
+
+            return newUser;
+        });
+
+        const token = jwt.sign(
+            { userId: user.id, roles: user.roles, email: user.email },
+            SECRET_KEY,
+            { expiresIn: '24h' }
+        );
+
+        res.json({ token, user: { id: user.id, email: user.email, roles: user.roles } });
+
+    } catch (err: any) {
+        console.error("Register Error:", err);
+        res.status(500).json({ error: "Registration failed" });
+    }
+});
+
+// 2. Save/Update Application (Holding Tank)
+app.post('/api/onboarding/save', async (req, res) => {
+    const { userId, data, submit } = req.body; // 'submit' is a boolean flag
+
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    try {
+        const status = submit ? 'SUBMITTED' : 'DRAFT';
+        const submittedAt = submit ? new Date() : null;
+
+        const application = await prisma.onboardingApplication.upsert({
+            where: { userId },
+            update: {
+                data: data, // Save the raw JSON
+                status: status,
+                submittedAt: submittedAt ? submittedAt : undefined
+            },
+            create: {
+                userId,
+                data: data,
+                status: status,
+                submittedAt: submittedAt
+            }
+        });
+
+        res.json({ message: submit ? "Application Submitted!" : "Progress Saved", application });
+
+    } catch (err: any) {
+        console.error("Save Application Error:", err);
+        res.status(500).json({ error: "Failed to save application" });
+    }
+});
+
+// 3. Get Application (For Resuming)
+app.get('/api/onboarding/application', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
+
+    try {
+        const app = await prisma.onboardingApplication.findUnique({
+            where: { userId }
+        });
+        res.json(app ? app.data : null); // Return just the JSON data to populate the form
+    } catch (err) {
+        res.status(500).json({ error: "Fetch error" });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Server running on http://localhost:${PORT}`);
