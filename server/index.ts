@@ -914,7 +914,7 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
 // ONBOARDING (APPLICANT) ROUTES
 // ==========================================
 
-// 1. Applicant Registration
+// 1. MODIFY EXISTING REGISTER ROUTE
 app.post('/api/auth/register', async (req, res) => {
     const { email, password, fullName } = req.body;
 
@@ -929,45 +929,100 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Transaction: Create User + Profile + Empty Application
+        // CHANGE: Set status to 'invited' instead of 'active'
         const user = await prisma.$transaction(async (tx) => {
             const newUser = await tx.user.create({
                 data: {
                     email,
                     password_hash: hashedPassword,
-                    roles: ['applicant'], // <--- Force role to 'applicant'
-                    status: 'active',
+                    roles: ['applicant'],
+                    status: 'invited', // <--- CHANGED from 'active'
                 }
             });
 
             await tx.userProfile.create({
-                data: {
-                    userId: newUser.id,
-                    fullName: fullName
-                }
+                data: { userId: newUser.id, fullName: fullName }
             });
 
             await tx.onboardingApplication.create({
-                data: {
-                    userId: newUser.id,
-                    data: {}, // Start empty
-                    status: 'DRAFT'
-                }
+                data: { userId: newUser.id, data: {}, status: 'DRAFT' }
             });
 
             return newUser;
         });
 
-        const token = jwt.sign(
+        // --- NEW: Generate Token & Send Email ---
+        const tokenString = await createAuthToken(user.id, 'account_activation');
+
+        // This link points to your frontend route (we will create this next)
+        const verifyLink = `${finalFrontendUrl}/verify-email?token=${tokenString}`;
+
+        const emailHtml = `
+            <div style="font-family: sans-serif; padding: 20px;">
+                <h2>Verify your email</h2>
+                <p>Hi ${fullName},</p>
+                <p>Thanks for starting your application with ARTPark. Please verify your email to continue.</p>
+                <a href="${verifyLink}" style="display: inline-block; background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Verify Email</a>
+            </div>
+        `;
+
+        await sendEmail(email, "Verify your ARTPark Account", emailHtml);
+
+        // CHANGE: Do NOT return the JWT token here.
+        res.json({ message: "Verification email sent" });
+
+    } catch (err: any) {
+        console.error("Register Error:", err);
+        res.status(500).json({ error: "Registration failed" });
+    }
+});
+
+// 2. ADD NEW VERIFY ROUTE
+app.post('/api/auth/verify-email', async (req, res) => {
+    const { token } = req.body;
+
+    try {
+        // Find the token
+        const authToken = await prisma.authToken.findUnique({
+            where: { token },
+            include: { user: true }
+        });
+
+        if (!authToken) return res.status(400).json({ error: "Invalid token" });
+        if (authToken.is_used) return res.status(400).json({ error: "Link already used" });
+
+        // Check expiration
+        if (new Date() > authToken.expires_at) {
+            return res.status(400).json({ error: "Link expired" });
+        }
+
+        // Activate User
+        const user = await prisma.user.update({
+            where: { id: authToken.user_id! },
+            data: { status: 'active' }
+        });
+
+        // Mark token as used
+        await prisma.authToken.update({
+            where: { id: authToken.id },
+            data: { is_used: true }
+        });
+
+        // NOW generate and return the login token (JWT)
+        const jwtToken = jwt.sign(
             { userId: user.id, roles: user.roles, email: user.email },
             SECRET_KEY,
             { expiresIn: '24h' }
         );
 
-        res.json({ token, user: { id: user.id, email: user.email, roles: user.roles } });
+        res.json({
+            token: jwtToken,
+            user: { id: user.id, email: user.email, roles: user.roles }
+        });
 
-    } catch (err: any) {
-        console.error("Register Error:", err);
-        res.status(500).json({ error: "Registration failed" });
+    } catch (err) {
+        console.error("Verification Error:", err);
+        res.status(500).json({ error: "Verification failed" });
     }
 });
 
