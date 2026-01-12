@@ -21,7 +21,7 @@ import { FounderProjects } from "./pages/founder/FounderProjects";
 import { FounderFinance } from "./pages/founder/FounderFinance";
 import { FounderTeam } from "./pages/founder/FounderTeam";
 import { FounderReviews } from "./pages/founder/FounderReviews";
-import { FounderSettings } from "./pages/founder/FounderSettings";
+// import { FounderSettings } from "./pages/founder/FounderSettings";
 import { FounderOtherStartups } from "./pages/founder/FounderOtherStartups";
 import { FounderProjectDetail } from "./pages/founder/FounderProjectDetail";
 
@@ -89,16 +89,24 @@ import LabBookingsPage from "./pages/lab-owner/LabBookingsPage";
 import LabSettings from "./pages/lab-owner/LabSettings";
 import LabCalendarPage from "./pages/lab-owner/LabCalendarPage";
 
+// --- Onboarding PAGES ---
+import ApplicationEngine from "./pages/onboarding/ApplicationEngine";
+import { APPLICATION_FLOW } from "./data/onboarding/applicationFlow";
+import { INNOVATOR_FLOW } from "./data/onboarding/innovatorFlow";
+import ResumeApplication from "./pages/auth/ResumeApplication";
+import ApplicationSuccess from "./pages/onboarding/ApplicationSuccess";
+import AssessmentPage from "./pages/assessment/AssessmentPage";
+
 // Icons for RoleSelection
-import {
-  ArrowRight,
-  Layout,
-  ShieldCheck,
-  UserCheck,
-  Users,
-  Calendar,
-  Building2,
-} from "lucide-react";
+// import {
+//   ArrowRight,
+//   Layout,
+//   ShieldCheck,
+//   UserCheck,
+//   Users,
+//   Calendar,
+//   Building2,
+// } from "lucide-react";
 
 // Mock Data Seeder
 import { seedMockSupplierData } from "./data/mockSupplierData";
@@ -107,151 +115,151 @@ if (import.meta.env.MODE !== "production") {
   seedMockSupplierData();
 }
 
-function RoleSelection() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            ARTPark AIRL Platform
-          </h1>
-          <p className="text-slate-400 text-lg">
-            Select your role to enter the portal
-          </p>
-        </div>
+// function RoleSelection() {
+//   return (
+//     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+//       <div className="max-w-4xl w-full">
+//         <div className="text-center mb-12">
+//           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+//             ARTPark AIRL Platform
+//           </h1>
+//           <p className="text-slate-400 text-lg">
+//             Select your role to enter the portal
+//           </p>
+//         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Founder */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/founder/dashboard"
-            )}&expectedRole=founder`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <Layout className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Founder</h2>
-              <p className="text-slate-300 mb-8 flex-1">
-                Manage your startup, track AIRL progress, and access resources.
-              </p>
-              <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
-                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
+//         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+//           {/* Founder */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/founder/dashboard"
+//             )}&expectedRole=founder`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <Layout className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Founder</h2>
+//               <p className="text-slate-300 mb-8 flex-1">
+//                 Manage your startup, track AIRL progress, and access resources.
+//               </p>
+//               <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
+//                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
 
-          {/* Admin */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/admin/dashboard"
-            )}&expectedRole=admin`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Admin</h2>
-              <p className="text-slate-300 mb-8 flex-1">
-                Oversee portfolio, manage resources, and track ecosystem health.
-              </p>
-              <div className="flex items-center text-purple-400 font-semibold group-hover:text-purple-300">
-                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
+//           {/* Admin */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/admin/dashboard"
+//             )}&expectedRole=admin`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <ShieldCheck className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Admin</h2>
+//               <p className="text-slate-300 mb-8 flex-1">
+//                 Oversee portfolio, manage resources, and track ecosystem health.
+//               </p>
+//               <div className="flex items-center text-purple-400 font-semibold group-hover:text-purple-300">
+//                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
 
-          {/* Reviewer */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/reviewer/dashboard"
-            )}&expectedRole=reviewer`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <UserCheck className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
-              <p className="text-slate-300 mb-8 flex-1">
-                Evaluate assessments, provide feedback, and validate AIRL
-                levels.
-              </p>
-              <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
-                Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
+//           {/* Reviewer */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/reviewer/dashboard"
+//             )}&expectedRole=reviewer`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <UserCheck className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Reviewer</h2>
+//               <p className="text-slate-300 mb-8 flex-1">
+//                 Evaluate assessments, provide feedback, and validate AIRL
+//                 levels.
+//               </p>
+//               <div className="flex items-center text-emerald-400 font-semibold group-hover:text-emerald-300">
+//                 Enter Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
 
-          {/* Suppliers */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/supplier/dashboard"
-            )}&expectedRole=supplier`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Suppliers</h2>
-              <p className="text-slate-300 mb-6 flex-1">
-                List your offerings and capabilities.
-              </p>
-              <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
-                Go to Suppliers <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
+//           {/* Suppliers */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/supplier/dashboard"
+//             )}&expectedRole=supplier`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <Users className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Suppliers</h2>
+//               <p className="text-slate-300 mb-6 flex-1">
+//                 List your offerings and capabilities.
+//               </p>
+//               <div className="flex items-center text-blue-400 font-semibold group-hover:text-blue-300">
+//                 Go to Suppliers <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
 
-          {/* Mentors */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/mentor/dashboard"
-            )}&expectedRole=mentor`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <Calendar className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Mentors</h2>
-              <p className="text-slate-300 mb-6 flex-1">
-                Set available times for meetings and view scheduled calls.
-              </p>
-              <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300">
-                Go to Mentors <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
+//           {/* Mentors */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/mentor/dashboard"
+//             )}&expectedRole=mentor`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <Calendar className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Mentors</h2>
+//               <p className="text-slate-300 mb-6 flex-1">
+//                 Set available times for meetings and view scheduled calls.
+//               </p>
+//               <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300">
+//                 Go to Mentors <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
 
-          {/* Lab Facility Owners */}
-          <Link
-            to={`/login?redirect=${encodeURIComponent(
-              "/lab-owner/dashboard"
-            )}&expectedRole=lab_owner`}
-            className="group"
-          >
-            <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                <Building2 className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Lab Owner</h2>
-              <p className="text-slate-300 mb-6 flex-1">
-                Manage facility equipment, bookings, and utilization.
-              </p>
-              <div className="flex items-center text-orange-400 font-semibold group-hover:text-orange-300">
-                Go to Lab Portal <ArrowRight className="ml-2 w-4 h-4" />
-              </div>
-            </div>
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
+//           {/* Lab Facility Owners */}
+//           <Link
+//             to={`/login?redirect=${encodeURIComponent(
+//               "/lab-owner/dashboard"
+//             )}&expectedRole=lab_owner`}
+//             className="group"
+//           >
+//             <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:bg-white/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl h-full flex flex-col items-center text-center">
+//               <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+//                 <Building2 className="w-8 h-8 text-white" />
+//               </div>
+//               <h2 className="text-2xl font-bold text-white mb-2">Lab Owner</h2>
+//               <p className="text-slate-300 mb-6 flex-1">
+//                 Manage facility equipment, bookings, and utilization.
+//               </p>
+//               <div className="flex items-center text-orange-400 font-semibold group-hover:text-orange-300">
+//                 Go to Lab Portal <ArrowRight className="ml-2 w-4 h-4" />
+//               </div>
+//             </div>
+//           </Link>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 
 export function App() {
   return (
@@ -778,6 +786,56 @@ export function App() {
           element={
             <ProtectedRoute allowedRoles={["lab_owner"]}>
               <LabCalendarPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- ONBOARDING WIZARD --- */}
+        <Route
+          path="/apply/founder"
+          element={
+            <ProtectedRoute allowedRoles={["applicant", "founder"]}>
+              <ApplicationEngine
+                flowConfig={APPLICATION_FLOW}
+                trackTitle="Founder Track"
+              />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/apply/innovator"
+          element={
+            <ProtectedRoute allowedRoles={["applicant", "innovator"]}>
+              <ApplicationEngine
+                flowConfig={INNOVATOR_FLOW}
+                trackTitle="Innovator Track"
+              />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/resume-application" element={<ResumeApplication />} />
+
+        <Route
+          path="/application-submitted"
+          element={
+            <ProtectedRoute
+              allowedRoles={["applicant", "founder", "innovator"]}
+            >
+              <ApplicationSuccess />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Assessment Page (Dynamic ID) */}
+        <Route
+          path="/assessment/:id"
+          element={
+            <ProtectedRoute
+              allowedRoles={["applicant", "founder", "innovator"]}
+            >
+              <AssessmentPage />
             </ProtectedRoute>
           }
         />
