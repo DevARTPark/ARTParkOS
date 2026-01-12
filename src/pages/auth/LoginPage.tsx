@@ -62,8 +62,7 @@ export default function LoginPage() {
         const onboardingUrl =
           import.meta.env.VITE_ONBOARDING_URL || "http://localhost:5173";
 
-        // We pass the token so the Onboarding App can auto-login the user
-        window.location.href = `${onboardingUrl}/resume?token=${data.token}`;
+        navigate("/apply/founder");
         return;
       }
 
