@@ -1414,6 +1414,80 @@ app.post('/api/admin/onboard', async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// 6. GET REVIEWER APPLICANT LIST (New)
+// ---------------------------------------------------------
+app.get('/api/reviewer/applicants', async (req, res) => {
+    try {
+        // 1. Fetch all applications with status 'SUBMITTED'
+        const apps = await prisma.onboardingApplication.findMany({
+            where: { status: 'SUBMITTED' },
+            include: { user: { include: { profile: true } } }
+        });
+
+        // 2. Process each application to calculate Team Score & Tier
+        const results = await Promise.all(apps.map(async (app) => {
+            // A. Basic Details
+            const founderName = app.user.profile?.fullName || "Unknown Founder";
+            // @ts-ignore
+            const startupName = app.data?.venture?.organizationName || "Untitled Venture";
+            // @ts-ignore
+            const track = app.data?.venture?.track || "startup";
+
+            // B. Identify Team Emails (Founder + Co-founders)
+            const founderEmail = app.user.email;
+            // @ts-ignore
+            const coFounders = app.data?.coFounders || [];
+            const teamEmails = [founderEmail, ...coFounders.map((c: any) => c.email)].filter(Boolean);
+
+            // C. Fetch Assessments for the whole team
+            const assessments = await prisma.innovationAssessment.findMany({
+                where: { user: { email: { in: teamEmails as string[] } } }
+            });
+
+            // D. Calculate Team Max Score (The "Best Athlete" Logic)
+            const DIMENSIONS = ['strategy', 'culture', 'operations', 'mindset', 'tactics'];
+            const teamDims: Record<string, number> = { strategy: 0, culture: 0, operations: 0, mindset: 0, tactics: 0 };
+
+            assessments.forEach(a => {
+                const scores = a.dimensionScores as Record<string, number>;
+                if (scores) {
+                    DIMENSIONS.forEach(dim => {
+                        if ((scores[dim] || 0) > teamDims[dim]) {
+                            teamDims[dim] = scores[dim];
+                        }
+                    });
+                }
+            });
+
+            // E. Determine Tier
+            const teamScore = Object.values(teamDims).reduce((sum, v) => sum + v, 0);
+            const dimsBelow10 = Object.values(teamDims).filter(v => v < 10).length;
+
+            let teamTier = "RED";
+            if (teamScore >= 75 && dimsBelow10 === 0) teamTier = "GREEN";
+            else if ((teamScore >= 60 && teamScore <= 74) || (teamScore >= 75 && dimsBelow10 === 1)) teamTier = "YELLOW";
+            else teamTier = "RED";
+
+            return {
+                id: app.userId, // We use userId to navigate to details
+                startupName,
+                founderName,
+                track,
+                submittedAt: app.submittedAt ? app.submittedAt.toISOString().split('T')[0] : "N/A",
+                teamScore,
+                teamTier
+            };
+        }));
+
+        res.json(results);
+
+    } catch (error) {
+        console.error("Fetch Applicants Error:", error);
+        res.status(500).json({ error: "Failed to fetch applicants" });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Server running on http://localhost:${PORT}`);
