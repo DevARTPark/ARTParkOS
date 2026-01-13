@@ -13,22 +13,18 @@ import {
   DollarSign, 
   Award,
   Briefcase,
-  ArrowRight
+  ArrowRight,
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import { 
-  FunnelChart, Funnel, LabelList, Tooltip, ResponsiveContainer, Cell 
+  FunnelChart, Funnel, LabelList, Tooltip, ResponsiveContainer 
 } from 'recharts';
 
-// --- Mock Data ---
+// IMPORT MOCK DATA (Real-time data for Active Cohort)
+import { adminStartups } from '../../data/adminMockData';
 
-const activeCohort = [
-  { id: 1, name: 'GreenField Tech', valuation: '₹45 Cr', revenue: '₹1.2 Cr', jobs: 24, AIRL: 3, sector: 'AgriTech' },
-  { id: 2, name: 'MediDrone Systems', valuation: '₹120 Cr', revenue: '₹5.5 Cr', jobs: 45, AIRL: 5, sector: 'Healthcare' },
-  { id: 3, name: 'AutoBotics', valuation: '₹22 Cr', revenue: '₹0.5 Cr', jobs: 12, AIRL: 2, sector: 'Robotics' },
-  { id: 4, name: 'VisionAI', valuation: '₹60 Cr', revenue: '₹2.1 Cr', jobs: 18, AIRL: 4, sector: 'AI/ML' },
-  { id: 5, name: 'SolarFlow', valuation: '₹35 Cr', revenue: '₹1.8 Cr', jobs: 15, AIRL: 6, sector: 'CleanTech' },
-];
-
+// --- Local Mock Data for Other Tabs ---
 const dealFlowData = [
   { value: 120, name: 'Applications', fill: '#3b82f6' },
   { value: 45, name: 'Screening', fill: '#6366f1' },
@@ -46,11 +42,21 @@ const alumniData = [
 export function AdminPortfolio() {
   const [activeTab, setActiveTab] = useState('active');
   const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  // Filter Logic for Active Cohort (Using adminMockData)
+  const filteredStartups = adminStartups.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+                          s.projects[0].domain.toLowerCase().includes(search.toLowerCase());
+    
+    if (filterStatus === 'All') return matchesSearch;
+    return matchesSearch && s.projects[0].status === filterStatus;
+  });
 
   return (
     <DashboardLayout role="admin" title="Portfolio Governance">
       
-      {/* Top Header Controls */}
+      {/* Top Header Controls (Tabs & Global Actions) */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <Tabs 
           tabs={[
@@ -62,6 +68,7 @@ export function AdminPortfolio() {
           onChange={setActiveTab} 
         />
         
+        {/* Search is shared across tabs visually, but logic currently applies to Active */}
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -85,7 +92,8 @@ export function AdminPortfolio() {
       {/* --- Tab 1: Active Cohort --- */}
       {activeTab === 'active' && (
         <div className="space-y-6">
-          {/* Summary Cards */}
+          
+          {/* 1. Summary Cards (Aggregated Stats) */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-blue-50 border-blue-100">
               <CardContent className="p-4 flex items-center justify-between">
@@ -99,8 +107,11 @@ export function AdminPortfolio() {
             <Card className="bg-green-50 border-green-100">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-green-600 font-medium uppercase">Total Revenue (ARR)</p>
-                  <h3 className="text-xl font-bold text-green-900">₹11.1 Cr</h3>
+                  <p className="text-xs text-green-600 font-medium uppercase">Funds Deployed</p>
+                  {/* Dynamically calculated from adminStartups */}
+                  <h3 className="text-xl font-bold text-green-900">
+                    ₹{adminStartups.reduce((acc, s) => acc + s.fundsAllocated, 0).toFixed(1)} Cr
+                  </h3>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-300" />
               </CardContent>
@@ -108,8 +119,8 @@ export function AdminPortfolio() {
             <Card className="bg-purple-50 border-purple-100">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-purple-600 font-medium uppercase">Jobs Created</p>
-                  <h3 className="text-xl font-bold text-purple-900">114</h3>
+                  <p className="text-xs text-purple-600 font-medium uppercase">Active Startups</p>
+                  <h3 className="text-xl font-bold text-purple-900">{adminStartups.length}</h3>
                 </div>
                 <Users className="w-8 h-8 text-purple-300" />
               </CardContent>
@@ -118,49 +129,136 @@ export function AdminPortfolio() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-orange-600 font-medium uppercase">Avg AIRL</p>
-                  <h3 className="text-xl font-bold text-orange-900">4.2</h3>
+                  <h3 className="text-xl font-bold text-orange-900">
+                    {(adminStartups.reduce((acc, s) => acc + s.projects[0].currentAIRL, 0) / adminStartups.length).toFixed(1)}
+                  </h3>
                 </div>
                 <Award className="w-8 h-8 text-orange-300" />
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardContent className="p-0">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Startup Name</th>
-                    <th className="px-6 py-4 font-medium">Sector</th>
-                    <th className="px-6 py-4 font-medium">Valuation</th>
-                    <th className="px-6 py-4 font-medium">Revenue (ARR)</th>
-                    <th className="px-6 py-4 font-medium">Jobs</th>
-                    <th className="px-6 py-4 font-medium">Current AIRL</th>
-                    <th className="px-6 py-4 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {activeCohort.map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">{s.name}</td>
-                      <td className="px-6 py-4">
-                        <Badge variant="neutral">{s.sector}</Badge>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-gray-700">{s.valuation}</td>
-                      <td className="px-6 py-4 text-green-600 font-medium">{s.revenue}</td>
-                      <td className="px-6 py-4 text-gray-600">{s.jobs}</td>
-                      <td className="px-6 py-4">
-                        <Badge variant="info">AIRL {s.airl}</Badge>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button size="sm" variant="ghost">Details</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+          {/* 2. Controls & Filter Bar */}
+          <div className="flex gap-2">
+             {['All', 'Green', 'Yellow', 'Red'].map(status => (
+               <button
+                 key={status}
+                 onClick={() => setFilterStatus(status)}
+                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                   filterStatus === status 
+                     ? 'bg-blue-600 text-white shadow-md' 
+                     : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                 }`}
+               >
+                 {status}
+               </button>
+             ))}
+          </div>
+
+          {/* 3. Portfolio Grid (Detailed Cards) */}
+          <div className="grid grid-cols-1 gap-6">
+            {filteredStartups.map((startup) => {
+              const project = startup.projects[0];
+              const percentUtilized = (startup.fundsUtilized / startup.fundsAllocated) * 100;
+              
+              return (
+                <Card key={startup.id} className="hover:shadow-md transition-shadow border-l-4" style={{
+                  borderLeftColor: project.status === 'Green' ? '#10b981' : project.status === 'Yellow' ? '#f59e0b' : '#ef4444'
+                }}>
+                  <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row gap-6">
+                      
+                      {/* A. Identity & Core Info */}
+                      <div className="flex-1 min-w-[250px]">
+                        <div className="flex items-center gap-3 mb-2">
+                          <img src={startup.logo} alt={startup.name} className="w-12 h-12 rounded-lg shadow-sm" />
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">{startup.name}</h3>
+                            <div className="flex gap-2 text-xs text-gray-500">
+                              <span>{startup.location}</span>
+                              <span>•</span>
+                              <span>Est. {startup.foundedYear}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{startup.description}</p>
+                        <div className="flex gap-2">
+                          <Badge variant="neutral">{project.domain}</Badge>
+                          {startup.fundingRequest && (
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                              Funds Requested
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* B. Financial Health Stats */}
+                      <div className="flex-1 min-w-[200px] border-l border-gray-100 lg:pl-6 lg:border-l lg:border-gray-100">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Financials (INR Cr)</h4>
+                        <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+                          <div>
+                            <p className="text-xs text-gray-500">Allocated</p>
+                            <p className="text-lg font-bold text-gray-900">₹{startup.fundsAllocated.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Utilized</p>
+                            <p className={`text-lg font-bold ${percentUtilized > 90 ? 'text-red-600' : 'text-gray-900'}`}>
+                              ₹{startup.fundsUtilized.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Burn Rate</p>
+                            <p className="text-sm font-semibold text-gray-700">₹{startup.burnRateMonthly} L/mo</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Runway</p>
+                            <p className={`text-sm font-bold ${startup.runwayMonths < 4 ? 'text-red-600' : 'text-green-600'}`}>
+                              {startup.runwayMonths} Months
+                            </p>
+                          </div>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3">
+                          <div 
+                            className={`h-1.5 rounded-full ${percentUtilized > 90 ? 'bg-red-500' : 'bg-blue-500'}`} 
+                            style={{ width: `${Math.min(percentUtilized, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* C. Project & Review Status */}
+                      <div className="flex-1 min-w-[250px] bg-gray-50 rounded-lg p-4 border border-gray-100">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">{project.name}</h4>
+                            <p className="text-xs text-gray-500">Primary Project</p>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-2xl font-bold text-blue-600">L{project.currentAIRL}</span>
+                            <span className="text-[10px] text-gray-400">AIRL Level</span>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2 text-xs text-gray-600 italic bg-white p-2 rounded border border-gray-100">
+                          "{startup.reviewerComment}"
+                        </div>
+                        
+                        <div className="mt-3 flex justify-between items-center">
+                          <span className="text-[10px] text-gray-400 flex items-center">
+                            <Clock className="w-3 h-3 mr-1" /> Reviewed: {startup.lastReviewDate}
+                          </span>
+                          <a href="#" className="text-xs text-blue-600 font-medium hover:underline flex items-center">
+                            Full Report <ExternalLink className="w-3 h-3 ml-1" />
+                          </a>
+                        </div>
+                      </div>
+
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
 

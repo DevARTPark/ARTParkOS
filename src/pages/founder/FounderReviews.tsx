@@ -47,6 +47,8 @@ export const NRE_CATEGORIES = [
   "Office Setup",
 ];
 
+export const FUNDING_SOURCES = ["DST", "GoK"];
+
 export const PROJECT_COLORS = [
   "#4f46e5",
   "#f97316",
@@ -56,11 +58,20 @@ export const PROJECT_COLORS = [
   "#f43f5e",
 ];
 
+// Mock Budget Limits
+const MOCK_BUDGET_LIMITS = {
+  DST: 3000, // Lakhs
+  GoK: 500,   // Lakhs
+};
+
 // --- LOCAL TYPES ---
 export interface Expense extends BaseExpense {
+  id: string;
   type: "RE" | "NRE";
   category?: string;
+  fundingSource: "DST" | "GoK";
   periodicity?: "Monthly" | "Quarterly" | "Yearly";
+  recurringGroupId?: string; // Links expenses across months
 }
 
 export interface StartupUpdate {
@@ -82,6 +93,7 @@ export interface ExpenseInput {
   amount: string;
   type: "RE" | "NRE";
   category: string;
+  fundingSource: "DST" | "GoK";
   periodicity: "Monthly" | "Quarterly" | "Yearly";
 }
 
@@ -98,6 +110,8 @@ const adaptReports = (reports: any[]): ReportDetail[] => {
                 ...e,
                 type: e.type || "NRE",
                 category: e.category || "Others",
+                fundingSource: e.fundingSource || "DST",
+                recurringGroupId: e.recurringGroupId || undefined,
               }))
             : [],
         }))
@@ -110,6 +124,8 @@ const adaptReports = (reports: any[]): ReportDetail[] => {
                 ...e,
                 type: e.type || "NRE",
                 category: e.category || "Others",
+                fundingSource: e.fundingSource || "DST",
+                recurringGroupId: e.recurringGroupId || undefined,
               }))
             : [],
         }
@@ -128,17 +144,57 @@ export function FounderReviews() {
   const [selectedQuarterly, setSelectedQuarterly] = useState<QuarterlyReport | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- STATE FOR PERSISTENCE ---
+  // --- STATE WITH AUTO-GENERATION ---
   const [reports, setReports] = useState<ReportDetail[]>(() => {
+    let loaded: ReportDetail[] = [];
     try {
       const saved = localStorage.getItem("founder_monthly_reports");
-      return saved
-        ? adaptReports(JSON.parse(saved))
-        : adaptReports(initialMonthlyReports);
+      loaded = saved ? adaptReports(JSON.parse(saved)) : adaptReports(initialMonthlyReports);
     } catch (e) {
       console.error("Failed to load reports", e);
-      return adaptReports(initialMonthlyReports);
+      loaded = adaptReports(initialMonthlyReports);
     }
+
+    const now = new Date();
+    const currentMonthStr = now.toLocaleDateString("default", { month: "long", year: "numeric" });
+    
+    const exists = loaded.find(r => r.month === currentMonthStr);
+    
+    if (!exists) {
+      const previousReport = loaded.length > 0 ? loaded[0] : null;
+      
+      const newReport: ReportDetail = {
+        reportId: `auto-${Date.now()}`,
+        month: currentMonthStr,
+        status: "Pending",
+        budget: {
+           utilized: "0",
+           total: previousReport ? previousReport.budget.total : "50L",
+           status: "On Track"
+        },
+        projectUpdates: previousReport 
+          ? previousReport.projectUpdates.map(p => ({
+              ...p,
+              currentAIRL: p.currentAIRL,
+              highlights: "",
+              risks: "",
+              scheduleTasks: [],
+              expenses: [] // Do we copy recurring expenses here? 
+              // NOTE: If we want strict recursion from previous month even on auto-gen, we'd copy here.
+              // For now, relying on "Add Expense" propagation logic.
+            }))
+          : [],
+        startupUpdates: {
+          highlights: "",
+          risks: "",
+          scheduleTasks: [],
+          expenses: []
+        },
+        artparkRemarks: ""
+      };
+      return [newReport, ...loaded];
+    }
+    return loaded;
   });
 
   const [qReports, setQReports] = useState<QuarterlyReport[]>(() => {
@@ -169,7 +225,6 @@ export function FounderReviews() {
   
   const [newPointInput, setNewPointInput] = useState<Record<string, string>>({}); 
 
-  // Startup Level Inputs
   const [newStartupTaskInput, setNewStartupTaskInput] = useState<{
     title: string;
     date: string;
@@ -181,6 +236,7 @@ export function FounderReviews() {
       amount: "",
       type: "NRE",
       category: "Others",
+      fundingSource: "DST",
       periodicity: "Monthly",
   });
   
@@ -264,6 +320,7 @@ export function FounderReviews() {
       amount: "",
       type: "NRE",
       category: "Others",
+      fundingSource: "DST",
       periodicity: "Monthly",
     });
     setNewStartupPointInput({ highlights: "", risks: "" });
@@ -293,242 +350,103 @@ export function FounderReviews() {
     handleSaveReport();
   };
 
-  // --- POINTERS HANDLERS ---
-  const getPoints = (text: string) => {
-    if (!text) return [];
-    return text.split("\n").filter((line) => line.trim() !== "");
-  };
-
+  // --- CONTENT HANDLERS ---
+  const getPoints = (text: string) => { if (!text) return []; return text.split("\n").filter((line) => line.trim() !== ""); };
+  
   const handleAddPoint = (projectId: string, field: "highlights" | "risks") => {
-    const key = `${projectId}_${field}`;
-    const textToAdd = newPointInput[key]?.trim();
-    if (!textToAdd || !selectedReport) return;
-
-    const project = selectedReport.projectUpdates.find(
-      (p) => p.projectId === projectId
-    );
-    if (!project) return;
-
-    const currentText = project[field] || "";
-    const newText = currentText ? `${currentText}\n${textToAdd}` : textToAdd;
-
-    updateProjectField(projectId, field, newText);
-    setNewPointInput({ ...newPointInput, [key]: "" });
+    const key = `${projectId}_${field}`; const textToAdd = newPointInput[key]?.trim(); if (!textToAdd || !selectedReport) return;
+    const project = selectedReport.projectUpdates.find((p) => p.projectId === projectId); if (!project) return;
+    const currentText = project[field] || ""; const newText = currentText ? `${currentText}\n${textToAdd}` : textToAdd;
+    updateProjectField(projectId, field, newText); setNewPointInput({ ...newPointInput, [key]: "" });
   };
-
-  const handleRemovePoint = (
-    projectId: string,
-    field: "highlights" | "risks",
-    indexToRemove: number
-  ) => {
-    if (!selectedReport) return;
-    const project = selectedReport.projectUpdates.find(
-      (p) => p.projectId === projectId
-    );
-    if (!project) return;
-
-    const currentPoints = getPoints(project[field]);
-    const newPoints = currentPoints.filter((_, idx) => idx !== indexToRemove);
+  
+  const handleRemovePoint = (projectId: string, field: "highlights" | "risks", indexToRemove: number) => {
+    if (!selectedReport) return; const project = selectedReport.projectUpdates.find((p) => p.projectId === projectId); if (!project) return;
+    const currentPoints = getPoints(project[field]); const newPoints = currentPoints.filter((_, idx) => idx !== indexToRemove);
     updateProjectField(projectId, field, newPoints.join("\n"));
   };
-
-  const updateProjectField = (
-    projectId: string,
-    field: "highlights" | "risks",
-    val: string
-  ) => {
-    if (!selectedReport) return;
-    const updated = selectedReport.projectUpdates.map((p) =>
-      p.projectId === projectId ? { ...p, [field]: val } : p
-    );
+  
+  const updateProjectField = (projectId: string, field: "highlights" | "risks", val: string) => {
+    if (!selectedReport) return; const updated = selectedReport.projectUpdates.map((p) => p.projectId === projectId ? { ...p, [field]: val } : p);
     setSelectedReport({ ...selectedReport, projectUpdates: updated });
   };
 
+  // --- STARTUP POINTS HANDLERS ---
+  const handleStartupPointInputChange = (field: "highlights" | "risks", val: string) => {
+    setNewStartupPointInput(prev => ({ ...prev, [field]: val }));
+  };
+
   const handleAddStartupPoint = (field: "highlights" | "risks") => {
-    const textToAdd = newStartupPointInput[field]?.trim();
+    const textToAdd = newStartupPointInput[field]?.trim(); 
     if (!textToAdd || !selectedReport) return;
-
-    const currentText = selectedReport.startupUpdates[field] || "";
+    
+    const currentText = selectedReport.startupUpdates[field] || ""; 
     const newText = currentText ? `${currentText}\n${textToAdd}` : textToAdd;
-
-    const updatedReport = {
-      ...selectedReport,
-      startupUpdates: {
-        ...selectedReport.startupUpdates,
-        [field]: newText,
-      },
-    };
-    setSelectedReport(updatedReport);
-    setNewStartupPointInput({ ...newStartupPointInput, [field]: "" });
+    
+    const updatedReport = { ...selectedReport, startupUpdates: { ...selectedReport.startupUpdates, [field]: newText } };
+    setSelectedReport(updatedReport); 
+    setNewStartupPointInput(prev => ({ ...prev, [field]: "" }));
   };
-
-  const handleRemoveStartupPoint = (
-    field: "highlights" | "risks",
-    indexToRemove: number
-  ) => {
-    if (!selectedReport) return;
-    const currentPoints = getPoints(selectedReport.startupUpdates[field]);
+  
+  const handleRemoveStartupPoint = (field: "highlights" | "risks", indexToRemove: number) => {
+    if (!selectedReport) return; const currentPoints = getPoints(selectedReport.startupUpdates[field]);
     const newPoints = currentPoints.filter((_, idx) => idx !== indexToRemove);
-
-    const updatedReport = {
-      ...selectedReport,
-      startupUpdates: {
-        ...selectedReport.startupUpdates,
-        [field]: newPoints.join("\n"),
-      },
-    };
+    const updatedReport = { ...selectedReport, startupUpdates: { ...selectedReport.startupUpdates, [field]: newPoints.join("\n") } };
     setSelectedReport(updatedReport);
   };
 
-  // --- QUARTERLY HANDLERS ---
-  const handleQuarterlyOverallUpdate = (
-    field: "highlights" | "risks" | "strategy",
-    val: string
-  ) => {
-    if (!selectedQuarterly) return;
-    setSelectedQuarterly({
-      ...selectedQuarterly,
-      overallUpdates: { ...selectedQuarterly.overallUpdates, [field]: val },
-    });
+  const handleQuarterlyOverallUpdate = (field: "highlights" | "risks" | "strategy", val: string) => {
+    if (!selectedQuarterly) return; setSelectedQuarterly({ ...selectedQuarterly, overallUpdates: { ...selectedQuarterly.overallUpdates, [field]: val } });
   };
-
   const handleTogglePromise = (promiseId: string) => {
     if (!selectedQuarterly || selectedQuarterly.status === "Reviewed") return;
-    const updatedGoals = selectedQuarterly.committedGoals.map((g) => {
-      if (g.id !== promiseId) return g;
-      if (g.status === "Pending") return { ...g, status: "Met" as const };
-      if (g.status === "Met") return { ...g, status: "Missed" as const };
-      return { ...g, status: "Pending" as const };
-    });
-    setSelectedQuarterly({
-      ...selectedQuarterly,
-      committedGoals: updatedGoals,
-    });
+    const updatedGoals = selectedQuarterly.committedGoals.map((g) => { if (g.id !== promiseId) return g; if (g.status === "Pending") return { ...g, status: "Met" as const }; if (g.status === "Met") return { ...g, status: "Missed" as const }; return { ...g, status: "Pending" as const }; });
+    setSelectedQuarterly({ ...selectedQuarterly, committedGoals: updatedGoals });
   };
-
   const handleAddCheckpoint = () => {
     if (!selectedQuarterly || !newCheckpoint.trim()) return;
-    const newItem: PromiseItem = {
-      id: `np-${Date.now()}`,
-      text: newCheckpoint,
-      status: "Pending",
-    };
-    setSelectedQuarterly({
-      ...selectedQuarterly,
-      overallUpdates: {
-        ...selectedQuarterly.overallUpdates,
-        nextQuarterCheckpoints: [
-          ...selectedQuarterly.overallUpdates.nextQuarterCheckpoints,
-          newItem,
-        ],
-      },
-    });
+    const newItem: PromiseItem = { id: `np-${Date.now()}`, text: newCheckpoint, status: "Pending" };
+    setSelectedQuarterly({ ...selectedQuarterly, overallUpdates: { ...selectedQuarterly.overallUpdates, nextQuarterCheckpoints: [ ...selectedQuarterly.overallUpdates.nextQuarterCheckpoints, newItem ] } });
     setNewCheckpoint("");
   };
-
   const handleRemoveCheckpoint = (id: string) => {
     if (!selectedQuarterly) return;
-    setSelectedQuarterly({
-      ...selectedQuarterly,
-      overallUpdates: {
-        ...selectedQuarterly.overallUpdates,
-        nextQuarterCheckpoints:
-          selectedQuarterly.overallUpdates.nextQuarterCheckpoints.filter(
-            (i) => i.id !== id
-          ),
-      },
-    });
+    setSelectedQuarterly({ ...selectedQuarterly, overallUpdates: { ...selectedQuarterly.overallUpdates, nextQuarterCheckpoints: selectedQuarterly.overallUpdates.nextQuarterCheckpoints.filter((i) => i.id !== id) } });
   };
-
-  // --- MONTHLY TASK HANDLERS ---
   const handleAddTask = (projectId: string) => {
-    const input = newTaskInput[projectId];
-    if (!input || !input.title || !input.date || !selectedReport) return;
-    const newTask: Task = {
-      id: `t-${Date.now()}`,
-      title: input.title,
-      deadline: input.date,
-      description: input.description,
-      status: "Pending",
-    };
-    const updatedProjects = selectedReport.projectUpdates.map((p) =>
-      p.projectId === projectId
-        ? { ...p, scheduleTasks: [...p.scheduleTasks, newTask] }
-        : p
-    );
+    const input = newTaskInput[projectId]; if (!input || !input.title || !input.date || !selectedReport) return;
+    const newTask: Task = { id: `t-${Date.now()}`, title: input.title, deadline: input.date, description: input.description, status: "Pending" };
+    const updatedProjects = selectedReport.projectUpdates.map((p) => p.projectId === projectId ? { ...p, scheduleTasks: [...p.scheduleTasks, newTask] } : p);
     setSelectedReport({ ...selectedReport, projectUpdates: updatedProjects });
-    setNewTaskInput({
-      ...newTaskInput,
-      [projectId]: { title: "", date: "", description: "" },
-    });
+    setNewTaskInput({ ...newTaskInput, [projectId]: { title: "", date: "", description: "" } });
   };
-
   const handleRemoveTask = (projectId: string, taskId: string) => {
     if (!selectedReport) return;
-    const updatedProjects = selectedReport.projectUpdates.map((p) =>
-      p.projectId === projectId
-        ? {
-            ...p,
-            scheduleTasks: p.scheduleTasks.filter((t) => t.id !== taskId),
-          }
-        : p
-    );
+    const updatedProjects = selectedReport.projectUpdates.map((p) => p.projectId === projectId ? { ...p, scheduleTasks: p.scheduleTasks.filter((t) => t.id !== taskId) } : p);
     setSelectedReport({ ...selectedReport, projectUpdates: updatedProjects });
   };
-
-  const handleTaskInputChange = (
-    projectId: string,
-    field: "title" | "date" | "description",
-    val: string
-  ) => {
-    setNewTaskInput({
-      ...newTaskInput,
-      [projectId]: {
-        ...newTaskInput[projectId],
-        [field]: val,
-      },
-    });
+  const handleTaskInputChange = (projectId: string, field: "title" | "date" | "description", val: string) => {
+    setNewTaskInput({ ...newTaskInput, [projectId]: { ...newTaskInput[projectId], [field]: val } });
+  };
+  
+  // Startup Tasks Input Handlers
+  const handleStartupTaskInputChange = (field: "title" | "date" | "description", val: string) => {
+    setNewStartupTaskInput(prev => ({...prev, [field]: val}));
   };
 
   const handleAddStartupTask = () => {
-    const input = newStartupTaskInput;
-    if (!input.title || !input.date || !selectedReport) return;
-    const newTask: Task = {
-      id: `st-${Date.now()}`,
-      title: input.title,
-      deadline: input.date,
-      description: input.description,
-      status: "Pending",
-    };
-    const updatedReport = {
-      ...selectedReport,
-      startupUpdates: {
-        ...selectedReport.startupUpdates,
-        scheduleTasks: [
-          ...selectedReport.startupUpdates.scheduleTasks,
-          newTask,
-        ],
-      },
-    };
-    setSelectedReport(updatedReport);
-    setNewStartupTaskInput({ title: "", date: "", description: "" });
+    const input = newStartupTaskInput; if (!input.title || !input.date || !selectedReport) return;
+    const newTask: Task = { id: `st-${Date.now()}`, title: input.title, deadline: input.date, description: input.description, status: "Pending" };
+    const updatedReport = { ...selectedReport, startupUpdates: { ...selectedReport.startupUpdates, scheduleTasks: [ ...selectedReport.startupUpdates.scheduleTasks, newTask ] } };
+    setSelectedReport(updatedReport); setNewStartupTaskInput({ title: "", date: "", description: "" });
   };
-
   const handleRemoveStartupTask = (taskId: string) => {
     if (!selectedReport) return;
-    const updatedReport = {
-      ...selectedReport,
-      startupUpdates: {
-        ...selectedReport.startupUpdates,
-        scheduleTasks: selectedReport.startupUpdates.scheduleTasks.filter(
-          (t) => t.id !== taskId
-        ),
-      },
-    };
+    const updatedReport = { ...selectedReport, startupUpdates: { ...selectedReport.startupUpdates, scheduleTasks: selectedReport.startupUpdates.scheduleTasks.filter((t) => t.id !== taskId) } };
     setSelectedReport(updatedReport);
   };
 
-  // --- EXPENSE LOGIC ---
+  // --- EXPENSE LOGIC (ADD / EDIT / REMOVE PROPAGATION) ---
   const genId = () => `e-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const addExpenseWithPropagation = (
@@ -541,7 +459,11 @@ export function FounderReviews() {
 
     const type = input.type || "NRE";
     const category = input.category || "Others";
+    const source = input.fundingSource || "DST";
     const periodicity = input.periodicity || "Monthly";
+    
+    // Generate a group ID if recurring, to link future instances
+    const recurringGroupId = type === "RE" ? `rg-${Date.now()}` : undefined;
 
     const newExpense: Expense = {
       id: genId(),
@@ -550,7 +472,9 @@ export function FounderReviews() {
       date: new Date().toISOString().split("T")[0],
       type: type,
       category: category,
+      fundingSource: source,
       periodicity: type === "RE" ? periodicity : undefined,
+      recurringGroupId: recurringGroupId,
     };
 
     const selectedReportLocal = reports.find((r) => r.reportId === reportId);
@@ -559,7 +483,9 @@ export function FounderReviews() {
     const currentAbsMonth = getAbsMonth(selectedReportLocal.month);
 
     const updatedReports = reports.map((report) => {
-      // A. Update Current Report
+      const reportAbsMonth = getAbsMonth(report.month);
+
+      // 1. ADD TO CURRENT REPORT
       if (report.reportId === reportId) {
         if (projectId) {
           return {
@@ -581,51 +507,39 @@ export function FounderReviews() {
         }
       }
 
-      // B. Future Propagation
-      if (type === "RE") {
-        const targetAbsMonth = getAbsMonth(report.month);
-        if (targetAbsMonth > currentAbsMonth) {
-          const diff = targetAbsMonth - currentAbsMonth;
-          let shouldAdd = false;
-          if (periodicity === "Monthly") shouldAdd = true;
-          else if (periodicity === "Quarterly" && diff % 3 === 0)
-            shouldAdd = true;
-          else if (periodicity === "Yearly" && diff % 12 === 0)
-            shouldAdd = true;
+      // 2. PROPAGATE TO FUTURE REPORTS (If RE)
+      if (type === "RE" && reportAbsMonth > currentAbsMonth) {
+        const diff = reportAbsMonth - currentAbsMonth;
+        let shouldAdd = false;
+        if (periodicity === "Monthly") shouldAdd = true;
+        else if (periodicity === "Quarterly" && diff % 3 === 0) shouldAdd = true;
+        else if (periodicity === "Yearly" && diff % 12 === 0) shouldAdd = true;
 
-          if (shouldAdd) {
-            const propagatedExpense = {
-              ...newExpense,
-              id: genId(),
-              date: getStartDateForMonth(report.month)
-                .toISOString()
-                .split("T")[0],
+        if (shouldAdd) {
+          const propagatedExpense = {
+            ...newExpense,
+            id: genId(), // New Unique ID
+            date: getStartDateForMonth(report.month).toISOString().split("T")[0],
+            // Keep the same recurringGroupId to link them
+          };
+
+          if (projectId) {
+            return {
+              ...report,
+              projectUpdates: report.projectUpdates.map((p) =>
+                p.projectId === projectId
+                  ? { ...p, expenses: [...(p.expenses || []), propagatedExpense] }
+                  : p
+              ),
             };
-
-            if (projectId) {
-              return {
-                ...report,
-                projectUpdates: report.projectUpdates.map((p) =>
-                  p.projectId === projectId
-                    ? {
-                        ...p,
-                        expenses: [...(p.expenses || []), propagatedExpense],
-                      }
-                    : p
-                ),
-              };
-            } else {
-              return {
-                ...report,
-                startupUpdates: {
-                  ...report.startupUpdates,
-                  expenses: [
-                    ...report.startupUpdates.expenses,
-                    propagatedExpense,
-                  ],
-                },
-              };
-            }
+          } else {
+            return {
+              ...report,
+              startupUpdates: {
+                ...report.startupUpdates,
+                expenses: [...report.startupUpdates.expenses, propagatedExpense],
+              },
+            };
           }
         }
       }
@@ -633,75 +547,146 @@ export function FounderReviews() {
     });
 
     setReports(updatedReports);
+    // Update currently selected view
     const updatedSelected = updatedReports.find((r) => r.reportId === reportId);
     if (updatedSelected) setSelectedReport(updatedSelected);
   };
 
-  const handleAddProjectExpense = (projectId: string) => {
-    if (!selectedReport) return;
-    const input = newExpenseInput[projectId];
-    if (!input || !input.item || !input.amount) return;
+  const handleEditExpense = (
+    reportId: string,
+    projectId: string | null,
+    expenseId: string,
+    newValues: Partial<Expense>
+  ) => {
+    // 1. Find the original expense to check for recurringGroupId
+    const selectedReportLocal = reports.find(r => r.reportId === reportId);
+    if (!selectedReportLocal) return;
 
-    addExpenseWithPropagation(selectedReport.reportId, projectId, input);
-    setNewExpenseInput({
-      ...newExpenseInput,
-      [projectId]: {
-        item: "",
-        amount: "",
-        type: "NRE",
-        category: "Others",
-        periodicity: "Monthly",
-      },
+    let originalExpense: Expense | undefined;
+    if (projectId) {
+      const proj = selectedReportLocal.projectUpdates.find(p => p.projectId === projectId);
+      originalExpense = proj?.expenses.find(e => e.id === expenseId);
+    } else {
+      originalExpense = selectedReportLocal.startupUpdates.expenses.find(e => e.id === expenseId);
+    }
+
+    if (!originalExpense) return;
+
+    const currentAbsMonth = getAbsMonth(selectedReportLocal.month);
+    const recurringGroupId = originalExpense.recurringGroupId;
+
+    const updatedReports = reports.map(report => {
+      const reportAbsMonth = getAbsMonth(report.month);
+
+      // Only affect current and future months
+      if (reportAbsMonth < currentAbsMonth) return report;
+
+      // Check if we need to update this report
+      const shouldUpdate = 
+        (report.reportId === reportId) || // Always update current
+        (recurringGroupId && reportAbsMonth > currentAbsMonth); // Update future if linked
+
+      if (!shouldUpdate) return report;
+
+      // Function to update expense list
+      const updateList = (list: Expense[]) => {
+        return list.map(e => {
+          // If it's the specific expense ID (current month) 
+          // OR it shares the recurringGroupId (future month propagation)
+          if (e.id === expenseId || (recurringGroupId && e.recurringGroupId === recurringGroupId)) {
+             return { ...e, ...newValues };
+          }
+          return e;
+        });
+      };
+
+      if (projectId) {
+        return {
+          ...report,
+          projectUpdates: report.projectUpdates.map(p => 
+            p.projectId === projectId ? { ...p, expenses: updateList(p.expenses) } : p
+          )
+        };
+      } else {
+        return {
+          ...report,
+          startupUpdates: {
+            ...report.startupUpdates,
+            expenses: updateList(report.startupUpdates.expenses)
+          }
+        };
+      }
     });
-  };
 
-  const handleAddStartupExpense = () => {
-    if (!selectedReport) return;
-    const input = newStartupExpenseInput;
-    if (!input.item || !input.amount) return;
-
-    addExpenseWithPropagation(selectedReport.reportId, null, input);
-    setNewStartupExpenseInput({
-      item: "",
-      amount: "",
-      type: "NRE",
-      category: "Others",
-      periodicity: "Monthly",
-    });
+    setReports(updatedReports);
+    const updatedSelected = updatedReports.find((r) => r.reportId === reportId);
+    if (updatedSelected) setSelectedReport(updatedSelected);
   };
 
   const handleRemoveExpense = (projectId: string | null, expenseId: string) => {
     if (!selectedReport) return;
 
+    // 1. Find the expense to check recurringGroupId
+    let expenseToDelete: Expense | undefined;
+    if (projectId) {
+      const p = selectedReport.projectUpdates.find(p => p.projectId === projectId);
+      expenseToDelete = p?.expenses.find(e => e.id === expenseId);
+    } else {
+      expenseToDelete = selectedReport.startupUpdates.expenses.find(e => e.id === expenseId);
+    }
+
+    const recurringGroupId = expenseToDelete?.recurringGroupId;
+    const currentAbsMonth = getAbsMonth(selectedReport.month);
+
     const updatedReports = reports.map((r) => {
-      if (r.reportId === selectedReport.reportId) {
-        if (projectId) {
-          return {
-            ...r,
-            projectUpdates: r.projectUpdates.map((p) =>
-              p.projectId === projectId
-                ? {
-                    ...p,
-                    expenses: (p.expenses || []).filter(
-                      (e) => e.id !== expenseId
-                    ),
-                  }
-                : p
+      const reportAbsMonth = getAbsMonth(r.month);
+      
+      // If this report is older than the current one, do nothing
+      if (reportAbsMonth < currentAbsMonth) return r;
+
+      // Determine if we should delete from this report
+      // 1. It's the current report
+      // 2. It's a future report AND the expense has the same recurringGroupId
+      const shouldProcess = (r.reportId === selectedReport.reportId) || (reportAbsMonth > currentAbsMonth);
+
+      if (!shouldProcess) return r;
+
+      if (projectId) {
+        return {
+          ...r,
+          projectUpdates: r.projectUpdates.map((p) =>
+            p.projectId === projectId
+              ? {
+                  ...p,
+                  expenses: (p.expenses || []).filter(
+                    (e) => {
+                      // Logic: 
+                      // If exact ID match, delete.
+                      // If recurringGroupId matches, delete.
+                      if (e.id === expenseId) return false;
+                      if (recurringGroupId && e.recurringGroupId === recurringGroupId) return false;
+                      return true;
+                    }
+                  ),
+                }
+              : p
+          ),
+        };
+      } else {
+        return {
+          ...r,
+          startupUpdates: {
+            ...r.startupUpdates,
+            expenses: r.startupUpdates.expenses.filter(
+              (e) => {
+                if (e.id === expenseId) return false;
+                if (recurringGroupId && e.recurringGroupId === recurringGroupId) return false;
+                return true;
+              }
             ),
-          };
-        } else {
-          return {
-            ...r,
-            startupUpdates: {
-              ...r.startupUpdates,
-              expenses: r.startupUpdates.expenses.filter(
-                (e) => e.id !== expenseId
-              ),
-            },
-          };
-        }
+          },
+        };
       }
-      return r;
     });
 
     setReports(updatedReports);
@@ -711,35 +696,49 @@ export function FounderReviews() {
     if (updatedSelected) setSelectedReport(updatedSelected);
   };
 
+  const handleAddProjectExpense = (projectId: string) => {
+    const input = newExpenseInput[projectId];
+    if (input?.item && input?.amount) {
+      addExpenseWithPropagation(selectedReport!.reportId, projectId, input);
+      setNewExpenseInput({
+        ...newExpenseInput,
+        [projectId]: {
+          item: "",
+          amount: "",
+          type: "NRE",
+          category: "Others",
+          fundingSource: "DST",
+          periodicity: "Monthly",
+        },
+      });
+    }
+  };
+
+  const handleAddStartupExpense = () => {
+    if (newStartupExpenseInput.item && newStartupExpenseInput.amount) {
+      addExpenseWithPropagation(selectedReport!.reportId, null, newStartupExpenseInput);
+      setNewStartupExpenseInput({
+        item: "",
+        amount: "",
+        type: "NRE",
+        category: "Others",
+        fundingSource: "DST",
+        periodicity: "Monthly",
+      });
+    }
+  };
+
   const handleExpenseInputChange = (
     projectId: string,
     field: keyof ExpenseInput,
     val: string
   ) => {
-    if (field === "type") {
-      const newType = val as "RE" | "NRE";
-      const defaultCat = "Others";
-      setNewExpenseInput({
-        ...newExpenseInput,
-        [projectId]: {
-          ...newExpenseInput[projectId],
-          type: newType,
-          category: defaultCat,
-          periodicity: newExpenseInput[projectId]?.periodicity || "Monthly",
-        },
-      });
-      return;
-    }
-
+    const currentInput = newExpenseInput[projectId] || {
+        item: "", amount: "", type: "NRE", category: "Others", fundingSource: "DST", periodicity: "Monthly"
+    };
     setNewExpenseInput({
       ...newExpenseInput,
-      [projectId]: {
-        ...newExpenseInput[projectId],
-        type: newExpenseInput[projectId]?.type || "NRE",
-        category: newExpenseInput[projectId]?.category || "Others",
-        periodicity: newExpenseInput[projectId]?.periodicity || "Monthly",
-        [field]: val,
-      },
+      [projectId]: { ...currentInput, [field]: val },
     });
   };
 
@@ -747,106 +746,58 @@ export function FounderReviews() {
     field: keyof ExpenseInput,
     val: string
   ) => {
-    if (field === "type") {
-      const newType = val as "RE" | "NRE";
-      setNewStartupExpenseInput({
-        ...newStartupExpenseInput,
-        type: newType,
-        category: "Others",
-      });
-      return;
-    }
     setNewStartupExpenseInput({ ...newStartupExpenseInput, [field]: val });
   };
 
   // --- HELPER: getExpenseTotal ---
   const getExpenseTotal = (expenses: Expense[]) => {
     return (expenses || []).reduce((sum, item) => {
-      let val =
-        typeof item.amount === "string" ? parseFloat(item.amount) : item.amount;
+      let val = typeof item.amount === "string" ? parseFloat(item.amount) : item.amount;
       if (isNaN(val)) val = 0;
       return sum + val;
     }, 0);
   };
 
-  // --- BUDGET SHEET DATA (MEMOIZED) ---
+  // --- BUDGET SHEET DATA AGGREGATION ---
   const budgetSheetData = useMemo(() => {
     if (!reports) return [];
 
     const data = reports.map((report) => {
-      let totalRE = 0;
-      let totalNRE = 0;
-      const breakdowns: { name: string; total: number }[] = [];
+      let dstRE = 0, dstNRE = 0, gokRE = 0, gokNRE = 0;
 
-      // 1. Calculate Project Expenses
-      report.projectUpdates.forEach((p) => {
-        let pTotal = 0;
-        (p.expenses || []).forEach((e: any) => {
-          let val = parseFloat(e.amount);
-          if (isNaN(val)) val = 0;
-          if (e.type === "RE") totalRE += val;
-          else totalNRE += val;
-          pTotal += val;
-        });
-        breakdowns.push({ name: p.projectName, total: pTotal });
-      });
-
-      // 2. Calculate Startup Expenses
-      let startupTotal = 0;
-      (report.startupUpdates?.expenses || []).forEach((e: any) => {
-        let val = parseFloat(e.amount);
+      const processExpense = (e: Expense) => {
+        let val = parseFloat(e.amount as any);
         if (isNaN(val)) val = 0;
-        if (e.type === "RE") totalRE += val;
-        else totalNRE += val;
-        startupTotal += val;
+        
+        if (e.fundingSource === "GoK") {
+            if (e.type === "RE") gokRE += val;
+            else gokNRE += val;
+        } else {
+            if (e.type === "RE") dstRE += val;
+            else dstNRE += val;
+        }
+      };
+
+      report.projectUpdates.forEach((p) => {
+        (p.expenses || []).forEach(processExpense);
       });
-      if (startupTotal > 0 || report.startupUpdates?.expenses?.length > 0) {
-        breakdowns.unshift({ name: "Startup Level", total: startupTotal });
-      }
+      (report.startupUpdates?.expenses || []).forEach(processExpense);
 
       return {
         month: report.month,
         status: report.status,
-        totalRE,
-        totalNRE,
-        total: totalRE + totalNRE,
-        breakdown: breakdowns,
+        dstRE, dstNRE, gokRE, gokNRE,
+        totalDST: dstRE + dstNRE,
+        totalGoK: gokRE + gokNRE,
+        total: dstRE + dstNRE + gokRE + gokNRE,
       };
     });
 
     return data;
   }, [reports]);
 
-  // --- PROJECT WISE EXPENSE DATA ---
-  const projectWiseExpenseData = useMemo(() => {
-    if (!reports) return [];
-    const totals: Record<string, number> = {};
-
-    reports.forEach((report) => {
-      if (report.startupUpdates?.expenses) {
-        const sum = getExpenseTotal(report.startupUpdates.expenses);
-        totals["Startup Level"] = (totals["Startup Level"] || 0) + sum;
-      }
-      if (report.projectUpdates) {
-        report.projectUpdates.forEach((p) => {
-          const sum = getExpenseTotal(p.expenses);
-          totals[p.projectName] = (totals[p.projectName] || 0) + sum;
-        });
-      }
-    });
-
-    return Object.entries(totals)
-      .map(([name, value]) => ({ name, value }))
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
-  }, [reports]);
-
   return (
     <DashboardLayout role="founder" title="Performance Reviews & Reports">
-      {/* LOGIC: 
-        If no report is selected (Detail View is inactive), show the Tabs.
-        If a report is selected, the specific Sub-Component (MonthlyReports) will handle the Detail View rendering.
-      */}
       {!selectedReport && !selectedQuarterly && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -874,8 +825,7 @@ export function FounderReviews() {
         </>
       )}
 
-      {/* --- PAGE 1: MONTHLY REPORTS (List & Detail) --- */}
-      {/* Renders if tab is monthly OR if we are in detailed view (selectedReport) */}
+      {/* --- PAGE 1: MONTHLY REPORTS --- */}
       {(activeTab === "monthly" || selectedReport) && !selectedQuarterly && (
         <MonthlyReports
           reports={reports}
@@ -883,12 +833,10 @@ export function FounderReviews() {
           currentQuarterGoals={currentQuarterGoals}
           isSaving={isSaving}
           airlQuestions={airlQuestions}
-          // Handlers
           onSelectReport={handleOpenReport}
           onBack={handleBackToList}
           onSave={handleSaveReport}
           onSubmit={handleSubmitReport}
-          // Input State
           inputs={{
              newTaskInput,
              newExpenseInput,
@@ -897,24 +845,25 @@ export function FounderReviews() {
              newStartupExpenseInput,
              newStartupPointInput
           }}
-          // Action Handlers
           actions={{
              handleAddTask,
              handleRemoveTask,
              handleTaskInputChange,
              handleAddStartupTask,
              handleRemoveStartupTask,
+             handleStartupTaskInputChange,
              handleAddProjectExpense,
              handleAddStartupExpense,
              handleRemoveExpense,
+             handleEditExpense, // New Handler
              handleExpenseInputChange,
              handleStartupExpenseInputChange,
              handleAddPoint,
              handleRemovePoint,
              handleAddStartupPoint,
-             handleRemoveStartupPoint
+             handleRemoveStartupPoint,
+             handleStartupPointInputChange
           }}
-          // Helpers
           helpers={{
              getDeadlineForMonth,
              getStartDateForMonth,
@@ -934,7 +883,6 @@ export function FounderReviews() {
           selectedQuarterly={selectedQuarterly}
           onSelect={handleOpenQuarterly}
           onBack={handleBackToList}
-          // Pass necessary handlers/state for quarterly
           inputs={{ newCheckpoint }}
           setNewCheckpoint={setNewCheckpoint}
           actions={{
@@ -950,7 +898,7 @@ export function FounderReviews() {
       {activeTab === "budget" && !selectedReport && !selectedQuarterly && (
         <BudgetSheet 
           data={budgetSheetData}
-          projectExpenses={projectWiseExpenseData}
+          budgetLimits={MOCK_BUDGET_LIMITS}
         />
       )}
 

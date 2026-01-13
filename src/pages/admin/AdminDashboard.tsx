@@ -1,92 +1,113 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { AIRLDistributionChart } from '../../components/charts/AIRLDistributionChart';
-import { startups } from '../../data/mockData';
 import { 
-  Filter, 
-  Download, 
-  MoreHorizontal, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, 
+  ResponsiveContainer, Tooltip as RechartsTooltip
+} from 'recharts';
+import { 
   TrendingUp, 
   DollarSign, 
-  Activity,
   AlertTriangle,
+  Landmark,
+  Wallet,
+  ArrowRight,
   Zap,
-  PieChart as PieIcon,
+  Activity,
   ArrowUpRight
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-// --- Mock Data for Admin Cockpit ---
-const cockpitData = {
-  valuation: '₹450 Cr',
-  valuationGrowth: '+12%',
-  fundsDeployed: '₹42 Cr',
-  fundsTotal: '₹100 Cr',
-  leverageRatio: '1 : 5.2', // ₹1 grant = ₹5.2 VC money
-};
-
-const domainData = [
-  { name: 'Robotics', value: 45 },
-  { name: 'Healthcare', value: 30 },
-  { name: 'AgriTech', value: 25 },
-];
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
-
-const alerts = [
-  { id: 1, type: 'critical', text: "3 Startups have <2 months runway", action: "Review Financials" },
-  { id: 2, type: 'info', text: "MediDrone filed 'Autonomous Navigation' Patent", action: "View IP" },
-  { id: 3, type: 'warning', text: "Q3 Utilization Certificates pending for 5 startups", action: "Send Reminder" },
-];
-
-const healthMatrix = [
-  // Green (On Track)
-  ...Array(12).fill('green'),
-  // Yellow (At Risk)
-  ...Array(6).fill('yellow'),
-  // Red (Critical)
-  ...Array(3).fill('red'),
-];
+// IMPORT MOCK DATA
+import { adminStartups, financialOverview } from '../../data/adminMockData';
 
 export function AdminDashboard() {
+  // --- STATE FOR DATE PICKERS (Chart 1) ---
+  const [startDate, setStartDate] = useState(new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // --- DYNAMIC CALCULATIONS (Real-time) ---
+  const totalAllocated = adminStartups.reduce((acc, s) => acc + s.fundsAllocated, 0);
+  const totalUtilized = adminStartups.reduce((acc, s) => acc + s.fundsUtilized, 0);
+  const bankBalance = financialOverview.totalReceived - totalAllocated;
+
+  // --- ALERTS IDENTIFICATION ---
+  const criticalStartups = adminStartups.filter(s => s.projects.some(p => p.status === 'Red') || s.runwayMonths < 3);
+  const fundingRequests = adminStartups.filter(s => s.fundingRequest);
+
+  // --- CHART DATA PREPARATION ---
+
+  // Chart 1: Progression Comparison
+  const comparisonData = useMemo(() => {
+    const counts = Array.from({ length: 9 }, (_, i) => ({
+      name: `${i + 1}`,
+      startCount: 0,
+      endCount: 0
+    }));
+    
+    adminStartups.forEach(s => {
+      s.projects.forEach(p => {
+        if (p.previousAIRL >= 1 && p.previousAIRL <= 9) counts[p.previousAIRL - 1].startCount++;
+        if (p.currentAIRL >= 1 && p.currentAIRL <= 9) counts[p.currentAIRL - 1].endCount++;
+      });
+    });
+    return counts;
+  }, [adminStartups]);
+
+  // Chart 2: Current Snapshot
+  const snapshotData = useMemo(() => {
+    return Array.from({ length: 9 }, (_, i) => {
+      const level = i + 1;
+      return {
+        name: `${level}`,
+        count: adminStartups.filter(s => s.projects.some(p => p.currentAIRL === level)).length
+      };
+    });
+  }, [adminStartups]);
+
   return (
     <DashboardLayout role="admin" title="Executive Overview">
       
-      {/* 1. THE COCKPIT: High-Level Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Total Valuation */}
+      {/* 1. THE COCKPIT: High-Level Metrics (Aesthetics matched) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        
+        {/* Total Budget */}
         <Card className="border-l-4 border-l-blue-600 bg-gradient-to-br from-white to-blue-50">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-slate-500 mb-1">Total Portfolio Valuation</p>
-                <h3 className="text-3xl font-bold text-slate-900">{cockpitData.valuation}</h3>
-                <span className="text-xs font-medium text-green-600 flex items-center mt-2">
-                  <TrendingUp className="w-3 h-3 mr-1" /> {cockpitData.valuationGrowth} vs last quarter
-                </span>
+                <p className="text-sm font-medium text-slate-500 mb-1">Total Budget Sanctioned</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-3xl font-bold text-slate-900">₹{financialOverview.totalBudgetSanctioned}</h3>
+                  <span className="text-sm font-medium text-slate-500">Cr</span>
+                </div>
+                <div className="mt-2 flex gap-2 text-[10px]">
+                  <span className="px-1.5 py-0.5 bg-blue-100 rounded text-blue-700 border border-blue-200">DST: 50%</span>
+                  <span className="px-1.5 py-0.5 bg-blue-100 rounded text-blue-700 border border-blue-200">GoK: 50%</span>
+                </div>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
-                <Activity className="w-6 h-6" />
+                <Landmark className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Funds Deployed */}
+        {/* Funds Received */}
         <Card className="border-l-4 border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-slate-500 mb-1">Funds Deployed vs Corpus</p>
-                <div className="flex items-baseline gap-2">
-                  <h3 className="text-3xl font-bold text-slate-900">{cockpitData.fundsDeployed}</h3>
-                  <span className="text-sm text-slate-400">/ {cockpitData.fundsTotal}</span>
+                <p className="text-sm font-medium text-slate-500 mb-1">Funds Received</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-3xl font-bold text-slate-900">₹{financialOverview.totalReceived}</h3>
+                  <span className="text-sm font-medium text-slate-500">Cr</span>
                 </div>
                 <div className="w-full bg-emerald-200 rounded-full h-1.5 mt-3">
-                  <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: '42%' }}></div>
+                  <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: '70%' }}></div>
                 </div>
+                <p className="text-[10px] text-slate-400 mt-1">70% of sanctioned corpus</p>
               </div>
               <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600">
                 <DollarSign className="w-6 h-6" />
@@ -95,57 +116,80 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Leverage Ratio */}
+        {/* Allocated */}
         <Card className="border-l-4 border-l-purple-500 bg-gradient-to-br from-white to-purple-50">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-slate-500 mb-1">External Leverage Ratio</p>
-                <h3 className="text-3xl font-bold text-slate-900">{cockpitData.leverageRatio}</h3>
-                <p className="text-xs text-slate-500 mt-2">
-                  For every ₹1 grant, startups raised <strong>₹5.2</strong> VC funding.
+                <p className="text-sm font-medium text-slate-500 mb-1">Allocated to Startups</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-3xl font-bold text-slate-900">₹{totalAllocated.toFixed(1)}</h3>
+                  <span className="text-sm font-medium text-slate-500">Cr</span>
+                </div>
+                <p className="text-xs text-purple-600 mt-2 font-medium flex items-center">
+                  <Zap className="w-3 h-3 mr-1" /> Across 10 Active Startups
                 </p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
-                <Zap className="w-6 h-6" />
+                <Activity className="w-6 h-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bank Balance */}
+        <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-white to-amber-50">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Available Balance</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-3xl font-bold text-slate-900">₹{bankBalance.toFixed(1)}</h3>
+                  <span className="text-sm font-medium text-slate-500">Cr</span>
+                </div>
+                <p className="text-[10px] text-amber-700 mt-2 font-medium">
+                  Deadline: March 31, 2025
+                </p>
+              </div>
+              <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
+                <Wallet className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 2. Health & Alerts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      {/* 2. ALERTS & ACTION ITEMS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         
-        {/* Health Heatmap */}
-        <Card>
+        {/* Urgent Funding Requests */}
+        <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex justify-between">
-              Cohort Health Matrix
-              <div className="flex gap-2">
-                <span className="flex items-center text-[10px] text-slate-500"><span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span>On Track</span>
-                <span className="flex items-center text-[10px] text-slate-500"><span className="w-2 h-2 rounded-full bg-amber-500 mr-1"></span>Risk</span>
-                <span className="flex items-center text-[10px] text-slate-500"><span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span>Critical</span>
-              </div>
+            <CardTitle className="text-base flex items-center justify-between text-amber-700">
+              <span className="flex items-center"><DollarSign className="w-4 h-4 mr-2" /> Capital Requests</span>
+              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none">{fundingRequests.length}</Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {healthMatrix.map((status, idx) => (
-                <div 
-                  key={idx} 
-                  className={`w-8 h-8 rounded-md transition-all hover:scale-110 cursor-pointer ${
-                    status === 'green' ? 'bg-green-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'
-                  }`}
-                  title={`Startup Status: ${status}`}
-                ></div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-4 text-center">Each block represents one active startup in the portfolio.</p>
+          <CardContent className="pt-2 space-y-3">
+            {fundingRequests.map(s => (
+              <div key={s.id} className="p-3 bg-amber-50 rounded-lg border border-amber-100 hover:bg-amber-100 transition-colors cursor-pointer">
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="font-bold text-sm text-slate-800">{s.name}</h4>
+                  <span className="font-bold text-amber-600 text-sm">{s.fundingRequest?.amount}</span>
+                </div>
+                <p className="text-xs text-slate-500 line-clamp-2">{s.fundingRequest?.reason}</p>
+                <div className="mt-2 flex justify-end">
+                   <span className="text-[10px] font-bold text-amber-700 flex items-center">
+                     Review <ArrowRight className="w-3 h-3 ml-1" />
+                   </span>
+                </div>
+              </div>
+            ))}
+            {fundingRequests.length === 0 && <p className="text-sm text-slate-400 italic p-2">No pending requests.</p>}
           </CardContent>
         </Card>
 
-        {/* Critical Alerts */}
+        {/* Critical Interventions */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center text-red-600">
@@ -154,129 +198,143 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
+              {criticalStartups.map(s => (
+                <div key={s.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      alert.type === 'critical' ? 'bg-red-500' : alert.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
-                    }`}></div>
-                    <span className="text-sm font-medium text-slate-700">{alert.text}</span>
+                    <img src={s.logo} alt="" className="w-8 h-8 rounded-full" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm font-medium text-slate-900">{s.name}</span>
+                         {s.projects[0].status === 'Red' && (
+                             <Badge variant="danger" className="text-[10px] px-1.5 py-0">Project Stalled</Badge>
+                         )}
+                      </div>
+                      <span className="text-xs text-slate-500">Runway: <strong className="text-red-600">{s.runwayMonths} Months</strong> • Burn: ₹{s.burnRateMonthly}L/mo</span>
+                    </div>
                   </div>
                   <Button variant="outline" size="sm" className="h-7 text-xs">
-                    {alert.action} <ArrowUpRight className="w-3 h-3 ml-1" />
+                    Schedule Meeting <ArrowUpRight className="w-3 h-3 ml-1" />
                   </Button>
                 </div>
               ))}
+              {criticalStartups.length === 0 && <p className="text-sm text-slate-500 italic">All systems green.</p>}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. Existing Visuals (Context) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      {/* 3. ANALYTICS CHARTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* CHART 1: PROGRESSION COMPARISON */}
         <Card>
           <CardHeader>
-            <CardTitle>AIRL Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AIRLDistributionChart />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Domain Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={domainData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {domainData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-4 mt-2">
-              {domainData.map((d, i) => (
-                <div key={i} className="flex items-center text-xs text-slate-500">
-                  <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: COLORS[i] }}></div>
-                  {d.name} ({d.value}%)
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Progression Comparison</CardTitle>
+                  <p className="text-xs text-slate-500 mt-1">Comparing AIRL distribution (Start vs End Date)</p>
                 </div>
-              ))}
+              </div>
+              
+              {/* Dual Date Pickers */}
+              <div className="flex items-center justify-end gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Start</span>
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium text-slate-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <ArrowRight className="w-3 h-3 text-slate-400" />
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">End</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium text-slate-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  label={{ value: 'AIRL Level', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                />
+                <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f3f4f6' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Legend 
+                  verticalAlign="top" 
+                  align="right" 
+                  iconType="circle" 
+                  wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
+                />
+                <Bar 
+                  dataKey="startCount" 
+                  name="Start Date" 
+                  fill="#94a3b8" // Grey for historical
+                  radius={[4, 4, 0, 0]} 
+                  barSize={20}
+                />
+                <Bar 
+                  dataKey="endCount" 
+                  name="End Date" 
+                  fill="#3b82f6" // Blue for current
+                  radius={[4, 4, 0, 0]} 
+                  barSize={20}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* CHART 2: Current AIRL Snapshot */}
+        <Card>
+          <CardHeader>
+            <CardTitle>AIRL Progression Pipeline</CardTitle>
+            <p className="text-xs text-slate-500 mt-1">Current status of all active startups</p>
+          </CardHeader>
+          <CardContent className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={snapshotData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  label={{ value: 'Current AIRL Level', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#6b7280' }}
+                />
+                <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f3f4f6' }} 
+                  labelFormatter={(label) => `AIRL Level ${label}`}
+                />
+                <Bar 
+                  dataKey="count" 
+                  name="Startups" 
+                  fill="#3b82f6" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={30}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
-
-      {/* 4. Portfolio Table (Detailed View) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Portfolio Snapshot</CardTitle>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" leftIcon={<Filter className="w-4 h-4" />}>
-              Filters
-            </Button>
-            <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
-              Export
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3">Startup</th>
-                  <th className="px-6 py-3">Project</th>
-                  <th className="px-6 py-3">Domain</th>
-                  <th className="px-6 py-3">Current AIRL</th>
-                  <th className="px-6 py-3">Weakest Param</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {startups.map(startup => (
-                  <tr key={startup.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900 flex items-center space-x-3">
-                      <img src={startup.logo} alt="" className="w-8 h-8 rounded-full" />
-                      <span>{startup.name}</span>
-                    </td>
-                    <td className="px-6 py-4">{startup.projects[0].name}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="neutral">
-                        {startup.projects[0].domain}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-blue-600">
-                      AIRL {startup.projects[0].currentAIRL}
-                    </td>
-                    <td className="px-6 py-4 text-red-500">Market Research</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="success">Active</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreHorizontal className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </DashboardLayout>
   );
 }
