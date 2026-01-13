@@ -25,16 +25,17 @@ import {
   RefreshCw,
   Lock,
   Unlock,
-  DollarSign
+  DollarSign,
+  Info
 } from "lucide-react";
 
 // Import Constants from Parent
 import { 
   RE_CATEGORIES, 
   NRE_CATEGORIES, 
+  FUNDING_SOURCES, 
   ReportDetail, 
   ExpenseInput,
-  Task
 } from "./FounderReviews";
 
 interface MonthlyReportsProps {
@@ -68,6 +69,7 @@ interface MonthlyReportsProps {
     
     handleAddStartupTask: () => void;
     handleRemoveStartupTask: (taskId: string) => void;
+    handleStartupTaskInputChange?: (field: "title" | "date" | "description", val: string) => void; // Optional if you add it to parent
     
     handleAddProjectExpense: (projectId: string) => void;
     handleAddStartupExpense: () => void;
@@ -81,6 +83,8 @@ interface MonthlyReportsProps {
     
     handleAddStartupPoint: (field: "highlights" | "risks") => void;
     handleRemoveStartupPoint: (field: "highlights" | "risks", indexToRemove: number) => void;
+    // ADDED: Handler for typing in the startup points input
+    handleStartupPointInputChange?: (field: "highlights" | "risks", val: string) => void;
   };
 
   // Helpers
@@ -91,7 +95,7 @@ interface MonthlyReportsProps {
     getReportDisplayStatus: (report: ReportDetail) => string;
     getPoints: (text: string) => string[];
     getExpenseTotal: (expenses: any[]) => number;
-    getQuarterlyPromises?: (month: string) => string[]; // Optional if logic was in parent
+    getQuarterlyPromises?: (month: string) => string[]; 
   };
 }
 
@@ -100,7 +104,6 @@ export function MonthlyReports({
   selectedReport,
   currentQuarterGoals,
   isSaving,
-  airlQuestions,
   onSelectReport,
   onBack,
   onSave,
@@ -110,12 +113,6 @@ export function MonthlyReports({
   helpers
 }: MonthlyReportsProps) {
   
-  
-  const getQuarterlyPromises = (reportMonthYear: string) => {
-    
-    return ["Complete Prototype", "Hire Senior Dev", "Secure 3 LOIs"]; 
-  };
-
   const {
     getDeadlineForMonth,
     isReportLocked,
@@ -408,11 +405,12 @@ export function MonthlyReports({
                           className="h-7 text-xs"
                           placeholder="Add highlight..."
                           value={inputs.newStartupPointInput.highlights}
-                          onChange={(e) =>
-                            actions.handleAddStartupPoint("highlights") 
-                          }
+                          onChange={(e) => {
+                            if (actions.handleStartupPointInputChange) {
+                              actions.handleStartupPointInputChange("highlights", e.target.value);
+                            }
+                          }}
                         />
-                        
                         <Button
                           size="sm"
                           variant="ghost"
@@ -425,6 +423,7 @@ export function MonthlyReports({
                     )}
                   </div>
                 </div>
+                
                 {/* Lowlights */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
@@ -459,7 +458,16 @@ export function MonthlyReports({
                     )}
                     {!isLockedForEditing && (
                       <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-                         {/* Input logic omitted for brevity, similar to above */}
+                        <Input
+                          className="h-7 text-xs"
+                          placeholder="Add lowlight..."
+                          value={inputs.newStartupPointInput.risks}
+                          onChange={(e) => {
+                            if (actions.handleStartupPointInputChange) {
+                              actions.handleStartupPointInputChange("risks", e.target.value);
+                            }
+                          }}
+                        />
                         <Button
                           size="sm"
                           variant="ghost"
@@ -523,19 +531,19 @@ export function MonthlyReports({
                         placeholder="Milestone Title"
                         className="h-7 text-xs"
                         value={inputs.newStartupTaskInput.title}
-                        // Add onChange via props
+                        onChange={(e) => actions.handleStartupTaskInputChange && actions.handleStartupTaskInputChange("title", e.target.value)}
                       />
                       <Input
                         type="date"
                         className="h-7 text-xs"
                         value={inputs.newStartupTaskInput.date}
-                         // Add onChange via props
+                        onChange={(e) => actions.handleStartupTaskInputChange && actions.handleStartupTaskInputChange("date", e.target.value)}
                       />
                       <Input
                         placeholder="Description"
                         className="h-7 text-xs"
                         value={inputs.newStartupTaskInput.description}
-                         // Add onChange via props
+                        onChange={(e) => actions.handleStartupTaskInputChange && actions.handleStartupTaskInputChange("description", e.target.value)}
                       />
                       <Button
                         size="sm"
@@ -567,7 +575,7 @@ export function MonthlyReports({
                       <thead className="bg-gray-50 text-gray-500 font-medium">
                         <tr>
                           <th className="px-3 py-2 text-left">Item / Category</th>
-                          <th className="px-2 py-2 text-center">Type</th>
+                          <th className="px-2 py-2 text-center">Type / Source</th>
                           <th className="px-3 py-2 text-right">Amount</th>
                           {!isLockedForEditing && (
                             <th className="px-2 py-2 w-6"></th>
@@ -594,15 +602,20 @@ export function MonthlyReports({
                                 </div>
                               </td>
                               <td className="px-2 py-2 text-center">
-                                <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                    exp.type === "RE"
-                                      ? "bg-indigo-50 text-indigo-700"
-                                      : "bg-orange-50 text-orange-700"
-                                  }`}
-                                >
-                                  {exp.type}
-                                </span>
+                                <div className="flex flex-col gap-1 items-center">
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                      exp.type === "RE"
+                                        ? "bg-indigo-50 text-indigo-700"
+                                        : "bg-orange-50 text-orange-700"
+                                    }`}
+                                  >
+                                    {exp.type}
+                                  </span>
+                                  <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
+                                    {exp.fundingSource}
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-3 py-2 text-right font-mono">
                                 ₹{exp.amount}
@@ -652,8 +665,9 @@ export function MonthlyReports({
                         />
                       </div>
                       <div className="flex gap-2 items-center">
+                        {/* Type Selector */}
                         <select
-                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-20"
+                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
                           value={inputs.newStartupExpenseInput.type}
                           onChange={(e) => actions.handleStartupExpenseInputChange("type", e.target.value)}
                         >
@@ -661,19 +675,29 @@ export function MonthlyReports({
                           <option value="RE">RE</option>
                         </select>
 
+                        {/* Source Selector (NEW) */}
+                        <select
+                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                          value={inputs.newStartupExpenseInput.fundingSource}
+                          onChange={(e) => actions.handleStartupExpenseInputChange("fundingSource", e.target.value)}
+                        >
+                          {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
+                        </select>
+
+                        {/* Category Selector */}
                         <select
                           className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none flex-1"
                           value={inputs.newStartupExpenseInput.category}
                           onChange={(e) => actions.handleStartupExpenseInputChange("category", e.target.value)}
                         >
                            {(inputs.newStartupExpenseInput.type === "RE"
-                                ? RE_CATEGORIES
-                                : NRE_CATEGORIES
-                              ).map((cat) => (
-                                <option key={cat} value={cat}>
-                                  {cat}
-                                </option>
-                              ))}
+                              ? RE_CATEGORIES
+                              : NRE_CATEGORIES
+                            ).map((cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
                         </select>
                         <Button
                           size="sm"
@@ -752,7 +776,6 @@ export function MonthlyReports({
                           )}
                            {!isLockedForEditing && (
                             <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-2">
-                               {/* Input needs to be wired to a change handler similar to startup points */}
                                <Button
                                 size="sm"
                                 variant="ghost"
@@ -767,8 +790,7 @@ export function MonthlyReports({
                    </div>
                    {/* Lowlights */}
                    <div className="space-y-2">
-                      {/* Similar structure for Risks/Lowlights */}
-                       <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
                           <ArrowDownCircle className="w-3 h-3 text-red-600" />{" "}
                           Lowlights
                         </label>
@@ -779,8 +801,7 @@ export function MonthlyReports({
                                  <span>{point}</span>
                               </div>
                            ))}
-                           {/* Add Button */}
-                             <Button
+                           <Button
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
@@ -844,7 +865,44 @@ export function MonthlyReports({
                         </label>
                         {/* Expenses Table */}
                          <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                             {/* ... Table logic similar to Startup Expenses ... */}
+                            <table className="w-full text-xs">
+                                <thead className="bg-gray-50 text-gray-500 font-medium">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left">Item / Category</th>
+                                        <th className="px-2 py-2 text-center">Type / Source</th>
+                                        <th className="px-3 py-2 text-right">Amount</th>
+                                        {!isLockedForEditing && <th className="px-2 py-2 w-6"></th>}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {(project.expenses || []).map(exp => (
+                                        <tr key={exp.id} className="bg-white">
+                                            <td className="px-3 py-2">
+                                                <div className="text-gray-900 font-medium">{exp.item}</div>
+                                                <div className="text-[10px] text-gray-400">{exp.category}</div>
+                                            </td>
+                                            <td className="px-2 py-2 text-center">
+                                                <div className="flex flex-col gap-1 items-center">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${exp.type === 'RE' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                        {exp.type}
+                                                    </span>
+                                                    <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
+                                                        {exp.fundingSource}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-mono">₹{exp.amount}</td>
+                                            {!isLockedForEditing && (
+                                                <td className="px-2 py-2 text-center">
+                                                    <button onClick={() => actions.handleRemoveExpense(project.projectId, exp.id)} className="text-gray-300 hover:text-red-500">
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                          </div>
                          {/* Add Expense Form */}
                          {!isLockedForEditing && (
@@ -861,12 +919,29 @@ export function MonthlyReports({
                                         onChange={(e) => actions.handleExpenseInputChange(project.projectId, "amount", e.target.value)}
                                      />
                                  </div>
-                                 <Button 
-                                    size="sm" variant="secondary" className="h-7 text-xs px-3"
-                                    onClick={() => actions.handleAddProjectExpense(project.projectId)}
-                                 >
-                                    <Plus className="w-3 h-3" />
-                                 </Button>
+                                 <div className="flex gap-2 items-center">
+                                     <select 
+                                        className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                                        value={inputs.newExpenseInput[project.projectId]?.type || "NRE"}
+                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "type", e.target.value)}
+                                     >
+                                        <option value="NRE">NRE</option>
+                                        <option value="RE">RE</option>
+                                     </select>
+                                     <select 
+                                        className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                                        value={inputs.newExpenseInput[project.projectId]?.fundingSource || "DST"}
+                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "fundingSource", e.target.value)}
+                                     >
+                                        {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
+                                     </select>
+                                     <Button 
+                                        size="sm" variant="secondary" className="h-7 text-xs px-3"
+                                        onClick={() => actions.handleAddProjectExpense(project.projectId)}
+                                     >
+                                        <Plus className="w-3 h-3" />
+                                     </Button>
+                                 </div>
                              </div>
                          )}
                     </div>
