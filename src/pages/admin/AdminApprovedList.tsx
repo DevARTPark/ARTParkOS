@@ -1,140 +1,101 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search,
-  Filter,
   ChevronRight,
-  CheckCircle2,
+  CheckCircle,
   UserCheck,
-  Building2,
+  ShieldCheck,
 } from "lucide-react";
+import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Card } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
 
-// Mock Data - In real app, fetch from /api/admin/ready-for-onboarding
 const MOCK_APPROVED = [
   {
     id: "user_789",
-    founderName: "Vikram Singh",
     startupName: "DroneLogistics",
-    track: "startup",
-    innovationScore: 88,
-    endorsedBy: "Dr. Ramesh Rao",
-    endorsedDate: "2023-10-27",
-    status: "EXPERT_APPROVED",
+    founder: "Vikram Singh",
+    score: 88,
+    endorsedBy: "Dr. Rao",
+    date: "2023-10-27",
   },
   {
     id: "user_101",
-    founderName: "Ananya Gupta",
     startupName: "BioPlast",
-    track: "innovator_residence",
-    innovationScore: 79,
-    endorsedBy: "Prof. Sarah Jenkins",
-    endorsedDate: "2023-10-26",
-    status: "EXPERT_APPROVED",
+    founder: "Ananya Gupta",
+    score: 79,
+    endorsedBy: "Prof. Sarah",
+    date: "2023-10-26",
   },
 ];
 
 export default function AdminApprovedList() {
   const navigate = useNavigate();
-  const [applicants] = useState(MOCK_APPROVED);
 
   return (
-    <div className="p-8 space-y-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Ready for Onboarding
-          </h1>
-          <p className="text-gray-500">
-            Startups endorsed by experts, awaiting final approval.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium">
-            <Filter className="w-4 h-4" /> Filter
-          </button>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+    <DashboardLayout role="admin">
+      <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Ready for Onboarding
+            </h1>
+            <p className="text-gray-500 mt-1 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-green-600" />
+              Startups that have passed expert validation gates.
+            </p>
           </div>
         </div>
-      </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <Card className="overflow-hidden border border-gray-200 shadow-sm rounded-xl">
+          <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Startup
-                </th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Innovation Score
-                </th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Endorsed By
-                </th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
-                  Action
-                </th>
+              <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">
+                <th className="p-5 pl-6">Startup Details</th>
+                <th className="p-5">Innovation Score</th>
+                <th className="p-5">Endorsed By</th>
+                <th className="p-5">Validation Date</th>
+                <th className="p-5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {applicants.map((app) => (
+              {MOCK_APPROVED.map((app) => (
                 <tr
                   key={app.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer group"
                   onClick={() => navigate(`/admin/onboarding/${app.id}`)}
+                  className="hover:bg-green-50/30 cursor-pointer transition-colors group"
                 >
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                        <Building2 className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {app.startupName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {app.founderName}
-                        </p>
-                      </div>
+                  <td className="p-5 pl-6">
+                    <div className="font-bold text-gray-900 text-base">
+                      {app.startupName}
+                    </div>
+                    <div className="text-xs text-gray-500">{app.founder}</div>
+                  </td>
+                  <td className="p-5">
+                    <div className="inline-flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                      <span className="font-bold text-green-700">
+                        {app.score}
+                      </span>
+                      <span className="text-green-400 text-xs">/100</span>
                     </div>
                   </td>
-                  <td className="p-4">
-                    <span className="font-bold text-gray-900">
-                      {app.innovationScore}
-                    </span>
-                    <span className="text-gray-400 text-xs">/100</span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-2 py-1 rounded-md w-fit">
-                      <UserCheck className="w-4 h-4" />
+                  <td className="p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <UserCheck className="w-4 h-4 text-indigo-500" />{" "}
                       {app.endorsedBy}
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-gray-600">
-                    {app.endorsedDate}
-                  </td>
-                  <td className="p-4 text-right">
-                    <button className="text-gray-400 hover:text-indigo-600">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
+                  <td className="p-5 text-sm text-gray-500">{app.date}</td>
+                  <td className="p-5 text-right">
+                    <div className="flex items-center justify-end gap-2 text-indigo-600 font-medium text-sm group-hover:underline">
+                      Final Review <ChevronRight className="w-4 h-4" />
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </DashboardLayout>
   );
 }
