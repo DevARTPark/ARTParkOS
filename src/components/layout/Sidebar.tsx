@@ -19,7 +19,8 @@ import {
   UserPlus,
   Shield,
   Globe,
-  X, // Import X icon for closing mobile menu
+  X,
+  Inbox, // Import X icon for closing mobile menu
 } from "lucide-react";
 import { Role } from "../../types";
 import artparkLogo from "../../../public/artpark_in_logo.jpg";
@@ -72,6 +73,11 @@ export function Sidebar({
           { icon: FileText, label: "Reports", path: "/admin/reports" },
           { icon: Globe, label: "Network", path: "/admin/network" },
           { icon: Users, label: "Users", path: "/admin/users" },
+          {
+            label: "Onboarding Queue",
+            path: "/admin/onboarding",
+            icon: UserPlus,
+          },
         ];
       case "reviewer":
         return [
@@ -104,6 +110,11 @@ export function Sidebar({
           },
           { icon: Users, label: "Users", path: "/reviewer/users" },
           { icon: Calendar, label: "Calendar", path: "/reviewer/calendar" },
+          {
+            label: "Applications",
+            path: "/reviewer/applications",
+            icon: Inbox,
+          },
         ];
       case "supplier":
         return [
