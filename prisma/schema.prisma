@@ -79,6 +79,8 @@ model User {
 
   onboardingApplication OnboardingApplication?
   innovationAssessments InnovationAssessment[]
+
+  expertReviews         ExpertReview[]
   
   @@map("users")
 }
@@ -311,4 +313,28 @@ model InnovationAssessment {
   updatedAt       DateTime @updatedAt
 
   @@map("innovation_assessments")
+}
+
+// --- 6. EXPERT REVIEW MODULE (New) ---
+model ExpertReview {
+  id              String   @id @default(uuid())
+  
+  // Link to the Applicant (The Founder)
+  applicantUserId String
+  applicant       User     @relation(fields: [applicantUserId], references: [id])
+  
+  // Expert Details (No User account needed for them)
+  expertName      String
+  expertEmail     String
+  token           String   @unique // The secure "Magic Link" token
+  
+  // Review Status
+  status          String   @default("PENDING") // PENDING, COMPLETED
+  decision        String?  // APPROVED, REJECTED
+  comments        String?  @db.Text
+  
+  invitedAt       DateTime @default(now())
+  respondedAt     DateTime?
+
+  @@map("expert_reviews")
 }

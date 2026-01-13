@@ -1172,6 +1172,248 @@ app.post('/api/innovation/submit', async (req, res) => {
     }
 });
 
+// ==========================================
+// EXPERT REVIEW & ONBOARDING FLOW ROUTES
+// ==========================================
+
+// 1. GET TEAM ASSESSMENTS
+// Fetches assessment scores for the Founder AND all Co-founders to build the Team Matrix
+app.get('/api/innovation/team-assessments', async (req, res) => {
+    const { userId } = req.query; // The Lead Founder's ID
+
+    if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({ error: "Founder ID required" });
+    }
+
+    try {
+        // A. Get the Application to find Co-founder emails
+        const application = await prisma.onboardingApplication.findUnique({
+            where: { userId },
+            select: { data: true }
+        });
+
+        if (!application) return res.json([]);
+
+        // B. Extract emails: Founder + Co-founders
+        // @ts-ignore
+        const coFounders = application.data?.coFounders || [];
+
+        // Get Founder's email
+        const founderUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true }
+        });
+
+        if (!founderUser) return res.json([]);
+
+        // Combine all team emails
+        const teamEmails = [
+            founderUser.email,
+            ...coFounders.map((cf: any) => cf.email)
+        ].filter(Boolean);
+
+        // C. Fetch Assessments for ALL these emails
+        const assessments = await prisma.innovationAssessment.findMany({
+            where: {
+                user: { email: { in: teamEmails as string[] } }
+            },
+            include: {
+                user: {
+                    select: { userProfile: { select: { fullName: true } }, email: true }
+                }
+            }
+        });
+
+        res.json(assessments);
+
+    } catch (error) {
+        console.error("Team Assessment Fetch Error:", error);
+        res.status(500).json({ error: "Failed to fetch team data" });
+    }
+});
+
+// 2. ASSIGN EXPERT (Reviewer Action)
+// Generates a magic link and emails the expert
+app.post('/api/reviewer/assign-expert', async (req, res) => {
+    const { applicantUserId, expertName, expertEmail } = req.body;
+
+    if (!applicantUserId || !expertEmail) return res.status(400).json({ error: "Missing fields" });
+
+    try {
+        // A. Generate Secure Token
+        const token = crypto.randomBytes(32).toString('hex');
+
+        // B. Save Review Record
+        await prisma.expertReview.create({
+            data: {
+                applicantUserId,
+                expertName,
+                expertEmail,
+                token
+            }
+        });
+
+        // C. Update Application Status
+        await prisma.onboardingApplication.update({
+            where: { userId: applicantUserId },
+            data: { status: 'EXPERT_REVIEW_PENDING' }
+        });
+
+        // D. Send Email
+        const reviewLink = `${finalFrontendUrl}/expert/review?token=${token}`;
+
+        const emailHtml = `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <h2 style="color: #111827;">Expert Review Request</h2>
+                <p>Dear ${expertName},</p>
+                <p>ARTPARK has received a deep-tech startup application that matches your domain expertise.</p>
+                <p>We request you to review the application summary and provide your assessment (Approve/Reject).</p>
+                
+                <div style="margin: 24px 0;">
+                    <a href="${reviewLink}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                        Review Application
+                    </a>
+                </div>
+                
+                <p style="color: #6B7280; font-size: 14px;">This is a secure, one-time link. No login required.</p>
+            </div>
+        `;
+
+        await sendEmail(expertEmail, "Action Required: Expert Review Request", emailHtml);
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error("Assign Expert Error:", error);
+        res.status(500).json({ error: "Failed to assign expert" });
+    }
+});
+
+// 3. GET EXPERT CONTEXT (Public/Token Access)
+// Validates token and returns App Data + Team Assessments
+app.get('/api/expert/context', async (req, res) => {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') return res.status(400).json({ error: "Token required" });
+
+    try {
+        // A. Find the Review Request
+        const review = await prisma.expertReview.findUnique({
+            where: { token },
+            include: { applicant: true }
+        });
+
+        if (!review) return res.status(404).json({ error: "Invalid review link" });
+        if (review.status === 'COMPLETED') return res.status(403).json({ error: "This review has already been submitted." });
+
+        const userId = review.applicantUserId;
+
+        // B. Fetch Application Data
+        const application = await prisma.onboardingApplication.findUnique({
+            where: { userId }
+        });
+
+        // C. Fetch Team Assessments (Logic reused from /team-assessments)
+        // 1. Get Founder Email
+        const founderUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+        // 2. Get Co-founder emails
+        // @ts-ignore
+        const coFounders = application?.data?.coFounders || [];
+        const teamEmails = [founderUser?.email, ...coFounders.map((cf: any) => cf.email)].filter(Boolean);
+
+        // 3. Fetch Data
+        const assessments = await prisma.innovationAssessment.findMany({
+            where: { user: { email: { in: teamEmails as string[] } } },
+            include: { user: { select: { userProfile: { select: { fullName: true } } } } }
+        });
+
+        res.json({
+            expertName: review.expertName,
+            application: application?.data,
+            assessments: assessments
+        });
+
+    } catch (error) {
+        console.error("Expert Context Error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// 4. SUBMIT EXPERT REVIEW
+app.post('/api/expert/submit', async (req, res) => {
+    const { token, decision, comments } = req.body;
+
+    try {
+        // A. Update Review Record
+        const review = await prisma.expertReview.update({
+            where: { token },
+            data: {
+                status: 'COMPLETED',
+                decision,
+                comments,
+                respondedAt: new Date()
+            }
+        });
+
+        // B. Update Main Application Status
+        const newAppStatus = decision === 'APPROVED' ? 'EXPERT_APPROVED' : 'EXPERT_REJECTED';
+
+        await prisma.onboardingApplication.update({
+            where: { userId: review.applicantUserId },
+            data: { status: newAppStatus }
+        });
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error("Expert Submit Error:", error);
+        res.status(500).json({ error: "Submission failed" });
+    }
+});
+
+// 5. ADMIN: FINAL ONBOARDING
+// Promotes the Applicant to Founder
+app.post('/api/admin/onboard', async (req, res) => {
+    const { userId, status } = req.body; // status: APPROVED or REJECTED
+
+    try {
+        if (status === 'APPROVED') {
+            // A. Update Application Status
+            await prisma.onboardingApplication.update({
+                where: { userId },
+                data: { status: 'ONBOARDED' }
+            });
+
+            // B. PROMOTE USER ROLE (The Critical Step)
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            const currentRoles = user?.roles || [];
+
+            // Add 'founder' if not present, remove 'applicant'
+            const newRoles = [...new Set([...currentRoles, 'founder'])].filter(r => r !== 'applicant');
+
+            await prisma.user.update({
+                where: { id: userId },
+                data: { roles: newRoles }
+            });
+
+            // Optional: You could create the initial 'Startup' record here if it doesn't exist yet
+
+        } else {
+            // Reject
+            await prisma.onboardingApplication.update({
+                where: { userId },
+                data: { status: 'REJECTED' }
+            });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error("Onboarding Error:", error);
+        res.status(500).json({ error: "Failed to process decision" });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Server running on http://localhost:${PORT}`);
