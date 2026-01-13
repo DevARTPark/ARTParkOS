@@ -7,26 +7,23 @@ import {
   ArrowLeft,
   RotateCcw,
   LayoutDashboard,
-  ChevronRight,
 } from "lucide-react";
 import { ASSESSMENT_LAPS } from "../../data/assessment/assessment_questions";
+import { API_URL } from "../../config";
 
 export default function AssessmentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   // --- STATE ---
-  // Tracks the currently selected Lap ID (Dimension)
   const [activeLapId, setActiveLapId] = useState<string>(ASSESSMENT_LAPS[0].id);
-
-  // Tracks the current question index WITHIN the active lap
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-
-  // Stores all answers: { [questionId]: score }
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
-  // Submission state
+  // Submission & UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
 
   // --- DERIVED DATA ---
   const activeLap =
@@ -43,11 +40,39 @@ export default function AssessmentPage() {
 
   // --- HANDLERS ---
 
+  // --- UPDATED: AUTO-ADVANCE LOGIC ---
   const handleSelectOption = (score: number) => {
+    // 1. Save the answer immediately
     setAnswers((prev) => ({
       ...prev,
       [activeQuestion.id]: score,
     }));
+
+    // 2. Calculate if we should advance
+    const isLastQuestionInLap =
+      currentQuestionIndex === activeLap.questions.length - 1;
+    const isLastLap =
+      activeLapId === ASSESSMENT_LAPS[ASSESSMENT_LAPS.length - 1].id;
+    const isLastQuestionOfAssessment = isLastQuestionInLap && isLastLap;
+
+    // 3. Advance unless it's the very last question
+    if (!isLastQuestionOfAssessment) {
+      // Add a tiny delay (250ms) so the user sees the click register before switching
+      setTimeout(() => {
+        if (isLastQuestionInLap) {
+          // Move to next Lap
+          const currentLapIndex = ASSESSMENT_LAPS.findIndex(
+            (l) => l.id === activeLapId
+          );
+          const nextLap = ASSESSMENT_LAPS[currentLapIndex + 1];
+          setActiveLapId(nextLap.id);
+          setCurrentQuestionIndex(0);
+        } else {
+          // Move to next Question in same lap
+          setCurrentQuestionIndex((prev) => prev + 1);
+        }
+      }, 250);
+    }
   };
 
   const handleClearAnswer = () => {
@@ -57,11 +82,9 @@ export default function AssessmentPage() {
   };
 
   const handleNext = () => {
-    // If not last question in lap, go next
     if (currentQuestionIndex < activeLap.questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     } else {
-      // If last question, try to go to next lap
       const currentLapIndex = ASSESSMENT_LAPS.findIndex(
         (l) => l.id === activeLapId
       );
@@ -77,7 +100,6 @@ export default function AssessmentPage() {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
     } else {
-      // If first question, try to go to previous lap's last question
       const currentLapIndex = ASSESSMENT_LAPS.findIndex(
         (l) => l.id === activeLapId
       );
@@ -91,7 +113,6 @@ export default function AssessmentPage() {
 
   const handleLapChange = (lapId: string) => {
     setActiveLapId(lapId);
-    // Find the first unanswered question in this lap, or default to 0
     const lap = ASSESSMENT_LAPS.find((l) => l.id === lapId);
     if (lap) {
       const firstUnanswered = lap.questions.findIndex(
@@ -103,25 +124,62 @@ export default function AssessmentPage() {
 
   const handleSubmit = async () => {
     if (!isComplete) return;
-
     setIsSubmitting(true);
-    console.log("Submitting Scores for User:", id, answers);
 
-    // Simulate API Call
-    setTimeout(() => {
+    const dimensionScores: Record<string, number> = {};
+    ASSESSMENT_LAPS.forEach((lap) => {
+      const lapScore = lap.questions.reduce(
+        (sum, q) => sum + (answers[q.id] || 0),
+        0
+      );
+      dimensionScores[lap.id] = lapScore;
+    });
+
+    const totalScore = Object.values(dimensionScores).reduce(
+      (a, b) => a + b,
+      0
+    );
+
+    const dimensionsBelowThreshold = Object.values(dimensionScores).filter(
+      (s) => s < 10
+    ).length;
+    let bucket = "RED";
+    if (totalScore >= 75 && dimensionsBelowThreshold === 0) bucket = "GREEN";
+    else if (
+      (totalScore >= 60 && totalScore <= 74) ||
+      (dimensionsBelowThreshold === 1 && totalScore >= 60)
+    )
+      bucket = "YELLOW";
+    else bucket = "RED";
+
+    try {
+      const response = await fetch(`${API_URL}/api/assessment/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: id,
+          answers,
+          dimensionScores,
+          totalScore,
+          bucket,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Submission failed");
+
+      setFinalScore(totalScore);
+      setIsFinished(true);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to submit assessment. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      navigate("/"); // Redirect to home or results page
-      alert("Assessment Submitted Successfully!");
-    }, 1500);
+    }
   };
 
-  // --- RENDER HELPERS ---
-
-  // Check if a specific lap is fully answered
   const getLapProgress = (lapId: string) => {
     const lap = ASSESSMENT_LAPS.find((l) => l.id === lapId);
     if (!lap) return { current: 0, total: 0, isDone: false };
-
     const answeredCount = lap.questions.filter(
       (q) => answers[q.id] !== undefined
     ).length;
@@ -132,10 +190,50 @@ export default function AssessmentPage() {
     };
   };
 
+  // --- RENDER: SUCCESS SCREEN ---
+  if (isFinished) {
+    return (
+      <div className="min-h-screen bg-green-50 flex items-center justify-center p-6 font-sans">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 text-center border border-green-100">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Assessment Complete!
+          </h2>
+
+          <div className="bg-green-50 rounded-lg p-4 mb-6">
+            <p className="text-sm text-green-800 uppercase font-semibold tracking-wider">
+              Innovation Score
+            </p>
+            <p className="text-4xl font-bold text-green-700 mt-1">
+              {finalScore}
+              <span className="text-xl text-green-500">/100</span>
+            </p>
+          </div>
+
+          <p className="text-gray-600 mb-8 leading-relaxed">
+            Thank you for completing the assessment. Your data has been synced
+            with our team. We will review your profile and get back to you
+            shortly.
+          </p>
+
+          <button
+            onClick={() => navigate("/")}
+            className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: MAIN ASSESSMENT ---
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      {/* --- SIDEBAR: DIMENSIONS --- */}
-      <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+      {/* SIDEBAR */}
+      <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10 hidden md:flex">
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3 text-gray-800 mb-1">
             <LayoutDashboard className="w-6 h-6 text-indigo-600" />
@@ -147,10 +245,9 @@ export default function AssessmentPage() {
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          {ASSESSMENT_LAPS.map((lap, index) => {
+          {ASSESSMENT_LAPS.map((lap) => {
             const { current, total, isDone } = getLapProgress(lap.id);
             const isActive = activeLapId === lap.id;
-
             return (
               <button
                 key={lap.id}
@@ -177,8 +274,6 @@ export default function AssessmentPage() {
                     </span>
                   )}
                 </div>
-
-                {/* Mini Progress Bar for Sidebar Item */}
                 <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
@@ -192,7 +287,6 @@ export default function AssessmentPage() {
           })}
         </nav>
 
-        {/* Global Progress Footer */}
         <div className="p-6 bg-gray-50 border-t border-gray-200">
           <div className="flex justify-between text-sm mb-2 font-medium">
             <span className="text-gray-600">Total Progress</span>
@@ -228,9 +322,8 @@ export default function AssessmentPage() {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT: QUESTIONS --- */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
@@ -245,10 +338,8 @@ export default function AssessmentPage() {
           </div>
         </header>
 
-        {/* Scrollable Question Area */}
         <div className="flex-1 overflow-y-auto p-8 lg:p-12">
           <div className="max-w-3xl mx-auto">
-            {/* Question Card */}
             <div className="mb-8">
               <h3 className="text-2xl font-medium text-gray-900 leading-normal mb-8">
                 {activeQuestion.text}
@@ -299,7 +390,6 @@ export default function AssessmentPage() {
               </div>
             </div>
 
-            {/* Action Bar: Clear Answer */}
             <div className="h-8 mb-8">
               {answers[activeQuestion.id] !== undefined && (
                 <button
@@ -313,10 +403,8 @@ export default function AssessmentPage() {
           </div>
         </div>
 
-        {/* Bottom Navigation Bar */}
         <div className="bg-white border-t border-gray-200 p-6">
           <div className="max-w-3xl mx-auto flex items-center justify-between">
-            {/* Previous Button */}
             <button
               onClick={handlePrev}
               disabled={
@@ -328,7 +416,6 @@ export default function AssessmentPage() {
               <ArrowLeft className="w-5 h-5" /> Previous
             </button>
 
-            {/* Indicator Dots */}
             <div className="hidden md:flex gap-1.5">
               {activeLap.questions.map((_, idx) => (
                 <div
@@ -344,7 +431,6 @@ export default function AssessmentPage() {
               ))}
             </div>
 
-            {/* Next Button */}
             <button
               onClick={handleNext}
               className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 font-medium shadow-md transition-all hover:translate-x-1"
