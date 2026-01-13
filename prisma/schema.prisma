@@ -78,6 +78,7 @@ model User {
   profile       UserProfile? 
 
   onboardingApplication OnboardingApplication?
+  innovationAssessments InnovationAssessment[]
   
   @@map("users")
 }
@@ -290,4 +291,24 @@ model OnboardingApplication {
   updatedAt   DateTime @updatedAt
 
   @@map("onboarding_applications")
+}
+
+model InnovationAssessment {
+  id              String   @id @default(uuid())
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  // Scoring Details
+  totalScore      Float
+  dimensionScores Json     // Stores breakdown like { "strategy": 15, "culture": 12 }
+  answers         Json     // Stores the raw question-answer pairs
+  
+  // Final Classification (Green/Yellow/Red)
+  bucket          String   
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("innovation_assessments")
 }

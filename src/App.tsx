@@ -96,6 +96,9 @@ import { INNOVATOR_FLOW } from "./data/onboarding/innovatorFlow";
 import ResumeApplication from "./pages/auth/ResumeApplication";
 import ApplicationSuccess from "./pages/onboarding/ApplicationSuccess";
 import AssessmentPage from "./pages/assessment/AssessmentPage";
+import OnboardingAuthPage from "./pages/auth/OnboardingAuthPage";
+import VerifyEmailHandler from "./pages/auth/VerifyEmailHandler";
+import AssessmentInvite from "./pages/assessment/AssessmentInvite";
 
 // Icons for RoleSelection
 // import {
@@ -269,6 +272,8 @@ export function App() {
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
+        <Route path="/apply" element={<OnboardingAuthPage />} />
+        <Route path="/verify-email" element={<VerifyEmailHandler />} />
 
         {/* --- FOUNDER ROUTES --- */}
         <Route
@@ -816,6 +821,8 @@ export function App() {
         />
 
         <Route path="/resume-application" element={<ResumeApplication />} />
+
+        <Route path="/assessment-start" element={<AssessmentInvite />} />
 
         <Route
           path="/application-submitted"

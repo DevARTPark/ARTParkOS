@@ -116,15 +116,13 @@ export default function LoginPage() {
             Program today.
           </p>
 
-          <a
-            href={ONBOARDING_URL} // <--- UPDATED LINK (Desktop)
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/apply"
             className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-blue-500/25 group"
           >
             Apply Now
             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </a>
+          </Link>
 
           <div className="mt-8 space-y-3">
             <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -256,13 +254,9 @@ export default function LoginPage() {
 
       {/* Mobile Footer for Apply Link (Only visible on small screens) */}
       <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 text-center z-50">
-        <a
-          href={ONBOARDING_URL}
-          target="_blank"
-          className="text-blue-600 font-bold text-sm"
-        >
+        <Link to="/apply" className="text-blue-600 font-bold text-sm">
           New here? Apply as Applicant →
-        </a>
+        </Link>
       </div>
     </div>
   );

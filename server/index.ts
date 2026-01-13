@@ -1028,7 +1028,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
 
 // 2. Save/Update Application (Holding Tank)
 app.post('/api/onboarding/save', async (req, res) => {
-    const { userId, data, submit } = req.body; // 'submit' is a boolean flag
+    const { userId, data, submit } = req.body;
 
     if (!userId) return res.status(400).json({ error: "User ID required" });
 
@@ -1036,10 +1036,11 @@ app.post('/api/onboarding/save', async (req, res) => {
         const status = submit ? 'SUBMITTED' : 'DRAFT';
         const submittedAt = submit ? new Date() : null;
 
+        // A. Save the Application Data
         const application = await prisma.onboardingApplication.upsert({
             where: { userId },
             update: {
-                data: data, // Save the raw JSON
+                data: data,
                 status: status,
                 submittedAt: submittedAt ? submittedAt : undefined
             },
@@ -1051,7 +1052,66 @@ app.post('/api/onboarding/save', async (req, res) => {
             }
         });
 
-        res.json({ message: submit ? "Application Submitted!" : "Progress Saved", application });
+        // B. CO-FOUNDER INVITE LOGIC (Magic Links)
+        if (submit && data.coFounders && Array.isArray(data.coFounders)) {
+            console.log("🚀 Processing Co-founder Invites...");
+
+            for (const coFounder of data.coFounders) {
+                const cfEmail = coFounder.email;
+                const cfName = coFounder.name;
+
+                if (!cfEmail) continue;
+
+                // 1. Check if user already exists
+                let cfUser = await prisma.user.findUnique({ where: { email: cfEmail } });
+
+                // 2. If not, create a "Shadow User" (Invited state)
+                if (!cfUser) {
+                    cfUser = await prisma.user.create({
+                        data: {
+                            email: cfEmail,
+                            roles: ['applicant'],
+                            status: 'invited',
+                            password_hash: null // No password needed yet
+                        }
+                    });
+
+                    // Create placeholder profile
+                    await prisma.userProfile.create({
+                        data: { userId: cfUser.id, fullName: cfName }
+                    });
+                }
+
+                // 3. Generate Magic Token (Reuse account_activation type)
+                const tokenString = await createAuthToken(cfUser.id, 'account_activation');
+
+                // 4. Create Magic Link
+                // This points to the AssessmentInvite page we built earlier
+                const magicLink = `${finalFrontendUrl}/assessment-start?token=${tokenString}`;
+
+                const emailHtml = `
+                    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        <h2 style="color: #111827;">Action Required: Team Assessment</h2>
+                        <p>Hello ${cfName},</p>
+                        <p><strong>${data.founder?.fullName}</strong> has added you to their team for <strong>${data.venture?.organizationName || 'their startup'}</strong>.</p>
+                        <p>We need your input to complete the application. Please click the button below to take the <strong>Innovation Index Assessment</strong>.</p>
+                        
+                        <div style="margin: 24px 0;">
+                            <a href="${magicLink}" style="background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                                Start Assessment Now
+                            </a>
+                        </div>
+                        
+                        <p style="color: #6B7280; font-size: 14px;">No login or password required.</p>
+                    </div>
+                `;
+
+                await sendEmail(cfEmail, "Action Required: Complete your Assessment", emailHtml);
+                console.log(`✅ Magic Link sent to: ${cfEmail}`);
+            }
+        }
+
+        res.json({ message: submit ? "Application Submitted & Team Invited!" : "Progress Saved", application });
 
     } catch (err: any) {
         console.error("Save Application Error:", err);
@@ -1071,6 +1131,44 @@ app.get('/api/onboarding/application', async (req, res) => {
         res.json(app ? app.data : null); // Return just the JSON data to populate the form
     } catch (err) {
         res.status(500).json({ error: "Fetch error" });
+    }
+});
+
+// server/index.ts
+
+// ==========================================
+// INNOVATION ASSESSMENT ROUTES
+// ==========================================
+
+app.post('/api/innovation/submit', async (req, res) => {
+    // 1. Extract data
+    const { userId, answers, dimensionScores, totalScore, bucket } = req.body;
+
+    console.log("🚀 Assessment Submit Request:", { userId, totalScore, bucket });
+
+    // 2. Validate
+    if (!userId || totalScore === undefined || !bucket) {
+        return res.status(400).json({ error: "Missing required assessment data" });
+    }
+
+    try {
+        // 3. Save to Database
+        const assessment = await prisma.innovationAssessment.create({
+            data: {
+                userId,
+                answers,         // Raw JSON
+                dimensionScores, // JSON Breakdown
+                totalScore,
+                bucket,          // "GREEN", "YELLOW", "RED"
+            },
+        });
+
+        console.log("✅ Assessment Saved:", assessment.id);
+        res.json({ success: true, assessmentId: assessment.id });
+
+    } catch (error: any) {
+        console.error("❌ Assessment Save Error:", error);
+        res.status(500).json({ error: "Failed to save assessment" });
     }
 });
 
