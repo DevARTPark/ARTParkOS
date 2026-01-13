@@ -8,64 +8,50 @@ import {
   User,
   BarChart3,
   Inbox,
+  Loader2,
 } from "lucide-react";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
-
-// MOCK DATA (With Team Aggregates Pre-calculated)
-const MOCK_APPLICANTS = [
-  {
-    id: "user_1",
-    startupName: "AgriSense AI",
-    founderName: "Rahul Verma",
-    track: "startup",
-    submittedAt: "2023-10-25",
-    teamScore: 82,
-    teamTier: "GREEN",
-  },
-  {
-    id: "user_3",
-    startupName: "BuildBot",
-    founderName: "Amit Roy",
-    track: "startup",
-    submittedAt: "2023-10-26",
-    teamScore: 88,
-    teamTier: "YELLOW",
-  }, // Yellow because maybe 1 dim < 10
-  {
-    id: "user_2",
-    startupName: "NeuroHeal",
-    founderName: "Dr. Sarah Khan",
-    track: "researcher",
-    submittedAt: "2023-10-24",
-    teamScore: 65,
-    teamTier: "YELLOW",
-  },
-  {
-    id: "user_4",
-    startupName: "WeakTech Solutions",
-    founderName: "John Doe",
-    track: "innovator",
-    submittedAt: "2023-10-20",
-    teamScore: 55,
-    teamTier: "RED",
-  },
-];
+import { API_URL } from "../../config"; // Ensure API_URL is imported
 
 export default function ReviewerApplicantList() {
   const navigate = useNavigate();
-  const [applicants, setApplicants] = useState(MOCK_APPLICANTS);
+  const [applicants, setApplicants] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // --- FETCH DATA FROM BACKEND ---
   useEffect(() => {
-    // SORTING LOGIC: Green > Yellow > Red, then Score High > Low
-    const sorted = [...MOCK_APPLICANTS].sort((a, b) => {
-      const tierRank: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };
-      const rankDiff = tierRank[b.teamTier] - tierRank[a.teamTier];
-      if (rankDiff !== 0) return rankDiff;
-      return b.teamScore - a.teamScore;
-    });
-    setApplicants(sorted);
+    const fetchApplicants = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`${API_URL}/api/reviewer/applicants`);
+
+        if (res.ok) {
+          const data = await res.json();
+
+          // SORTING LOGIC: Green > Yellow > Red, then Score High > Low
+          const sorted = data.sort((a: any, b: any) => {
+            const tierRank: Record<string, number> = {
+              GREEN: 3,
+              YELLOW: 2,
+              RED: 1,
+            };
+            const rankDiff = tierRank[b.teamTier] - tierRank[a.teamTier];
+            if (rankDiff !== 0) return rankDiff;
+            return b.teamScore - a.teamScore;
+          });
+
+          setApplicants(sorted);
+        }
+      } catch (error) {
+        console.error("Failed to load applicants", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApplicants();
   }, []);
 
   const getTierStyle = (tier: string) => {
@@ -108,75 +94,93 @@ export default function ReviewerApplicantList() {
           </div>
         </div>
 
-        {/* LIST CARD */}
-        <Card className="overflow-hidden border border-gray-200 shadow-sm rounded-xl">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">
-                <th className="p-5 pl-6">Startup / Founder</th>
-                <th className="p-5">Track</th>
-                <th className="p-5">Submitted</th>
-                <th className="p-5">Team Tier</th>
-                <th className="p-5 text-right">Team Score</th>
-                <th className="p-5"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {applicants.map((app) => (
-                <tr
-                  key={app.id}
-                  className="hover:bg-indigo-50/30 cursor-pointer group transition-all duration-200"
-                  onClick={() => navigate(`/reviewer/applications/${app.id}`)}
-                >
-                  <td className="p-5 pl-6">
-                    <div>
-                      <div className="font-bold text-gray-900 text-base">
-                        {app.startupName}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
-                        <User className="w-3 h-3" /> {app.founderName}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-5">
-                    <Badge
-                      variant="outline"
-                      className="capitalize px-2 py-1 bg-white"
-                    >
-                      {app.track}
-                    </Badge>
-                  </td>
-                  <td className="p-5 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />{" "}
-                      {app.submittedAt}
-                    </div>
-                  </td>
-                  <td className="p-5">
-                    <span
-                      className={`px-2.5 py-1 rounded-md text-xs font-bold border uppercase tracking-wide ${getTierStyle(
-                        app.teamTier
-                      )}`}
-                    >
-                      {app.teamTier} Tier
-                    </span>
-                  </td>
-                  <td className="p-5 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <BarChart3 className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors" />
-                      <span className="font-bold text-gray-900 text-lg">
-                        {app.teamScore}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-5 text-right text-gray-400">
-                    <ChevronRight className="w-5 h-5 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                  </td>
+        {/* LOADING STATE */}
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        ) : applicants.length === 0 ? (
+          /* EMPTY STATE */
+          <Card className="p-12 text-center border-dashed">
+            <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">
+              No applications yet
+            </h3>
+            <p className="text-gray-500">
+              Wait for startups to submit their assessments.
+            </p>
+          </Card>
+        ) : (
+          /* LIST CARD */
+          <Card className="overflow-hidden border border-gray-200 shadow-sm rounded-xl">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">
+                  <th className="p-5 pl-6">Startup / Founder</th>
+                  <th className="p-5">Track</th>
+                  <th className="p-5">Submitted</th>
+                  <th className="p-5">Team Tier</th>
+                  <th className="p-5 text-right">Team Score</th>
+                  <th className="p-5"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {applicants.map((app) => (
+                  <tr
+                    key={app.id}
+                    className="hover:bg-indigo-50/30 cursor-pointer group transition-all duration-200"
+                    onClick={() => navigate(`/reviewer/applications/${app.id}`)}
+                  >
+                    <td className="p-5 pl-6">
+                      <div>
+                        <div className="font-bold text-gray-900 text-base">
+                          {app.startupName}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
+                          <User className="w-3 h-3" /> {app.founderName}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-5">
+                      <Badge
+                        variant="outline"
+                        className="capitalize px-2 py-1 bg-white"
+                      >
+                        {app.track}
+                      </Badge>
+                    </td>
+                    <td className="p-5 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />{" "}
+                        {app.submittedAt}
+                      </div>
+                    </td>
+                    <td className="p-5">
+                      <span
+                        className={`px-2.5 py-1 rounded-md text-xs font-bold border uppercase tracking-wide ${getTierStyle(
+                          app.teamTier
+                        )}`}
+                      >
+                        {app.teamTier} Tier
+                      </span>
+                    </td>
+                    <td className="p-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <BarChart3 className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+                        <span className="font-bold text-gray-900 text-lg">
+                          {app.teamScore}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-5 text-right text-gray-400">
+                      <ChevronRight className="w-5 h-5 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
