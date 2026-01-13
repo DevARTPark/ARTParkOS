@@ -100,6 +100,13 @@ import OnboardingAuthPage from "./pages/auth/OnboardingAuthPage";
 import VerifyEmailHandler from "./pages/auth/VerifyEmailHandler";
 import AssessmentInvite from "./pages/assessment/AssessmentInvite";
 
+// --- Expert PAGES ---
+import ReviewerApplicantList from "./pages/reviewer/ReviewerApplicantList";
+import ReviewerApplicantDetail from "./pages/reviewer/ReviewerApplicantDetail";
+import ExpertReviewPage from "./pages/expert/ExpertReviewPage"; // Public Route
+import AdminApprovedList from "./pages/admin/AdminApprovedList";
+import AdminFinalView from "./pages/admin/AdminFinalView";
+
 // Icons for RoleSelection
 // import {
 //   ArrowRight,
@@ -538,6 +545,22 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/onboarding"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminApprovedList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/onboarding/:id"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminFinalView />
+            </ProtectedRoute>
+          }
+        />
 
         {/* --- REVIEWER ROUTES --- */}
         <Route
@@ -641,6 +664,22 @@ export function App() {
           element={
             <ProtectedRoute>
               <ReviewerTaskPool />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/applications"
+          element={
+            <ProtectedRoute allowedRoles={["reviewer"]}>
+              <ReviewerApplicantList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviewer/applications/:id"
+          element={
+            <ProtectedRoute allowedRoles={["reviewer"]}>
+              <ReviewerApplicantDetail />
             </ProtectedRoute>
           }
         />
@@ -823,6 +862,8 @@ export function App() {
         <Route path="/resume-application" element={<ResumeApplication />} />
 
         <Route path="/assessment-start" element={<AssessmentInvite />} />
+
+        <Route path="/expert/review" element={<ExpertReviewPage />} />
 
         <Route
           path="/application-submitted"
