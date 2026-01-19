@@ -32,80 +32,68 @@ export default function ReviewerApplicantDetail() {
       if (!id) return;
       try {
         setIsLoading(true);
-        // 1. Fetch Application
+
+        // 1. Fetch Application Data
         const appRes = await fetch(
-          `${API_URL}/api/onboarding/application?userId=${id}`
+          `${API_URL}/api/onboarding/application?userId=${id}`,
         );
+        if (!appRes.ok) throw new Error("Failed to load application");
         const appJson = await appRes.json();
         setAppData(appJson);
 
-        // 2. Fetch Team Assessments (or Mock)
+        // 2. Fetch Team Assessments (REAL DATA ONLY)
         try {
           const scoreRes = await fetch(
-            `${API_URL}/api/innovation/team-assessments?userId=${id}`
+            `${API_URL}/api/innovation/team-assessments?userId=${id}`,
           );
+
           if (scoreRes.ok) {
             const scoreJson = await scoreRes.json();
-            setAssessments(Array.isArray(scoreJson) ? scoreJson : [scoreJson]);
+            // ✅ FIX: Use real data. If array is empty, show empty.
+            // Do NOT fall back to mock data.
+            setAssessments(Array.isArray(scoreJson) ? scoreJson : []);
           } else {
-            // MOCK FOR DEMO: Founder + Co-Founder
-            setAssessments([
-              {
-                userId: id,
-                user: {
-                  userProfile: {
-                    fullName: appJson.founder?.fullName || "Founder",
-                  },
-                },
-                totalScore: 78,
-                dimensionScores: {
-                  strategy: 18,
-                  culture: 12,
-                  operations: 15,
-                  mindset: 16,
-                  tactics: 17,
-                },
-              },
-              {
-                userId: "cf_1",
-                user: { userProfile: { fullName: "Co-Founder (Tech)" } },
-                totalScore: 72,
-                dimensionScores: {
-                  strategy: 14,
-                  culture: 18,
-                  operations: 12,
-                  mindset: 14,
-                  tactics: 14,
-                },
-              },
-            ]);
+            console.warn(
+              "Assessment API returned non-200. Defaulting to empty.",
+            );
+            setAssessments([]); // Set empty, not mock
           }
         } catch (e) {
-          console.warn("Using fallback data");
+          console.error("Assessment fetch failed", e);
+          setAssessments([]); // Set empty, not mock
         }
       } catch (error) {
-        console.error("Error loading app", error);
+        console.error("Failed to load application context", error);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchData();
   }, [id]);
 
   const handleAssignExpert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expertEmail || !expertName) return;
+
     setIsSending(true);
     try {
       const response = await fetch(`${API_URL}/api/reviewer/assign-expert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicantUserId: id, expertName, expertEmail }),
+        body: JSON.stringify({
+          applicantUserId: id,
+          expertName,
+          expertEmail,
+        }),
       });
-      if (!response.ok) throw new Error("Failed");
+
+      if (!response.ok) throw new Error("Failed to send invite");
+
       setInviteSent(true);
     } catch (error) {
-      alert("Error sending invite.");
+      alert("Error sending invite. Please try again.");
+      console.error(error);
     } finally {
       setIsSending(false);
     }
@@ -114,17 +102,25 @@ export default function ReviewerApplicantDetail() {
   if (isLoading)
     return (
       <DashboardLayout role="reviewer">
-        <div className="p-12 text-center text-gray-500">Loading...</div>
+        <div className="p-10 text-center text-gray-500">
+          Loading application data...
+        </div>
       </DashboardLayout>
     );
   if (!appData)
-    return <DashboardLayout role="reviewer">Not Found</DashboardLayout>;
+    return (
+      <DashboardLayout role="reviewer">
+        <div className="p-10 text-center text-red-500">
+          Application not found.
+        </div>
+      </DashboardLayout>
+    );
 
   return (
     <DashboardLayout role="reviewer">
-      <div className="space-y-6 max-w-[1600px] mx-auto">
-        {/* NAV HEADER */}
-        <div className="flex items-center gap-4 mb-4">
+      <div className="space-y-6 max-w-[1600px] mx-auto pb-20">
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => navigate(-1)}
             className="p-2 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
@@ -136,15 +132,20 @@ export default function ReviewerApplicantDetail() {
               Application Review
             </h1>
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">
+              <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono text-gray-600">
                 ID: {id}
               </span>
+              {appData.status && (
+                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold uppercase">
+                  {appData.status}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEFT: MAIN CONTENT */}
+          {/* --- LEFT: MAIN APPLICATION VIEW (2/3 width) --- */}
           <div className="lg:col-span-2">
             <ApplicationFullView
               applicationData={appData}
@@ -152,10 +153,10 @@ export default function ReviewerApplicantDetail() {
             />
           </div>
 
-          {/* RIGHT: ACTIONS SIDEBAR */}
+          {/* --- RIGHT: ACTIONS & DELEGATION (1/3 width) --- */}
           <div className="lg:col-span-1 space-y-6">
-            {/* ASSIGN EXPERT CARD */}
-            <Card className="border-indigo-100 shadow-xl sticky top-24 overflow-hidden">
+            {/* Assign Expert Card */}
+            <Card className="border-indigo-100 shadow-lg sticky top-24 overflow-hidden">
               <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-4">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Send className="w-5 h-5" /> Assign to Expert
@@ -164,6 +165,7 @@ export default function ReviewerApplicantDetail() {
                   Send a secure magic link for domain validation.
                 </p>
               </div>
+
               <CardContent className="pt-6">
                 {!inviteSent ? (
                   <form onSubmit={handleAssignExpert} className="space-y-4">
@@ -178,14 +180,15 @@ export default function ReviewerApplicantDetail() {
                       <Input
                         label="Expert Email"
                         type="email"
-                        placeholder="expert@institute.edu"
+                        placeholder="expert@university.edu"
                         value={expertEmail}
                         onChange={(e) => setExpertEmail(e.target.value)}
                         required
                       />
                     </div>
+
                     <Button
-                      className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700"
+                      className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 transition-colors"
                       isLoading={isSending}
                     >
                       <Mail className="w-4 h-4 mr-2" /> Send Review Invite
@@ -196,13 +199,12 @@ export default function ReviewerApplicantDetail() {
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
                       <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg">
+                    <h3 className="text-lg font-bold text-gray-900">
                       Invite Sent!
                     </h3>
-                    <p className="text-sm text-gray-500 mt-2 px-4">
-                      An email has been dispatched to{" "}
-                      <strong>{expertEmail}</strong>. You will be notified upon
-                      their decision.
+                    <p className="text-gray-500 text-sm mt-2 px-4">
+                      An email has been sent to <strong>{expertEmail}</strong>.
+                      You will be notified once they submit their decision.
                     </p>
                     <Button
                       variant="outline"
@@ -219,15 +221,15 @@ export default function ReviewerApplicantDetail() {
               </CardContent>
             </Card>
 
-            {/* NOTES CARD */}
+            {/* Internal Notes */}
             <Card>
               <CardHeader>
                 <CardTitle>Internal Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <textarea
-                  className="w-full p-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[120px] resize-none"
-                  placeholder="Add private notes regarding this applicant..."
+                  className="w-full p-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[120px] resize-none"
+                  placeholder="Add private notes for the admin team..."
                 />
                 <div className="flex justify-end mt-3">
                   <Button size="sm" variant="secondary">

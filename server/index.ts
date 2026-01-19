@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { prisma } from './prismaClient';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -1123,40 +1124,48 @@ app.post('/api/onboarding/save', async (req, res) => {
 // ==========================================
 // SAVE/UPDATE APPLICATION (Fix Status Update)
 // ==========================================
-app.post('/api/onboarding/application', async (req, res) => {
-    // 1. Destructure 'status' from the body
-    const { userId, data, status } = req.body;
+// ==========================================
+// GET SINGLE APPLICATION (Reviewer Detail)
+// ==========================================
+app.get('/api/onboarding/application', async (req, res) => {
+    const { userId } = req.query;
 
-    if (!userId || !data) {
-        return res.status(400).json({ error: "Missing userId or data" });
+    if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({ error: "User ID is required" });
     }
 
     try {
-        console.log(`💾 Saving App: User ${userId} | Status: ${status || 'Keep Existing'}`);
-
-        // 2. Perform Upsert
-        const application = await prisma.onboardingApplication.upsert({
+        const application = await prisma.onboardingApplication.findUnique({
             where: { userId },
-            update: {
-                data,
-                updatedAt: new Date(),
-                // ✅ Update status ONLY if provided (e.g. 'SUBMITTED')
-                // If status is undefined, it keeps the current DB value (e.g. DRAFT)
-                ...(status && { status })
-            },
-            create: {
-                userId,
-                data,
-                // ✅ Default to DRAFT, unless 'SUBMITTED' is sent immediately
-                status: status || 'DRAFT'
+            include: {
+                user: { include: { profile: true } }
             }
         });
 
-        res.json({ success: true, application });
+        if (!application) {
+            return res.status(404).json({ error: "Application not found" });
+        }
+
+        // Merge DB Metadata with JSON Data
+        const responseData = {
+            // @ts-ignore
+            ...(application.data || {}),
+            // Ensure core fields are present even if JSON is stale
+            founder: {
+                // @ts-ignore
+                ...(application.data?.founder || {}),
+                email: application.user.email,
+                fullName: application.user.profile?.fullName || "Founder"
+            },
+            status: application.status,
+            submittedAt: application.submittedAt
+        };
+
+        res.json(responseData);
 
     } catch (error) {
-        console.error("Save Error:", error);
-        res.status(500).json({ error: "Failed to save application" });
+        console.error("Fetch Single Application Error:", error);
+        res.status(500).json({ error: "Server error" });
     }
 });
 
@@ -1222,6 +1231,9 @@ app.post('/api/innovation/submit', async (req, res) => {
 
 // 1. GET TEAM ASSESSMENTS
 // Fetches assessment scores for the Founder AND all Co-founders to build the Team Matrix
+// ==========================================
+// GET TEAM ASSESSMENTS (ROBUST VERSION)
+// ==========================================
 app.get('/api/innovation/team-assessments', async (req, res) => {
     const { userId } = req.query;
 
@@ -1229,43 +1241,76 @@ app.get('/api/innovation/team-assessments', async (req, res) => {
         return res.status(400).json({ error: "Founder ID required" });
     }
 
-    try {
-        const application = await prisma.onboardingApplication.findUnique({
-            where: { userId },
-            select: { data: true }
-        });
+    console.log(`🔍 [Assessment Lookup] Founder ID: ${userId}`);
 
-        const founderUser = await prisma.user.findUnique({
+    try {
+        // 1. Fetch Founder Details
+        const founder = await prisma.user.findUnique({
             where: { id: userId },
             select: { email: true }
         });
 
-        if (!founderUser) return res.json([]);
+        if (!founder) {
+            console.log("❌ Founder not found in User table.");
+            return res.json([]);
+        }
 
-        // Normalize Emails
+        // 2. Fetch Application (to get Co-founder emails)
+        const app = await prisma.onboardingApplication.findUnique({
+            where: { userId },
+            select: { data: true }
+        });
+
+        // 3. Build List of Emails (Founder + Co-founders)
         // @ts-ignore
-        const coFounders = application?.data?.coFounders || [];
+        const coFounders = app?.data?.coFounders || [];
         const teamEmails = [
-            founderUser.email,
-            ...coFounders.map((cf: any) => cf.email)
+            founder.email,
+            ...coFounders.map((c: any) => c.email)
         ].filter(Boolean).map(e => e.toLowerCase());
 
-        // Fetch with Case Insensitivity
-        const assessments = await prisma.innovationAssessment.findMany({
+        console.log("📧 Searching for emails:", teamEmails);
+
+        // 4. STRATEGY A: Search by Email Relation (Preferred)
+        let assessments = await prisma.innovationAssessment.findMany({
             where: {
-                user: { email: { in: teamEmails, mode: 'insensitive' } }
+                user: {
+                    email: { in: teamEmails, mode: 'insensitive' }
+                }
             },
             include: {
                 user: {
-                    select: { userProfile: { select: { fullName: true } }, email: true }
+                    select: {
+                        email: true,
+                        profile: { select: { fullName: true } }
+                    }
                 }
             }
         });
 
+        // 5. STRATEGY B: Fallback to Direct User ID (If Email search failed)
+        // This handles cases where the relation might be tricky or email mismatch exists
+        if (assessments.length === 0) {
+            console.log("⚠️ Email search yielded 0 results. Trying direct UserId match...");
+            const directAssessment = await prisma.innovationAssessment.findMany({
+                where: { userId: userId },
+                include: {
+                    user: {
+                        select: {
+                            email: true, // <--- ✅ FIX 1: ADDED THIS
+                            profile: { select: { fullName: true } }
+                        }
+                    }
+                }
+            });
+            assessments = directAssessment;
+        }
+
+        console.log(`✅ Found ${assessments.length} assessment records.`);
         res.json(assessments);
 
     } catch (error) {
-        console.error("Team Assessment Fetch Error:", error);
+        console.error("❌ Team Assessment Error:", error);
         res.status(500).json({ error: "Failed to fetch team data" });
     }
 });
@@ -1358,7 +1403,7 @@ app.get('/api/expert/context', async (req, res) => {
             },
             include: {
                 user: {
-                    select: { userProfile: { select: { fullName: true } } }
+                    select: { profile: { select: { fullName: true } } }
                 }
             }
         });
@@ -1420,7 +1465,7 @@ app.post('/api/admin/onboard', async (req, res) => {
 
             await prisma.user.update({
                 where: { id: userId },
-                data: { roles: newRoles }
+                data: { roles: newRoles as Role[] }
             });
 
             // Optional: You could create the initial 'Startup' record here if it doesn't exist yet
@@ -1460,6 +1505,9 @@ app.get('/api/reviewer/applicants', async (req, res) => {
             }
         });
 
+        console.log("✅ Reviewer List Query found:", apps.length, "applications");
+        apps.forEach(a => console.log(` - ID: ${a.userId} | Status: ${a.status}`));
+
         // 2. Process each application to calculate Team Score & Tier
         const results = await Promise.all(apps.map(async (app) => {
             // A. Basic Details
@@ -1481,8 +1529,8 @@ app.get('/api/reviewer/applicants', async (req, res) => {
             });
 
             // D. Calculate Team Max Score (The "Best Athlete" Logic)
-            const DIMENSIONS = ['strategy', 'culture', 'operations', 'mindset', 'tactics'];
-            const teamDims: Record<string, number> = { strategy: 0, culture: 0, operations: 0, mindset: 0, tactics: 0 };
+            const DIMENSIONS = ['lap1', 'lap2', 'lap3', 'lap4', 'lap5'];
+            const teamDims: Record<string, number> = { lap1: 0, lap2: 0, lap3: 0, lap4: 0, lap5: 0 };
 
             assessments.forEach(a => {
                 const scores = a.dimensionScores as Record<string, number>;
