@@ -1120,17 +1120,43 @@ app.post('/api/onboarding/save', async (req, res) => {
 });
 
 // 3. Get Application (For Resuming)
-app.get('/api/onboarding/application', async (req, res) => {
-    const { userId } = req.query;
-    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: "User ID required" });
+// ==========================================
+// SAVE/UPDATE APPLICATION (Fix Status Update)
+// ==========================================
+app.post('/api/onboarding/application', async (req, res) => {
+    // 1. Destructure 'status' from the body
+    const { userId, data, status } = req.body;
+
+    if (!userId || !data) {
+        return res.status(400).json({ error: "Missing userId or data" });
+    }
 
     try {
-        const app = await prisma.onboardingApplication.findUnique({
-            where: { userId }
+        console.log(`💾 Saving App: User ${userId} | Status: ${status || 'Keep Existing'}`);
+
+        // 2. Perform Upsert
+        const application = await prisma.onboardingApplication.upsert({
+            where: { userId },
+            update: {
+                data,
+                updatedAt: new Date(),
+                // ✅ Update status ONLY if provided (e.g. 'SUBMITTED')
+                // If status is undefined, it keeps the current DB value (e.g. DRAFT)
+                ...(status && { status })
+            },
+            create: {
+                userId,
+                data,
+                // ✅ Default to DRAFT, unless 'SUBMITTED' is sent immediately
+                status: status || 'DRAFT'
+            }
         });
-        res.json(app ? app.data : null); // Return just the JSON data to populate the form
-    } catch (err) {
-        res.status(500).json({ error: "Fetch error" });
+
+        res.json({ success: true, application });
+
+    } catch (error) {
+        console.error("Save Error:", error);
+        res.status(500).json({ error: "Failed to save application" });
     }
 });
 
@@ -1141,34 +1167,52 @@ app.get('/api/onboarding/application', async (req, res) => {
 // ==========================================
 
 app.post('/api/innovation/submit', async (req, res) => {
-    // 1. Extract data
+    console.log("🚀 Received Assessment Submission:", req.body);
+
     const { userId, answers, dimensionScores, totalScore, bucket } = req.body;
 
-    console.log("🚀 Assessment Submit Request:", { userId, totalScore, bucket });
-
-    // 2. Validate
+    // 1. Validate Payload
     if (!userId || totalScore === undefined || !bucket) {
+        console.error("❌ Missing Data:", { userId, totalScore, bucket });
         return res.status(400).json({ error: "Missing required assessment data" });
     }
 
     try {
+        // 2. Verify User Exists (Critical for Shadow Users)
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            console.error("❌ User not found for ID:", userId);
+            return res.status(404).json({ error: "User not found. Invite might be invalid." });
+        }
+
         // 3. Save to Database
+        // We use 'create' so a user can retake it if needed (or you can change to 'upsert')
         const assessment = await prisma.innovationAssessment.create({
             data: {
                 userId,
-                answers,         // Raw JSON
-                dimensionScores, // JSON Breakdown
+                answers: answers || {},
+                dimensionScores: dimensionScores || {},
                 totalScore,
-                bucket,          // "GREEN", "YELLOW", "RED"
+                bucket,
             },
         });
 
-        console.log("✅ Assessment Saved:", assessment.id);
+        console.log("✅ Assessment Saved Successfully:", assessment.id);
+
+        // 4. Update User Status (Optional but helpful)
+        // If they were 'invited', we know they are now active/engaged
+        if (user.status === 'invited') {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { status: 'active' }
+            });
+        }
+
         res.json({ success: true, assessmentId: assessment.id });
 
     } catch (error: any) {
         console.error("❌ Assessment Save Error:", error);
-        res.status(500).json({ error: "Failed to save assessment" });
+        res.status(500).json({ error: "Failed to save assessment to database." });
     }
 });
 
@@ -1179,26 +1223,18 @@ app.post('/api/innovation/submit', async (req, res) => {
 // 1. GET TEAM ASSESSMENTS
 // Fetches assessment scores for the Founder AND all Co-founders to build the Team Matrix
 app.get('/api/innovation/team-assessments', async (req, res) => {
-    const { userId } = req.query; // The Lead Founder's ID
+    const { userId } = req.query;
 
     if (!userId || typeof userId !== 'string') {
         return res.status(400).json({ error: "Founder ID required" });
     }
 
     try {
-        // A. Get the Application to find Co-founder emails
         const application = await prisma.onboardingApplication.findUnique({
             where: { userId },
             select: { data: true }
         });
 
-        if (!application) return res.json([]);
-
-        // B. Extract emails: Founder + Co-founders
-        // @ts-ignore
-        const coFounders = application.data?.coFounders || [];
-
-        // Get Founder's email
         const founderUser = await prisma.user.findUnique({
             where: { id: userId },
             select: { email: true }
@@ -1206,16 +1242,18 @@ app.get('/api/innovation/team-assessments', async (req, res) => {
 
         if (!founderUser) return res.json([]);
 
-        // Combine all team emails
+        // Normalize Emails
+        // @ts-ignore
+        const coFounders = application?.data?.coFounders || [];
         const teamEmails = [
             founderUser.email,
             ...coFounders.map((cf: any) => cf.email)
-        ].filter(Boolean);
+        ].filter(Boolean).map(e => e.toLowerCase());
 
-        // C. Fetch Assessments for ALL these emails
+        // Fetch with Case Insensitivity
         const assessments = await prisma.innovationAssessment.findMany({
             where: {
-                user: { email: { in: teamEmails as string[] } }
+                user: { email: { in: teamEmails, mode: 'insensitive' } }
             },
             include: {
                 user: {
@@ -1236,56 +1274,25 @@ app.get('/api/innovation/team-assessments', async (req, res) => {
 // Generates a magic link and emails the expert
 app.post('/api/reviewer/assign-expert', async (req, res) => {
     const { applicantUserId, expertName, expertEmail } = req.body;
-
-    if (!applicantUserId || !expertEmail) return res.status(400).json({ error: "Missing fields" });
-
     try {
-        // A. Generate Secure Token
         const token = crypto.randomBytes(32).toString('hex');
 
-        // B. Save Review Record
         await prisma.expertReview.create({
-            data: {
-                applicantUserId,
-                expertName,
-                expertEmail,
-                token
-            }
+            data: { applicantUserId, expertName, expertEmail, token }
         });
 
-        // C. Update Application Status
-        await prisma.onboardingApplication.update({
-            where: { userId: applicantUserId },
-            data: { status: 'EXPERT_REVIEW_PENDING' }
-        });
+        // Generate Link
+        // NOTE: Ensure this matches your frontend URL!
+        const link = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/expert/review?token=${token}`;
 
-        // D. Send Email
-        const reviewLink = `${finalFrontendUrl}/expert/review?token=${token}`;
+        console.log(`🚀 Expert Invite Link: ${link}`); // Check server console for this link!
 
-        const emailHtml = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                <h2 style="color: #111827;">Expert Review Request</h2>
-                <p>Dear ${expertName},</p>
-                <p>ARTPARK has received a deep-tech startup application that matches your domain expertise.</p>
-                <p>We request you to review the application summary and provide your assessment (Approve/Reject).</p>
-                
-                <div style="margin: 24px 0;">
-                    <a href="${reviewLink}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                        Review Application
-                    </a>
-                </div>
-                
-                <p style="color: #6B7280; font-size: 14px;">This is a secure, one-time link. No login required.</p>
-            </div>
-        `;
-
-        await sendEmail(expertEmail, "Action Required: Expert Review Request", emailHtml);
+        // Send Email (Mock or Real)
+        await sendEmail(expertEmail, "Review Request", `Click here: ${link}`);
 
         res.json({ success: true });
-
     } catch (error) {
-        console.error("Assign Expert Error:", error);
-        res.status(500).json({ error: "Failed to assign expert" });
+        res.status(500).json({ error: "Assignment failed" });
     }
 });
 
@@ -1294,7 +1301,9 @@ app.post('/api/reviewer/assign-expert', async (req, res) => {
 app.get('/api/expert/context', async (req, res) => {
     const { token } = req.query;
 
-    if (!token || typeof token !== 'string') return res.status(400).json({ error: "Token required" });
+    if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Token required" });
+    }
 
     try {
         // A. Find the Review Request
@@ -1303,71 +1312,89 @@ app.get('/api/expert/context', async (req, res) => {
             include: { applicant: true }
         });
 
-        if (!review) return res.status(404).json({ error: "Invalid review link" });
-        if (review.status === 'COMPLETED') return res.status(403).json({ error: "This review has already been submitted." });
+        if (!review) {
+            console.error(`❌ Expert Token Not Found: ${token}`);
+            return res.status(404).json({ error: "Invalid review link" });
+        }
+
+        if (review.status === 'COMPLETED') {
+            return res.status(403).json({ error: "This review has already been submitted." });
+        }
 
         const userId = review.applicantUserId;
 
-        // B. Fetch Application Data
+        // B. Fetch Application Data (Handle NULL gracefully)
         const application = await prisma.onboardingApplication.findUnique({
             where: { userId }
         });
 
-        // C. Fetch Team Assessments (Logic reused from /team-assessments)
-        // 1. Get Founder Email
-        const founderUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-        // 2. Get Co-founder emails
+        // If application is missing (e.g. manual user creation), use empty object
         // @ts-ignore
-        const coFounders = application?.data?.coFounders || [];
-        const teamEmails = [founderUser?.email, ...coFounders.map((cf: any) => cf.email)].filter(Boolean);
+        const appData = application?.data || {};
 
-        // 3. Fetch Data
-        const assessments = await prisma.innovationAssessment.findMany({
-            where: { user: { email: { in: teamEmails as string[] } } },
-            include: { user: { select: { userProfile: { select: { fullName: true } } } } }
+        // C. Fetch Team Assessments (Robust Email Matching)
+        // 1. Get Founder Email
+        const founderUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true }
         });
+
+        // 2. Get Co-founder emails from the JSON data
+        // @ts-ignore
+        const coFounders = appData?.coFounders || [];
+
+        // 3. Create list of emails (Safe check)
+        const teamEmails = [
+            founderUser?.email,
+            ...coFounders.map((cf: any) => cf.email)
+        ].filter(Boolean).map(e => e.toLowerCase()); // Normalize to lowercase
+
+        // 4. Fetch Data (Case Insensitive)
+        const assessments = await prisma.innovationAssessment.findMany({
+            where: {
+                user: {
+                    email: { in: teamEmails, mode: 'insensitive' } // Critical for matching
+                }
+            },
+            include: {
+                user: {
+                    select: { userProfile: { select: { fullName: true } } }
+                }
+            }
+        });
+
+        console.log(`✅ Loaded Expert Context for: ${review.expertName}. Found ${assessments.length} assessments.`);
 
         res.json({
             expertName: review.expertName,
-            application: application?.data,
+            application: appData, // Returns empty object {} if null, preventing crash
             assessments: assessments
         });
 
     } catch (error) {
-        console.error("Expert Context Error:", error);
-        res.status(500).json({ error: "Server error" });
+        console.error("❌ Expert Context Error:", error);
+        // Return 500 so frontend handles it, but log the specific error
+        res.status(500).json({ error: "System error loading application." });
     }
 });
 
 // 4. SUBMIT EXPERT REVIEW
 app.post('/api/expert/submit', async (req, res) => {
     const { token, decision, comments } = req.body;
-
     try {
-        // A. Update Review Record
         const review = await prisma.expertReview.update({
             where: { token },
-            data: {
-                status: 'COMPLETED',
-                decision,
-                comments,
-                respondedAt: new Date()
-            }
+            data: { status: 'COMPLETED', decision, comments, respondedAt: new Date() }
         });
-
-        // B. Update Main Application Status
-        const newAppStatus = decision === 'APPROVED' ? 'EXPERT_APPROVED' : 'EXPERT_REJECTED';
 
         await prisma.onboardingApplication.update({
             where: { userId: review.applicantUserId },
-            data: { status: newAppStatus }
+            data: { status: decision === 'APPROVED' ? 'EXPERT_APPROVED' : 'EXPERT_REJECTED' }
         });
 
         res.json({ success: true });
-
     } catch (error) {
-        console.error("Expert Submit Error:", error);
-        res.status(500).json({ error: "Submission failed" });
+        res.status(500).json({ error: "Submit failed" });
     }
 });
 
@@ -1421,8 +1448,16 @@ app.get('/api/reviewer/applicants', async (req, res) => {
     try {
         // 1. Fetch all applications with status 'SUBMITTED'
         const apps = await prisma.onboardingApplication.findMany({
-            where: { status: 'SUBMITTED' },
-            include: { user: { include: { profile: true } } }
+            where: {
+                status: {
+                    in: ['SUBMITTED', 'EXPERT_REVIEW_PENDING']
+                }
+            },
+            include: {
+                user: {
+                    include: { profile: true }
+                }
+            }
         });
 
         // 2. Process each application to calculate Team Score & Tier

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useApplicationStore } from "../../store/useApplicationStore";
 import { useNavigate } from "react-router-dom"; // <--- 1. Import useNavigate
+import { saveApplication } from "../../api/portalApi";
 
 // Types
 import type { SlideConfig } from "../../types/onboarding";
@@ -57,7 +58,7 @@ export default function ApplicationEngine({
 
   const currentSectionId = currentSlide.sectionId;
   const sectionSlides = activeSlides.filter(
-    (s) => s.sectionId === currentSectionId
+    (s) => s.sectionId === currentSectionId,
   );
   const localIndex = sectionSlides.findIndex((s) => s.id === currentSlide.id);
   const localProgress = ((localIndex + 1) / sectionSlides.length) * 100;
@@ -80,7 +81,7 @@ export default function ApplicationEngine({
         .split(".")
         .reduce(
           (obj: any, key) => (obj && obj[key] !== undefined ? obj[key] : ""),
-          store
+          store,
         ) || ""
     );
   };
@@ -88,49 +89,24 @@ export default function ApplicationEngine({
   // --- NEW: SUBMIT FUNCTION ---
   const submitApplication = async () => {
     setIsSubmitting(true);
-    const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("artpark_user") || "{}");
 
-    if (!token || !user.id) {
-      alert("You are not logged in. Please log in to submit.");
-      setIsSubmitting(false);
-      // Optional: Redirect to login
+    if (!user.id) {
+      alert("Session expired. Please log in.");
+      navigate("/");
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/onboarding/save`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // 'Authorization': `Bearer ${token}` // Add this if you implement auth middleware
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          data: store, // Send the entire Zustand store state
-          submit: true, // Flag to mark as SUBMITTED in DB
-        }),
-      });
+      // ✅ USE THE NEW HELPER FUNCTION
+      // passing 'SUBMITTED' as the 3rd argument
+      await saveApplication(user.id, store, "SUBMITTED");
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error || "Submission failed");
-      }
-
-      // Success!
-      alert(
-        `Application Submitted Successfully! Reference ID: ${
-          resData.application?.id || "N/A"
-        }`
-      );
-
-      // Clear local storage or redirect
-      // store.resetForm(); // Optional: reset store
-      navigate("/application-submitted", { state: { userId: user.id } });
+      console.log("✅ Application successfully submitted!");
+      navigate("/application-success", { state: { userId: user.id } });
     } catch (error: any) {
       console.error("Submission Error:", error);
-      alert(`Error: ${error.message}`);
+      alert(`Submission failed: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -170,16 +146,16 @@ export default function ApplicationEngine({
         return s.id === "track_selection"
           ? !!store.venture.track
           : s.id === "vertical"
-          ? !!store.venture.vertical
-          : s.id === "tech_category"
-          ? store.venture.techCategory.length > 0
-          : s.id === "trl_level"
-          ? !!store.venture.trlLevel
-          : true;
+            ? !!store.venture.vertical
+            : s.id === "tech_category"
+              ? store.venture.techCategory.length > 0
+              : s.id === "trl_level"
+                ? !!store.venture.trlLevel
+                : true;
       case "essay":
         return (
           s.props?.questions?.every(
-            (q) => !q.minChars || getValue(q.field).length >= q.minChars
+            (q) => !q.minChars || getValue(q.field).length >= q.minChars,
           ) ?? true
         );
       case "upload":
@@ -189,7 +165,7 @@ export default function ApplicationEngine({
         const requiredKeys = s.props?.items?.map((i: any) => i.id) || [];
         return requiredKeys.every(
           (key: string) =>
-            store.declarations[key as keyof typeof store.declarations]
+            store.declarations[key as keyof typeof store.declarations],
         );
       default:
         return true;

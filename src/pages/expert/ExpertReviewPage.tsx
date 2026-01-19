@@ -27,7 +27,7 @@ export default function ExpertReviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [decision, setDecision] = useState<"APPROVED" | "REJECTED" | null>(
-    null
+    null,
   );
   const [comments, setComments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,19 +45,21 @@ export default function ExpertReviewPage() {
         const res = await fetch(`${API_URL}/api/expert/context?token=${token}`);
 
         if (!res.ok) {
-          if (res.status === 403)
-            throw new Error("This review has already been submitted.");
           if (res.status === 404)
             throw new Error("This review link is invalid or expired.");
+          if (res.status === 403)
+            throw new Error("This review has already been submitted.");
           throw new Error("Unable to load application data.");
         }
 
         const data = await res.json();
-        setAppData(data.application);
-        // Correctly handle the assessments array (fallback to empty array if missing)
+
+        // Safety Check: ensure objects exist
+        setAppData(data.application || {});
         setAssessments(Array.isArray(data.assessments) ? data.assessments : []);
-        setExpertName(data.expertName);
+        setExpertName(data.expertName || "Expert");
       } catch (err: any) {
+        console.error("Expert Load Error:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
@@ -71,7 +73,7 @@ export default function ExpertReviewPage() {
     if (!decision) return;
     if (decision === "REJECTED" && comments.length < 20) {
       alert(
-        "Please provide more detailed feedback for rejection (min 20 chars)."
+        "Please provide more detailed feedback for rejection (min 20 chars).",
       );
       return;
     }
@@ -247,8 +249,8 @@ export default function ExpertReviewPage() {
                   decision === "APPROVED"
                     ? "bg-green-600 hover:bg-green-700"
                     : decision === "REJECTED"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-gray-400"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-gray-400"
                 }`}
                 disabled={!decision || isSubmitting}
                 onClick={handleSubmit}
