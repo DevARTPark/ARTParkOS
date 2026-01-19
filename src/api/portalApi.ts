@@ -3,6 +3,7 @@ import mentorsData from '../data/portal/mentors.json';
 import labsData from '../data/portal/labs.json';
 import equipmentData from '../data/portal/equipment.json';
 import softwareData from '../data/portal/software.json';
+import { API_URL } from '../config';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -273,4 +274,29 @@ export const softwareRequestApi = {
         await simulateLatency();
         return [];
     },
+};
+
+export const saveApplication = async (userId: string, data: any, status?: string) => {
+    const response = await fetch(`${API_URL}/api/onboarding/application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            userId,
+            data,
+            status // ✅ This is the critical field you were missing
+        }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to save application');
+    }
+
+    return response.json();
+};
+
+export const getApplication = async (userId: string) => {
+    const response = await fetch(`${API_URL}/api/onboarding/application?userId=${userId}`);
+    if (!response.ok) throw new Error('Failed to load application');
+    return response.json();
 };
