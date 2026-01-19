@@ -32,12 +32,13 @@ interface ApplicationFullViewProps {
   assessmentData?: any; // Fallback for single object legacy data
 }
 
+// ✅ FIX: Map the readable IDs to the actual Lap IDs from your data
 const DIMENSIONS = [
-  { id: "strategy", label: "Strategy", icon: BrainCircuit },
-  { id: "culture", label: "Culture", icon: Users },
-  { id: "operations", label: "Ops", icon: Settings },
-  { id: "mindset", label: "Mindset", icon: Lightbulb },
-  { id: "tactics", label: "Tactics", icon: Crosshair },
+  { id: "lap1", label: "Strategy", icon: BrainCircuit },
+  { id: "lap2", label: "Culture", icon: Users },
+  { id: "lap3", label: "Ops", icon: Settings },
+  { id: "lap4", label: "Mindset", icon: Lightbulb },
+  { id: "lap5", label: "Tactics", icon: Crosshair },
 ];
 
 export default function ApplicationFullView({
@@ -45,9 +46,10 @@ export default function ApplicationFullView({
   assessments = [],
   assessmentData,
 }: ApplicationFullViewProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "venture" | "team">(
-    "overview"
-  );
+  // 1. UPDATE STATE TO INCLUDE 'documents'
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "venture" | "team" | "documents"
+  >("overview");
 
   // 1. DATA NORMALIZATION & SAFETY
   // If applicationData is missing, don't crash, just wait or show empty state
@@ -66,16 +68,19 @@ export default function ApplicationFullView({
 
     // Calculate Max Score per Dimension
     const teamDims: Record<string, number> = {
-      strategy: 0,
-      culture: 0,
-      operations: 0,
-      mindset: 0,
-      tactics: 0,
+      lap1: 0,
+      lap2: 0,
+      lap3: 0,
+      lap4: 0,
+      lap5: 0,
     };
 
     safeAssessments.forEach((a) => {
+      // The backend returns 'dimensionScores' with keys like 'lap1', 'lap2'
+      const scores = a.dimensionScores as Record<string, number>;
+
       DIMENSIONS.forEach((dim) => {
-        const score = a.dimensionScores?.[dim.id] || 0;
+        const score = scores?.[dim.id] || 0;
         if (score > teamDims[dim.id]) {
           teamDims[dim.id] = score;
         }
@@ -85,7 +90,7 @@ export default function ApplicationFullView({
     // Calculate Team Total
     const teamTotal = Object.values(teamDims).reduce(
       (sum, val) => sum + val,
-      0
+      0,
     );
 
     // Determine Tier
@@ -177,7 +182,7 @@ export default function ApplicationFullView({
         {teamStats && (
           <div
             className={`px-8 py-5 rounded-2xl border flex flex-col items-center shadow-sm ${getScoreColor(
-              teamStats.score
+              teamStats.score,
             )}`}
           >
             <div className="flex items-center gap-2 mb-1 opacity-90">
@@ -217,118 +222,106 @@ export default function ApplicationFullView({
           >
             Team Profiles
           </TabButton>
+          {/* NEW TAB BUTTON */}
+          <TabButton
+            active={activeTab === "documents"}
+            onClick={() => setActiveTab("documents")}
+          >
+            Documents
+          </TabButton>
         </nav>
       </div>
 
       {/* TAB CONTENT */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          <div className="xl:col-span-2 space-y-8">
-            {/* SCORE MATRIX */}
-            <Card className="overflow-hidden border-indigo-100 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-white border-b border-indigo-100 pb-4">
-                <CardTitle className="flex items-center gap-2 text-indigo-900">
-                  <BarChart3 className="w-5 h-5 text-indigo-600" /> Team
-                  Capability Matrix
-                </CardTitle>
-              </CardHeader>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
-                    <tr>
-                      <th className="px-5 py-4 min-w-[160px]">Team Member</th>
-                      <th className="px-4 py-4 text-center border-l border-gray-200">
-                        Total
+        // REMOVED GRID: Now it's a simple vertical stack taking full width
+        <div className="space-y-8">
+          {/* SCORE MATRIX */}
+          <Card className="overflow-hidden border-indigo-100 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-indigo-50 to-white border-b border-indigo-100 pb-4">
+              <CardTitle className="flex items-center gap-2 text-indigo-900">
+                <BarChart3 className="w-5 h-5 text-indigo-600" /> Team
+                Capability Matrix
+              </CardTitle>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
+                  <tr>
+                    <th className="px-5 py-4 min-w-[160px]">Team Member</th>
+                    <th className="px-4 py-4 text-center border-l border-gray-200">
+                      Total
+                    </th>
+                    {DIMENSIONS.map((dim) => (
+                      <th
+                        key={dim.id}
+                        className="px-3 py-4 text-center text-xs uppercase"
+                      >
+                        {dim.label}
                       </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {safeAssessments.map((a: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-gray-50/80">
+                      <td className="px-5 py-4 font-bold text-gray-900">
+                        {a.user?.userProfile?.fullName || a.userId || "Founder"}
+                        {idx === 0 && (
+                          <span className="ml-2 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                            Lead
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center font-bold border-l border-gray-100 bg-gray-50/30">
+                        {a.totalScore}
+                      </td>
                       {DIMENSIONS.map((dim) => (
-                        <th
+                        <td
                           key={dim.id}
-                          className="px-3 py-4 text-center text-xs uppercase"
+                          className="px-3 py-4 text-center text-gray-500"
                         >
-                          {dim.label}
-                        </th>
+                          {a.dimensionScores?.[dim.id] || 0}
+                        </td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {safeAssessments.map((a: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-gray-50/80">
-                        <td className="px-5 py-4 font-bold text-gray-900">
-                          {a.user?.userProfile?.fullName ||
-                            a.userId ||
-                            "Founder"}
-                          {idx === 0 && (
-                            <span className="ml-2 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                              Lead
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-center font-bold border-l border-gray-100 bg-gray-50/30">
-                          {a.totalScore}
-                        </td>
-                        {DIMENSIONS.map((dim) => (
-                          <td
-                            key={dim.id}
-                            className="px-3 py-4 text-center text-gray-500"
-                          >
-                            {a.dimensionScores?.[dim.id] || 0}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                    {safeAssessments.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="p-4 text-center text-gray-400"
-                        >
-                          No assessment data available.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                  ))}
+                  {safeAssessments.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-4 text-center text-gray-400">
+                        No assessment data available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* PITCH */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Executive Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">
+                  Problem Statement
+                </h4>
+                <p className="text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {venture?.problemStatement || "Not provided"}
+                </p>
               </div>
-            </Card>
-
-            {/* PITCH */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Executive Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">
-                    Problem Statement
-                  </h4>
-                  <p className="text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    {venture?.problemStatement || "Not provided"}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">
-                    Proposed Solution
-                  </h4>
-                  <p className="text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    {venture?.solutionDescription || "Not provided"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="xl:col-span-1 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Documents</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                <DocButton label="Pitch Deck" url={uploads?.pitchDeck} />
-                <DocButton label="Budget Plan" url={uploads?.budgetDoc} />
-                <DocButton label="Demo Video" url={uploads?.demoVideo} isLink />
-              </CardContent>
-            </Card>
-          </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">
+                  Proposed Solution
+                </h4>
+                <p className="text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {venture?.solutionDescription || "Not provided"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -370,6 +363,21 @@ export default function ApplicationFullView({
             </Card>
           ))}
         </div>
+      )}
+
+      {/* NEW: DOCUMENTS TAB */}
+      {activeTab === "documents" && (
+        <Card className="max-w-4xl">
+          <CardHeader>
+            <CardTitle>Supporting Documents</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <DocButton label="Pitch Deck" url={uploads?.pitchDeck} />
+            <DocButton label="Budget Plan" url={uploads?.budgetDoc} />
+            <DocButton label="Demo Video" url={uploads?.demoVideo} isLink />
+            <DocButton label="Other Documents" url={uploads?.otherDocs} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );
