@@ -1571,6 +1571,223 @@ app.get('/api/reviewer/applicants', async (req, res) => {
     }
 });
 
+// ==========================================
+// ADMIN DASHBOARD & APPROVAL ROUTES
+// ==========================================
+
+// 1. ADMIN DASHBOARD STATS & LIST
+app.get('/api/admin/dashboard', async (req, res) => {
+    try {
+        // A. Stats Counts
+        const total = await prisma.onboardingApplication.count();
+        const pendingExpert = await prisma.onboardingApplication.count({ where: { status: 'EXPERT_REVIEW_PENDING' } });
+        // "Action Required": Expert has approved, waiting for Admin
+        const actionRequired = await prisma.onboardingApplication.count({ where: { status: 'EXPERT_APPROVED' } });
+        const onboarded = await prisma.onboardingApplication.count({ where: { status: 'ONBOARDED' } });
+
+        // B. Pending List (Priority: Expert Approved/Rejected)
+        // Fetches applications that the Expert has finished reviewing
+        const pendingApps = await prisma.onboardingApplication.findMany({
+            where: {
+                status: { in: ['EXPERT_APPROVED', 'EXPERT_REJECTED', 'SUBMITTED', 'EXPERT_REVIEW_PENDING'] }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+            include: { user: { include: { profile: true } } }
+        });
+
+        // Map to cleaner UI format
+        const recentActivity = pendingApps.map(app => ({
+            id: app.userId,
+            founderName: app.user.profile?.fullName || "Unknown",
+            // @ts-ignore
+            startupName: app.data?.venture?.organizationName || "Untitled Venture",
+            status: app.status,
+            date: app.updatedAt.toISOString().split('T')[0]
+        }));
+
+        res.json({
+            stats: { total, pendingExpert, actionRequired, onboarded },
+            recentActivity
+        });
+
+    } catch (error) {
+        console.error("Admin Dashboard Error:", error);
+        res.status(500).json({ error: "Failed to load dashboard" });
+    }
+});
+
+// 2. ADMIN DECISION CONTEXT (The "Final View" Data)
+app.get('/api/admin/application-context/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    console.log(`\n🔍 [Admin Context] Request for User ID: ${userId}`);
+
+    try {
+        // 1. Fetch Application
+        const app = await prisma.onboardingApplication.findUnique({
+            where: { userId },
+            include: { user: { include: { profile: true } } }
+        });
+
+        if (!app) {
+            console.log("❌ Application not found in DB.");
+            return res.status(404).json({ error: "App not found" });
+        }
+
+        // --- 🕵️ DIAGNOSTIC: Check ALL reviews for this user (Ignoring Status) ---
+        const allReviews = await prisma.expertReview.findMany({
+            where: { applicantUserId: userId }
+        });
+
+        console.log(`📊 [Diagnostic] Found ${allReviews.length} TOTAL reviews in DB for this user.`);
+        allReviews.forEach((r, i) => {
+            console.log(`   [Review ${i + 1}] ID: ${r.id} | Status: '${r.status}' | Expert: ${r.expertName}`);
+        });
+
+        // 2. Fetch Only COMPLETED Reviews (The Real Query)
+        const reviews = await prisma.expertReview.findMany({
+            where: {
+                applicantUserId: userId,
+                status: 'COMPLETED' // ⚠️ This matches EXACTLY 'COMPLETED'
+            },
+            orderBy: { respondedAt: 'desc' }
+        });
+
+        console.log(`✅ [Filter Result] Sending ${reviews.length} 'COMPLETED' reviews to frontend.`);
+
+        // 3. Assessment Logic
+        const founderEmail = app.user.email;
+        // @ts-ignore
+        const coFounders = app.data?.coFounders || [];
+        const emails = [founderEmail, ...coFounders.map((c: any) => c.email)]
+            .filter(Boolean).map((e: any) => e.toLowerCase());
+
+        const assessments = await prisma.innovationAssessment.findMany({
+            where: { user: { email: { in: emails, mode: 'insensitive' } } },
+            include: { user: { select: { email: true, profile: { select: { fullName: true } } } } }
+        });
+
+        res.json({
+            // @ts-ignore
+            application: { ...app.data, status: app.status, founder: { ...app.data.founder, fullName: app.user.profile?.fullName } },
+            assessments,
+            expertReviews: reviews
+        });
+
+    } catch (error) {
+        console.error("❌ Admin Context Error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// 3. FINAL ONBOARDING ACTION (Already checked, ensuring robustness)
+app.post('/api/admin/onboard', async (req, res) => {
+    const { userId, status } = req.body; // 'APPROVED' or 'REJECTED'
+
+    try {
+        if (status === 'APPROVED') {
+            // 1. Update App Status
+            await prisma.onboardingApplication.update({
+                where: { userId },
+                data: { status: 'ONBOARDED' }
+            });
+
+            // 2. Update User Role to Founder
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            // Remove 'applicant', add 'founder' (using Set to handle uniqueness)
+            const roles = new Set(user?.roles || []);
+            roles.delete(Role.applicant);
+            roles.add(Role.founder);
+
+            await prisma.user.update({
+                where: { id: userId }, // Note: depending on your schema, might be 'id' or 'userId'
+                // If your user table PK is 'id', use { id: userId }
+                data: { roles: Array.from(roles) as Role[] }
+            });
+        } else {
+            // Reject
+            await prisma.onboardingApplication.update({
+                where: { userId },
+                data: { status: 'REJECTED' }
+            });
+        }
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: "Action failed" });
+    }
+});
+
+// ==========================================
+// 7. GET ADMIN APPROVED LIST (New)
+// ==========================================
+// ==========================================
+// 7. GET ADMIN APPROVED LIST (FIXED RELATION)
+// ==========================================
+app.get('/api/admin/approved-list', async (req, res) => {
+    try {
+        const apps = await prisma.onboardingApplication.findMany({
+            where: { status: 'EXPERT_APPROVED' },
+            include: {
+                user: {
+                    include: {
+                        profile: true,
+                        expertReviews: {
+                            where: { status: 'COMPLETED', decision: 'APPROVED' },
+                            take: 1,
+                            // ✅ FIX: Sort by 'respondedAt' because 'createdAt' does not exist
+                            orderBy: { respondedAt: 'desc' }
+                        }
+                    }
+                }
+            }
+        });
+
+        const results = await Promise.all(apps.map(async (app) => {
+            const founderName = app.user.profile?.fullName || "Unknown";
+            // @ts-ignore
+            const startupName = app.data?.venture?.organizationName || "Untitled Venture";
+
+            // ✅ FIX: Correctly access the nested array
+            const expertName = app.user.expertReviews[0]?.expertName || "Unknown Expert";
+
+            // Team Score Logic
+            const founderEmail = app.user.email;
+            // @ts-ignore
+            const coFounders = app.data?.coFounders || [];
+            const emails = [founderEmail, ...coFounders.map((c: any) => c.email)].filter(Boolean).map((e: any) => e.toLowerCase());
+
+            const assessments = await prisma.innovationAssessment.findMany({
+                where: { user: { email: { in: emails, mode: 'insensitive' } } }
+            });
+
+            const DIMENSIONS = ['lap1', 'lap2', 'lap3', 'lap4', 'lap5'];
+            const teamDims: Record<string, number> = { lap1: 0, lap2: 0, lap3: 0, lap4: 0, lap5: 0 };
+
+            assessments.forEach(a => {
+                const scores = a.dimensionScores as Record<string, number>;
+                DIMENSIONS.forEach(dim => { if ((scores[dim] || 0) > teamDims[dim]) teamDims[dim] = scores[dim]; });
+            });
+            const teamScore = Object.values(teamDims).reduce((a, b) => a + b, 0);
+
+            return {
+                id: app.userId,
+                startupName,
+                founderName,
+                score: teamScore,
+                endorsedBy: expertName,
+                date: app.updatedAt.toISOString().split('T')[0]
+            };
+        }));
+
+        res.json(results);
+
+    } catch (error) {
+        console.error("Admin List Error:", error);
+        res.status(500).json({ error: "Failed to fetch list" });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Server running on http://localhost:${PORT}`);
