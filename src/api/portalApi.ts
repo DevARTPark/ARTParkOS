@@ -277,7 +277,7 @@ export const softwareRequestApi = {
 };
 
 export const saveApplication = async (userId: string, data: any, status?: string) => {
-    const response = await fetch(`${API_URL}/api/onboarding/application`, {
+    const response = await fetch(`${API_URL}/api/onboarding/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
