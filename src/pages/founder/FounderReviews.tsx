@@ -97,6 +97,13 @@ export interface ExpenseInput {
   periodicity: "Monthly" | "Quarterly" | "Yearly";
 }
 
+// NEW: Type for Projections
+export interface ProjectionInput {
+  nextMonthRE: string;
+  nextMonthNRE: string;
+  fundingAsk: string; // Matches "Fy25-26 Ask" or Tranche Request
+}
+
 // Helper to adapt/migrate data
 const adaptReports = (reports: any[]): ReportDetail[] => {
   if (!Array.isArray(reports)) return [];
@@ -179,9 +186,7 @@ export function FounderReviews() {
               highlights: "",
               risks: "",
               scheduleTasks: [],
-              expenses: [] // Do we copy recurring expenses here? 
-              // NOTE: If we want strict recursion from previous month even on auto-gen, we'd copy here.
-              // For now, relying on "Add Expense" propagation logic.
+              expenses: [] 
             }))
           : [],
         startupUpdates: {
@@ -246,6 +251,14 @@ export function FounderReviews() {
   }>({ highlights: "", risks: "" });
 
   const [newCheckpoint, setNewCheckpoint] = useState("");
+
+  // --- NEW: STATE FOR PROJECTIONS ---
+  const [projectionsInput, setProjectionsInput] = useState<Record<string, ProjectionInput>>({});
+  const [startupProjectionsInput, setStartupProjectionsInput] = useState<ProjectionInput>({
+      nextMonthRE: "",
+      nextMonthNRE: "",
+      fundingAsk: ""
+  });
 
   // --- DATE HELPERS ---
   const getMonthDate = (monthYear: string) => {
@@ -325,11 +338,15 @@ export function FounderReviews() {
     });
     setNewStartupPointInput({ highlights: "", risks: "" });
     setNewCheckpoint("");
+    setProjectionsInput({});
+    setStartupProjectionsInput({ nextMonthRE: "", nextMonthNRE: "", fundingAsk: "" });
   };
 
   const handleSaveReport = () => {
     if (!selectedReport) return;
     setIsSaving(true);
+    // In a real app, you would also save the 'projections' state to the report object here.
+    // For now, we update the main report object.
     const updatedReports = reports.map((r) =>
       r.reportId === selectedReport.reportId ? selectedReport : r
     );
@@ -348,6 +365,21 @@ export function FounderReviews() {
     );
     setReports(updatedReports);
     handleSaveReport();
+  };
+
+  // --- NEW: PROJECTION HANDLER ---
+  const handleProjectionChange = (projectId: string | 'startup', field: keyof ProjectionInput, val: string) => {
+    if (projectId === 'startup') {
+        setStartupProjectionsInput(prev => ({ ...prev, [field]: val }));
+    } else {
+        setProjectionsInput(prev => ({
+            ...prev,
+            [projectId]: {
+                ...(prev[projectId] || { nextMonthRE: "", nextMonthNRE: "", fundingAsk: "" }),
+                [field]: val
+            }
+        }));
+    }
   };
 
   // --- CONTENT HANDLERS ---
@@ -429,7 +461,6 @@ export function FounderReviews() {
     setNewTaskInput({ ...newTaskInput, [projectId]: { ...newTaskInput[projectId], [field]: val } });
   };
   
-  // Startup Tasks Input Handlers
   const handleStartupTaskInputChange = (field: "title" | "date" | "description", val: string) => {
     setNewStartupTaskInput(prev => ({...prev, [field]: val}));
   };
@@ -446,7 +477,7 @@ export function FounderReviews() {
     setSelectedReport(updatedReport);
   };
 
-  // --- EXPENSE LOGIC (ADD / EDIT / REMOVE PROPAGATION) ---
+  // --- EXPENSE LOGIC ---
   const genId = () => `e-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const addExpenseWithPropagation = (
@@ -462,7 +493,6 @@ export function FounderReviews() {
     const source = input.fundingSource || "DST";
     const periodicity = input.periodicity || "Monthly";
     
-    // Generate a group ID if recurring, to link future instances
     const recurringGroupId = type === "RE" ? `rg-${Date.now()}` : undefined;
 
     const newExpense: Expense = {
@@ -485,7 +515,6 @@ export function FounderReviews() {
     const updatedReports = reports.map((report) => {
       const reportAbsMonth = getAbsMonth(report.month);
 
-      // 1. ADD TO CURRENT REPORT
       if (report.reportId === reportId) {
         if (projectId) {
           return {
@@ -507,7 +536,6 @@ export function FounderReviews() {
         }
       }
 
-      // 2. PROPAGATE TO FUTURE REPORTS (If RE)
       if (type === "RE" && reportAbsMonth > currentAbsMonth) {
         const diff = reportAbsMonth - currentAbsMonth;
         let shouldAdd = false;
@@ -518,9 +546,8 @@ export function FounderReviews() {
         if (shouldAdd) {
           const propagatedExpense = {
             ...newExpense,
-            id: genId(), // New Unique ID
+            id: genId(), 
             date: getStartDateForMonth(report.month).toISOString().split("T")[0],
-            // Keep the same recurringGroupId to link them
           };
 
           if (projectId) {
@@ -547,7 +574,6 @@ export function FounderReviews() {
     });
 
     setReports(updatedReports);
-    // Update currently selected view
     const updatedSelected = updatedReports.find((r) => r.reportId === reportId);
     if (updatedSelected) setSelectedReport(updatedSelected);
   };
@@ -558,7 +584,6 @@ export function FounderReviews() {
     expenseId: string,
     newValues: Partial<Expense>
   ) => {
-    // 1. Find the original expense to check for recurringGroupId
     const selectedReportLocal = reports.find(r => r.reportId === reportId);
     if (!selectedReportLocal) return;
 
@@ -578,21 +603,16 @@ export function FounderReviews() {
     const updatedReports = reports.map(report => {
       const reportAbsMonth = getAbsMonth(report.month);
 
-      // Only affect current and future months
       if (reportAbsMonth < currentAbsMonth) return report;
 
-      // Check if we need to update this report
       const shouldUpdate = 
-        (report.reportId === reportId) || // Always update current
-        (recurringGroupId && reportAbsMonth > currentAbsMonth); // Update future if linked
+        (report.reportId === reportId) || 
+        (recurringGroupId && reportAbsMonth > currentAbsMonth);
 
       if (!shouldUpdate) return report;
 
-      // Function to update expense list
       const updateList = (list: Expense[]) => {
         return list.map(e => {
-          // If it's the specific expense ID (current month) 
-          // OR it shares the recurringGroupId (future month propagation)
           if (e.id === expenseId || (recurringGroupId && e.recurringGroupId === recurringGroupId)) {
              return { ...e, ...newValues };
           }
@@ -626,7 +646,6 @@ export function FounderReviews() {
   const handleRemoveExpense = (projectId: string | null, expenseId: string) => {
     if (!selectedReport) return;
 
-    // 1. Find the expense to check recurringGroupId
     let expenseToDelete: Expense | undefined;
     if (projectId) {
       const p = selectedReport.projectUpdates.find(p => p.projectId === projectId);
@@ -640,13 +659,8 @@ export function FounderReviews() {
 
     const updatedReports = reports.map((r) => {
       const reportAbsMonth = getAbsMonth(r.month);
-      
-      // If this report is older than the current one, do nothing
       if (reportAbsMonth < currentAbsMonth) return r;
 
-      // Determine if we should delete from this report
-      // 1. It's the current report
-      // 2. It's a future report AND the expense has the same recurringGroupId
       const shouldProcess = (r.reportId === selectedReport.reportId) || (reportAbsMonth > currentAbsMonth);
 
       if (!shouldProcess) return r;
@@ -660,9 +674,6 @@ export function FounderReviews() {
                   ...p,
                   expenses: (p.expenses || []).filter(
                     (e) => {
-                      // Logic: 
-                      // If exact ID match, delete.
-                      // If recurringGroupId matches, delete.
                       if (e.id === expenseId) return false;
                       if (recurringGroupId && e.recurringGroupId === recurringGroupId) return false;
                       return true;
@@ -843,7 +854,9 @@ export function FounderReviews() {
              newPointInput,
              newStartupTaskInput,
              newStartupExpenseInput,
-             newStartupPointInput
+             newStartupPointInput,
+             projectionsInput, // ADDED
+             startupProjectionsInput // ADDED
           }}
           actions={{
              handleAddTask,
@@ -855,14 +868,15 @@ export function FounderReviews() {
              handleAddProjectExpense,
              handleAddStartupExpense,
              handleRemoveExpense,
-             handleEditExpense, // New Handler
+             handleEditExpense,
              handleExpenseInputChange,
              handleStartupExpenseInputChange,
              handleAddPoint,
              handleRemovePoint,
              handleAddStartupPoint,
              handleRemoveStartupPoint,
-             handleStartupPointInputChange
+             handleStartupPointInputChange,
+             handleProjectionChange // ADDED
           }}
           helpers={{
              getDeadlineForMonth,
