@@ -917,7 +917,7 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
 
 // 1. MODIFY EXISTING REGISTER ROUTE
 app.post('/api/auth/register', async (req, res) => {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, track } = req.body;
 
     if (!email || !password || !fullName) {
         return res.status(400).json({ error: "Missing fields" });
@@ -946,7 +946,7 @@ app.post('/api/auth/register', async (req, res) => {
             });
 
             await tx.onboardingApplication.create({
-                data: { userId: newUser.id, data: {}, status: 'DRAFT' }
+                data: { userId: newUser.id, data: { venture: { track: track || 'startup' } }, status: 'DRAFT' }
             });
 
             return newUser;
