@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useApplicationStore } from "../../store/useApplicationStore"; // Ensure path is correct
-import { API_URL } from "../../config"; // <--- Use your central config
+import { useApplicationStore } from "../../store/useApplicationStore";
+import { API_URL } from "../../config";
 
 export default function VerifyEmailHandler() {
   const [searchParams] = useSearchParams();
@@ -19,6 +19,7 @@ export default function VerifyEmailHandler() {
 
     const verifyToken = async () => {
       try {
+        // 1. Verify Email
         const res = await fetch(`${API_URL}/api/auth/verify-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -26,19 +27,46 @@ export default function VerifyEmailHandler() {
         });
 
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.error);
 
-        // 1. Success: Save Token (Auto-login)
+        // 2. Save Token (Auto-login)
         localStorage.setItem("token", data.token);
         localStorage.setItem("artpark_user", JSON.stringify(data.user));
 
-        // 2. Clear any old draft data
+        // 3. Clear old data
         resetForm();
 
-        // 3. UX Decision: Redirect to Application Wizard instead of Login
-        // This reduces friction so they can start applying immediately.
-        navigate("/apply/founder");
+        // 4. FETCH APPLICATION TO CHECK TRACK
+        // We need to know if they are 'startup' (Founder) or 'innovator'
+        try {
+          const appRes = await fetch(
+            `${API_URL}/api/onboarding/application?userId=${data.user.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${data.token}`,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          if (appRes.ok) {
+            const appData = await appRes.json();
+            // Check the track stored in step 1
+            const track = appData?.venture?.track;
+
+            if (track === "innovator") {
+              navigate("/apply/innovator");
+            } else {
+              navigate("/apply/founder");
+            }
+          } else {
+            // Fallback if fetch fails
+            navigate("/apply/founder");
+          }
+        } catch (e) {
+          // Fallback if network error
+          navigate("/apply/founder");
+        }
       } catch (error) {
         console.error(error);
         setStatus("error");
