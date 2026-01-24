@@ -1495,7 +1495,7 @@ app.get('/api/reviewer/applicants', async (req, res) => {
         const apps = await prisma.onboardingApplication.findMany({
             where: {
                 status: {
-                    in: ['SUBMITTED', 'EXPERT_REVIEW_PENDING']
+                    in: ['SUBMITTED', 'EXPERT_REVIEW_PENDING', 'EXPERT_APPROVED', 'EXPERT_REJECTED']
                 }
             },
             include: {
