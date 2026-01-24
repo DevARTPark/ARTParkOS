@@ -866,7 +866,7 @@ export function App() {
         <Route path="/expert/review" element={<ExpertReviewPage />} />
 
         <Route
-          path="/application-submitted"
+          path="/application-success"
           element={
             <ProtectedRoute
               allowedRoles={["applicant", "founder", "innovator"]}
