@@ -283,6 +283,7 @@ export const saveApplication = async (userId: string, data: any, status?: string
         body: JSON.stringify({
             userId,
             data,
+            submit: status === 'SUBMITTED',
             status // ✅ This is the critical field you were missing
         }),
     });
