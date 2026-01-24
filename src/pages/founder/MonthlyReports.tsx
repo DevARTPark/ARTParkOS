@@ -26,16 +26,19 @@ import {
   Lock,
   Unlock,
   DollarSign,
-  Info
+  Info,
+  TrendingUp,
+  Users
 } from "lucide-react";
 
-// Import Constants from Parent
+// Import Constants AND Type from Parent
 import { 
   RE_CATEGORIES, 
   NRE_CATEGORIES, 
   FUNDING_SOURCES, 
   ReportDetail, 
   ExpenseInput,
+  ProjectionInput, // Imported from Parent
 } from "./FounderReviews";
 
 interface MonthlyReportsProps {
@@ -59,6 +62,10 @@ interface MonthlyReportsProps {
     newStartupTaskInput: { title: string; date: string; description: string };
     newStartupExpenseInput: ExpenseInput;
     newStartupPointInput: { highlights: string; risks: string };
+    
+    // NEW: Financial Projections Inputs
+    projectionsInput: Record<string, ProjectionInput>; 
+    startupProjectionsInput: ProjectionInput;
   };
 
   // Action Handlers
@@ -69,11 +76,12 @@ interface MonthlyReportsProps {
     
     handleAddStartupTask: () => void;
     handleRemoveStartupTask: (taskId: string) => void;
-    handleStartupTaskInputChange?: (field: "title" | "date" | "description", val: string) => void; // Optional if you add it to parent
+    handleStartupTaskInputChange?: (field: "title" | "date" | "description", val: string) => void;
     
     handleAddProjectExpense: (projectId: string) => void;
     handleAddStartupExpense: () => void;
     handleRemoveExpense: (projectId: string | null, expenseId: string) => void;
+    handleEditExpense: (reportId: string, projectId: string | null, expenseId: string, newValues: any) => void;
     
     handleExpenseInputChange: (projectId: string, field: keyof ExpenseInput, val: string) => void;
     handleStartupExpenseInputChange: (field: keyof ExpenseInput, val: string) => void;
@@ -83,8 +91,10 @@ interface MonthlyReportsProps {
     
     handleAddStartupPoint: (field: "highlights" | "risks") => void;
     handleRemoveStartupPoint: (field: "highlights" | "risks", indexToRemove: number) => void;
-    // ADDED: Handler for typing in the startup points input
     handleStartupPointInputChange?: (field: "highlights" | "risks", val: string) => void;
+
+    // NEW: Handlers for Projections
+    handleProjectionChange: (projectId: string | 'startup', field: keyof ProjectionInput, val: string) => void;
   };
 
   // Helpers
@@ -482,7 +492,7 @@ export function MonthlyReports({
                 </div>
               </div>
 
-              {/* Startup Milestones & Expenses */}
+              {/* Startup Milestones, Expenses & Projections */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
                 {/* Milestones */}
                 <div>
@@ -558,158 +568,207 @@ export function MonthlyReports({
                   )}
                 </div>
 
-                {/* Expenses */}
-                <div className="border-l border-gray-100 pl-6">
-                  <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex items-center justify-between">
-                    <div className="flex items-center">
-                      <CreditCard className="w-3 h-3 mr-1.5" /> Startup Expense
-                      Sheet
-                    </div>
-                    <Badge variant="neutral">
-                      Total: ₹
-                      {getExpenseTotal(selectedReport.startupUpdates.expenses)}
-                    </Badge>
-                  </label>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50 text-gray-500 font-medium">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Item / Category</th>
-                          <th className="px-2 py-2 text-center">Type / Source</th>
-                          <th className="px-3 py-2 text-right">Amount</th>
-                          {!isLockedForEditing && (
-                            <th className="px-2 py-2 w-6"></th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {(selectedReport.startupUpdates.expenses || []).length >
-                        0 ? (
-                          selectedReport.startupUpdates.expenses.map((exp) => (
-                            <tr key={exp.id} className="bg-white">
-                              <td className="px-3 py-2">
-                                <div className="text-gray-900 font-medium">
-                                  {exp.item}
-                                </div>
-                                <div className="text-[10px] text-gray-400 flex items-center gap-2">
-                                  <span>{exp.category}</span>
-                                  {exp.type === "RE" && exp.periodicity && (
-                                    <span className="bg-indigo-50 text-indigo-700 px-1 rounded flex items-center">
-                                      <RefreshCw className="w-2 h-2 mr-1" />{" "}
-                                      {exp.periodicity}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-2 py-2 text-center">
-                                <div className="flex flex-col gap-1 items-center">
-                                  <span
-                                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                      exp.type === "RE"
-                                        ? "bg-indigo-50 text-indigo-700"
-                                        : "bg-orange-50 text-orange-700"
-                                    }`}
-                                  >
-                                    {exp.type}
-                                  </span>
-                                  <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
-                                    {exp.fundingSource}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-3 py-2 text-right font-mono">
-                                ₹{exp.amount}
-                              </td>
-                              {!isLockedForEditing && (
-                                <td className="px-2 py-2 text-center">
-                                  <button
-                                    onClick={() =>
-                                      actions.handleRemoveExpense(null, exp.id)
-                                    }
-                                    className="text-gray-300 hover:text-red-500"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))
-                        ) : (
+                {/* Expenses & Projections */}
+                <div className="border-l border-gray-100 pl-6 space-y-6">
+                  {/* Actual Expenses */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex items-center justify-between">
+                      <div className="flex items-center">
+                        <CreditCard className="w-3 h-3 mr-1.5" /> Startup Expense Sheet (Actuals)
+                      </div>
+                      <Badge variant="neutral">
+                        Total: ₹
+                        {getExpenseTotal(selectedReport.startupUpdates.expenses)}
+                      </Badge>
+                    </label>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 text-gray-500 font-medium">
                           <tr>
-                            <td
-                              colSpan={4}
-                              className="px-3 py-4 text-center text-gray-400 italic"
-                            >
-                              No expenses recorded.
-                            </td>
+                            <th className="px-3 py-2 text-left">Item / Category</th>
+                            <th className="px-2 py-2 text-center">Type / Source</th>
+                            <th className="px-3 py-2 text-right">Amount</th>
+                            {!isLockedForEditing && (
+                              <th className="px-2 py-2 w-6"></th>
+                            )}
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {!isLockedForEditing && (
-                    <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Item Name"
-                          className="h-7 text-xs flex-1"
-                          value={inputs.newStartupExpenseInput.item}
-                          onChange={(e) => actions.handleStartupExpenseInputChange("item", e.target.value)}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="₹ Amount"
-                          className="h-7 text-xs w-24"
-                          value={inputs.newStartupExpenseInput.amount}
-                          onChange={(e) => actions.handleStartupExpenseInputChange("amount", e.target.value)}
-                        />
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {(selectedReport.startupUpdates.expenses || []).length >
+                          0 ? (
+                            selectedReport.startupUpdates.expenses.map((exp) => (
+                              <tr key={exp.id} className="bg-white">
+                                <td className="px-3 py-2">
+                                  <div className="text-gray-900 font-medium">
+                                    {exp.item}
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 flex items-center gap-2">
+                                    <span>{exp.category}</span>
+                                    {exp.type === "RE" && exp.periodicity && (
+                                      <span className="bg-indigo-50 text-indigo-700 px-1 rounded flex items-center">
+                                        <RefreshCw className="w-2 h-2 mr-1" />{" "}
+                                        {exp.periodicity}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  <div className="flex flex-col gap-1 items-center">
+                                    <span
+                                      className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                        exp.type === "RE"
+                                          ? "bg-indigo-50 text-indigo-700"
+                                          : "bg-orange-50 text-orange-700"
+                                      }`}
+                                    >
+                                      {exp.type}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
+                                      {exp.fundingSource}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono">
+                                  ₹{exp.amount}
+                                </td>
+                                {!isLockedForEditing && (
+                                  <td className="px-2 py-2 text-center">
+                                    <button
+                                      onClick={() =>
+                                        actions.handleRemoveExpense(null, exp.id)
+                                      }
+                                      className="text-gray-300 hover:text-red-500"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={4}
+                                className="px-3 py-4 text-center text-gray-400 italic"
+                              >
+                                No expenses recorded.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {!isLockedForEditing && (
+                      <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Item Name"
+                            className="h-7 text-xs flex-1"
+                            value={inputs.newStartupExpenseInput.item}
+                            onChange={(e) => actions.handleStartupExpenseInputChange("item", e.target.value)}
+                          />
+                          <Input
+                            type="number"
+                            placeholder="₹ Amount"
+                            className="h-7 text-xs w-24"
+                            value={inputs.newStartupExpenseInput.amount}
+                            onChange={(e) => actions.handleStartupExpenseInputChange("amount", e.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          {/* Type Selector */}
+                          <select
+                            className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                            value={inputs.newStartupExpenseInput.type}
+                            onChange={(e) => actions.handleStartupExpenseInputChange("type", e.target.value)}
+                          >
+                            <option value="NRE">NRE</option>
+                            <option value="RE">RE</option>
+                          </select>
+
+                          {/* Source Selector (NEW) */}
+                          <select
+                            className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                            value={inputs.newStartupExpenseInput.fundingSource}
+                            onChange={(e) => actions.handleStartupExpenseInputChange("fundingSource", e.target.value)}
+                          >
+                            {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
+                          </select>
+
+                          {/* Category Selector */}
+                          <select
+                            className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none flex-1"
+                            value={inputs.newStartupExpenseInput.category}
+                            onChange={(e) => actions.handleStartupExpenseInputChange("category", e.target.value)}
+                          >
+                             {(inputs.newStartupExpenseInput.type === "RE"
+                                ? RE_CATEGORIES
+                                : NRE_CATEGORIES
+                              ).map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 text-xs px-3"
+                            onClick={actions.handleAddStartupExpense}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        {/* Type Selector */}
-                        <select
-                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                          value={inputs.newStartupExpenseInput.type}
-                          onChange={(e) => actions.handleStartupExpenseInputChange("type", e.target.value)}
-                        >
-                          <option value="NRE">NRE</option>
-                          <option value="RE">RE</option>
-                        </select>
+                    )}
+                  </div>
 
-                        {/* Source Selector (NEW) */}
-                        <select
-                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                          value={inputs.newStartupExpenseInput.fundingSource}
-                          onChange={(e) => actions.handleStartupExpenseInputChange("fundingSource", e.target.value)}
-                        >
-                          {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
-                        </select>
-
-                        {/* Category Selector */}
-                        <select
-                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none flex-1"
-                          value={inputs.newStartupExpenseInput.category}
-                          onChange={(e) => actions.handleStartupExpenseInputChange("category", e.target.value)}
-                        >
-                           {(inputs.newStartupExpenseInput.type === "RE"
-                              ? RE_CATEGORIES
-                              : NRE_CATEGORIES
-                            ).map((cat) => (
-                              <option key={cat} value={cat}>
-                                {cat}
-                              </option>
-                            ))}
-                        </select>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="h-7 text-xs px-3"
-                          onClick={actions.handleAddStartupExpense}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
+                  {/* NEW: Financial Projections Section */}
+                  <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                    <label className="text-xs font-bold text-blue-700 uppercase mb-3 block flex items-center">
+                      <TrendingUp className="w-3 h-3 mr-1.5" /> Next Month Projections
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-gray-500 uppercase font-semibold">Projected RE (Recurring)</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1.5 text-xs text-gray-500">₹</span>
+                          <Input 
+                             type="number"
+                             className="h-8 text-xs pl-5" 
+                             placeholder="0.00"
+                             value={inputs.startupProjectionsInput?.nextMonthRE || ""}
+                             onChange={(e) => actions.handleProjectionChange && actions.handleProjectionChange('startup', 'nextMonthRE', e.target.value)}
+                             disabled={isLockedForEditing}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-gray-500 uppercase font-semibold">Projected NRE (One-time)</label>
+                        <div className="relative">
+                           <span className="absolute left-2 top-1.5 text-xs text-gray-500">₹</span>
+                           <Input 
+                              type="number"
+                              className="h-8 text-xs pl-5" 
+                              placeholder="0.00"
+                              value={inputs.startupProjectionsInput?.nextMonthNRE || ""}
+                              onChange={(e) => actions.handleProjectionChange && actions.handleProjectionChange('startup', 'nextMonthNRE', e.target.value)}
+                              disabled={isLockedForEditing}
+                           />
+                        </div>
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                         <label className="text-[10px] text-gray-500 uppercase font-semibold">Funding Ask / Tranche Request</label>
+                         <Input 
+                            className="h-8 text-xs" 
+                            placeholder="Enter amount if submitting a new tranche request..."
+                            value={inputs.startupProjectionsInput?.fundingAsk || ""}
+                            onChange={(e) => actions.handleProjectionChange && actions.handleProjectionChange('startup', 'fundingAsk', e.target.value)}
+                            disabled={isLockedForEditing}
+                         />
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -732,8 +791,14 @@ export function MonthlyReports({
                     </CardTitle>
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* Display Leads and Type based on Excel Sheets */}
+                    <div className="flex items-center gap-1.5 text-[10px] bg-white px-2 py-1 rounded border border-gray-200 text-gray-600">
+                        <Users className="w-3 h-3 text-gray-400" />
+                        {/* Placeholder for Lead Names if available in data */}
+                        <span>Leads: {project.leads || "Not Assigned"}</span>
+                    </div>
                     <Badge variant="neutral" className="text-[10px]">
-                      Current: AIRL {project.currentAIRL}
+                      {project.projectType || "In-House"}
                     </Badge>
                   </div>
                 </div>
@@ -854,96 +919,136 @@ export function MonthlyReports({
                          )}
                     </div>
 
-                    <div className="border-l border-gray-100 pl-6">
-                        <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex items-center justify-between">
-                          <div className="flex items-center">
-                            <CreditCard className="w-3 h-3 mr-1.5" /> Expense Sheet
+                    <div className="border-l border-gray-100 pl-6 space-y-6">
+                        {/* ACTUALS */}
+                        <div>
+                          <label className="text-xs font-bold text-gray-500 uppercase mb-3 block flex items-center justify-between">
+                            <div className="flex items-center">
+                              <CreditCard className="w-3 h-3 mr-1.5" /> Expense Sheet (Actuals)
+                            </div>
+                            <Badge variant="neutral">
+                              Total: ₹{getExpenseTotal(project.expenses || [])}
+                            </Badge>
+                          </label>
+                          {/* Expenses Table */}
+                          <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                              <table className="w-full text-xs">
+                                  <thead className="bg-gray-50 text-gray-500 font-medium">
+                                      <tr>
+                                          <th className="px-3 py-2 text-left">Item / Category</th>
+                                          <th className="px-2 py-2 text-center">Type / Source</th>
+                                          <th className="px-3 py-2 text-right">Amount</th>
+                                          {!isLockedForEditing && <th className="px-2 py-2 w-6"></th>}
+                                      </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100">
+                                      {(project.expenses || []).map(exp => (
+                                          <tr key={exp.id} className="bg-white">
+                                              <td className="px-3 py-2">
+                                                  <div className="text-gray-900 font-medium">{exp.item}</div>
+                                                  <div className="text-[10px] text-gray-400">{exp.category}</div>
+                                              </td>
+                                              <td className="px-2 py-2 text-center">
+                                                  <div className="flex flex-col gap-1 items-center">
+                                                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${exp.type === 'RE' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                          {exp.type}
+                                                      </span>
+                                                      <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
+                                                          {exp.fundingSource}
+                                                      </span>
+                                                  </div>
+                                              </td>
+                                              <td className="px-3 py-2 text-right font-mono">₹{exp.amount}</td>
+                                              {!isLockedForEditing && (
+                                                  <td className="px-2 py-2 text-center">
+                                                      <button onClick={() => actions.handleRemoveExpense(project.projectId, exp.id)} className="text-gray-300 hover:text-red-500">
+                                                          <X className="w-3 h-3" />
+                                                      </button>
+                                                  </td>
+                                              )}
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
                           </div>
-                          <Badge variant="neutral">
-                            Total: ₹{getExpenseTotal(project.expenses || [])}
-                          </Badge>
-                        </label>
-                        {/* Expenses Table */}
-                         <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                            <table className="w-full text-xs">
-                                <thead className="bg-gray-50 text-gray-500 font-medium">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left">Item / Category</th>
-                                        <th className="px-2 py-2 text-center">Type / Source</th>
-                                        <th className="px-3 py-2 text-right">Amount</th>
-                                        {!isLockedForEditing && <th className="px-2 py-2 w-6"></th>}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {(project.expenses || []).map(exp => (
-                                        <tr key={exp.id} className="bg-white">
-                                            <td className="px-3 py-2">
-                                                <div className="text-gray-900 font-medium">{exp.item}</div>
-                                                <div className="text-[10px] text-gray-400">{exp.category}</div>
-                                            </td>
-                                            <td className="px-2 py-2 text-center">
-                                                <div className="flex flex-col gap-1 items-center">
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${exp.type === 'RE' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>
-                                                        {exp.type}
-                                                    </span>
-                                                    <span className="text-[10px] font-medium text-gray-500 border border-gray-200 px-1 rounded bg-gray-50">
-                                                        {exp.fundingSource}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-2 text-right font-mono">₹{exp.amount}</td>
-                                            {!isLockedForEditing && (
-                                                <td className="px-2 py-2 text-center">
-                                                    <button onClick={() => actions.handleRemoveExpense(project.projectId, exp.id)} className="text-gray-300 hover:text-red-500">
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                         </div>
-                         {/* Add Expense Form */}
-                         {!isLockedForEditing && (
-                             <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                 <div className="flex gap-2">
-                                     <Input 
-                                        placeholder="Item" className="h-7 text-xs flex-1"
-                                        value={inputs.newExpenseInput[project.projectId]?.item || ""}
-                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "item", e.target.value)}
-                                     />
-                                     <Input 
-                                        placeholder="Amount" className="h-7 text-xs w-24"
-                                        value={inputs.newExpenseInput[project.projectId]?.amount || ""}
-                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "amount", e.target.value)}
-                                     />
-                                 </div>
-                                 <div className="flex gap-2 items-center">
-                                     <select 
-                                        className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                                        value={inputs.newExpenseInput[project.projectId]?.type || "NRE"}
-                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "type", e.target.value)}
-                                     >
-                                        <option value="NRE">NRE</option>
-                                        <option value="RE">RE</option>
-                                     </select>
-                                     <select 
-                                        className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                                        value={inputs.newExpenseInput[project.projectId]?.fundingSource || "DST"}
-                                        onChange={(e) => actions.handleExpenseInputChange(project.projectId, "fundingSource", e.target.value)}
-                                     >
-                                        {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
-                                     </select>
-                                     <Button 
-                                        size="sm" variant="secondary" className="h-7 text-xs px-3"
-                                        onClick={() => actions.handleAddProjectExpense(project.projectId)}
-                                     >
-                                        <Plus className="w-3 h-3" />
-                                     </Button>
-                                 </div>
-                             </div>
-                         )}
+                          {/* Add Expense Form */}
+                          {!isLockedForEditing && (
+                              <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                  <div className="flex gap-2">
+                                      <Input 
+                                          placeholder="Item" className="h-7 text-xs flex-1"
+                                          value={inputs.newExpenseInput[project.projectId]?.item || ""}
+                                          onChange={(e) => actions.handleExpenseInputChange(project.projectId, "item", e.target.value)}
+                                      />
+                                      <Input 
+                                          placeholder="Amount" className="h-7 text-xs w-24"
+                                          value={inputs.newExpenseInput[project.projectId]?.amount || ""}
+                                          onChange={(e) => actions.handleExpenseInputChange(project.projectId, "amount", e.target.value)}
+                                      />
+                                  </div>
+                                  <div className="flex gap-2 items-center">
+                                      <select 
+                                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                                          value={inputs.newExpenseInput[project.projectId]?.type || "NRE"}
+                                          onChange={(e) => actions.handleExpenseInputChange(project.projectId, "type", e.target.value)}
+                                      >
+                                          <option value="NRE">NRE</option>
+                                          <option value="RE">RE</option>
+                                      </select>
+                                      <select 
+                                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
+                                          value={inputs.newExpenseInput[project.projectId]?.fundingSource || "DST"}
+                                          onChange={(e) => actions.handleExpenseInputChange(project.projectId, "fundingSource", e.target.value)}
+                                      >
+                                          {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
+                                      </select>
+                                      <Button 
+                                          size="sm" variant="secondary" className="h-7 text-xs px-3"
+                                          onClick={() => actions.handleAddProjectExpense(project.projectId)}
+                                      >
+                                          <Plus className="w-3 h-3" />
+                                      </Button>
+                                  </div>
+                              </div>
+                          )}
+                        </div>
+
+                        {/* PROJECTIONS (NEW) */}
+                         <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <label className="text-xs font-bold text-blue-700 uppercase mb-2 block flex items-center">
+                              <TrendingUp className="w-3 h-3 mr-1.5" /> Next Month Estimates
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-500 uppercase font-semibold">RE (Proj)</label>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1.5 text-xs text-gray-500">₹</span>
+                                      <Input 
+                                        type="number"
+                                        className="h-7 text-xs pl-5"
+                                        placeholder="0.00"
+                                        value={inputs.projectionsInput[project.projectId]?.nextMonthRE || ""}
+                                        onChange={(e) => actions.handleProjectionChange && actions.handleProjectionChange(project.projectId, 'nextMonthRE', e.target.value)}
+                                        disabled={isLockedForEditing}
+                                      />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-500 uppercase font-semibold">NRE (Proj)</label>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1.5 text-xs text-gray-500">₹</span>
+                                      <Input 
+                                        type="number"
+                                        className="h-7 text-xs pl-5"
+                                        placeholder="0.00"
+                                        value={inputs.projectionsInput[project.projectId]?.nextMonthNRE || ""}
+                                        onChange={(e) => actions.handleProjectionChange && actions.handleProjectionChange(project.projectId, 'nextMonthNRE', e.target.value)}
+                                        disabled={isLockedForEditing}
+                                      />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
               </CardContent>
