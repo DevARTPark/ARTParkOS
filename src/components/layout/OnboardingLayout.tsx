@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { SECTIONS } from "../../data/onboarding/sections";
-import artparkLogo from "../../../public/artpark_in_logo.jpg";
+const artparkLogo = "/artpark_in_logo.jpg";
 
 interface ApplicationLayoutProps {
   children: React.ReactNode;

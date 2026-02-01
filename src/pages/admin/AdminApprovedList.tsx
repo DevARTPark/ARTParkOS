@@ -4,6 +4,7 @@ import { ChevronRight, ShieldCheck, UserCheck, Loader2 } from "lucide-react";
 import { API_URL } from "../../config";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Card } from "../../components/ui/Card";
+import { ChatWidget } from "../../components/ui/ChatWidget";
 
 export default function AdminApprovedList() {
   const navigate = useNavigate();
@@ -104,6 +105,7 @@ export default function AdminApprovedList() {
           )}
         </Card>
       </div>
+      <ChatWidget />
     </DashboardLayout>
   );
 }

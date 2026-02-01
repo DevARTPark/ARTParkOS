@@ -8,7 +8,7 @@ import {
   ArrowRight,
   Loader,
 } from "lucide-react";
-import artparkLogo from "../../../public/artpark_in_logo.jpg";
+const artparkLogo = "/artpark_in_logo.jpg";
 import { API_URL } from "../../config";
 
 export default function SetPasswordPage() {

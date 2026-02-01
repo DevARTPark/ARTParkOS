@@ -8,7 +8,7 @@ import {
   Rocket,
   CheckCircle2,
 } from "lucide-react";
-import artparkLogo from "../../../public/artpark_in_logo.jpg";
+const artparkLogo = "/artpark_in_logo.jpg";
 import { API_URL } from "../../config";
 
 export default function LoginPage() {
@@ -52,7 +52,7 @@ export default function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem(
         "artpark_user",
-        JSON.stringify({ ...data.user, roles })
+        JSON.stringify({ ...data.user, roles }),
       );
       localStorage.setItem("active_role", primaryRole);
 

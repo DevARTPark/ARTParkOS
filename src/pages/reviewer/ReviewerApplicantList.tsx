@@ -14,6 +14,7 @@ import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { API_URL } from "../../config"; // Ensure API_URL is imported
+import { ChatWidget } from "../../components/ui/ChatWidget";
 
 export default function ReviewerApplicantList() {
   const navigate = useNavigate();
@@ -158,7 +159,7 @@ export default function ReviewerApplicantList() {
                     <td className="p-5">
                       <span
                         className={`px-2.5 py-1 rounded-md text-xs font-bold border uppercase tracking-wide ${getTierStyle(
-                          app.teamTier
+                          app.teamTier,
                         )}`}
                       >
                         {app.teamTier} Tier
@@ -182,6 +183,7 @@ export default function ReviewerApplicantList() {
           </Card>
         )}
       </div>
+      <ChatWidget />
     </DashboardLayout>
   );
 }
