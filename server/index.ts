@@ -1878,59 +1878,89 @@ app.get('/api/admin/approved-list', async (req, res) => {
     }
 });
 
+// server/index.ts
+
+// ... [Keep imports and setup exactly as they are] ...
+
+// ---------------------------------------------------------
+// 3. RAG Chat Endpoint (Conversational + Context Aware)
+// ---------------------------------------------------------
 app.post('/api/chat', async (req, res) => {
-    const { query } = req.body;
+    const { query, history } = req.body; // ✅ Accept history
 
     if (!query) return res.status(400).json({ error: "Query is required" });
 
     try {
-        // 1. Convert User's Question to Vector (768 dims)
+        // 1. Vectorize the User's Current Question
         const queryEmbedding = await generateEmbedding(query);
 
-        if (!queryEmbedding) {
-            return res.status(500).json({ error: "Failed to vectorize query" });
+        let contextDocuments: any[] = [];
+
+        // 2. Search Database (Only if embedding succeeded)
+        if (queryEmbedding) {
+            const { data, error } = await supabase.rpc('match_applications', {
+                query_embedding: queryEmbedding,
+                match_threshold: 0.4, // Keep strictness for accuracy
+                match_count: 5
+            });
+            if (!error && data) {
+                contextDocuments = data;
+            }
         }
 
-        // 2. Search Supabase (RPC match_applications)
-        const { data: documents, error } = await supabase.rpc('match_applications', {
-            query_embedding: queryEmbedding,
-            match_threshold: 0.4, // Gemini embeddings need slightly lower threshold
-            match_count: 5
-        });
+        // 3. Construct Context String
+        const dbContext = contextDocuments.length
+            ? contextDocuments.map((doc: any) => `STARTUP INFO:\n${doc.content}`).join('\n\n')
+            : "";
 
-        if (error) {
-            console.error("Supabase Search Error:", error);
-            return res.status(500).json({ error: "Database search failed" });
-        }
+        // 4. Format Conversation History (Last 3 turns for context)
+        // We convert the frontend message array to a text script
+        const conversationHistory = Array.isArray(history)
+            ? history.slice(-6) // Keep last 6 messages (~3 turns) to save tokens
+                .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+                .join('\n')
+            : "";
 
-        // 3. Construct Context
-        const contextText = documents?.length
-            ? documents.map((doc: any) => doc.content).join('\n---\n')
-            : "No specific startups found.";
-
-        const prompt = `
-            You are an assistant for ARTPark. Use the Context below to answer the User's Question.
-            If the answer isn't in the context, say "I couldn't find matching startups."
+        // 5. Build the "Brain" Prompt
+        const systemPrompt = `
+            You are the ARTPark Intelligent Assistant.
             
-            Context:
-            ${contextText}
-            
-            User Question: ${query}
+            ROLE:
+            - You are a helpful, friendly expert on the ARTPark startup ecosystem.
+            - You can answer general questions (e.g., "Hi", "What do you do?") naturally.
+            - You can answer specific questions about startups using the KNOWLEDGE BASE provided below.
+
+            KNOWLEDGE BASE (Database Results):
+            ${dbContext || "No specific database matches for this query."}
+
+            CONVERSATION HISTORY:
+            ${conversationHistory}
+
+            INSTRUCTIONS:
+            1. If the user asks a general question (greeting, help), answer politely and briefly.
+            2. If the user asks about a startup found in the KNOWLEDGE BASE, summarize the details accurately.
+            3. If the user asks a follow-up question (e.g., "Tell me more about it"), use the CONVERSATION HISTORY to understand what "it" refers to.
+            4. If the user specifically asks for a startup that is NOT in the KNOWLEDGE BASE, say: "I couldn't find information on that specific startup in our current database."
+            5. Do NOT invent startup names or facts.
         `;
 
-        // 4. Generate Answer using Gemini
-        const result = await model.generateContent(prompt);
+        // 6. Generate Answer
+        const result = await model.generateContent(systemPrompt + `\n\nUser: ${query}\nAssistant:`);
         const response = await result.response;
         const answer = response.text();
 
         res.json({
             answer: answer,
-            sources: documents
+            sources: contextDocuments // Return sources so UI can show citations if needed
         });
 
     } catch (err: any) {
         console.error("Chat API Error:", err);
-        res.status(500).json({ error: "Internal Server Error" });
+        // Fallback response instead of 500 crash
+        res.json({
+            answer: "I'm having trouble connecting to the brain right now. Please try again in a moment.",
+            sources: []
+        });
     }
 });
 

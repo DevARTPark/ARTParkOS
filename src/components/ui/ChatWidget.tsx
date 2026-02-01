@@ -37,27 +37,35 @@ export const ChatWidget: React.FC = () => {
     e?.preventDefault();
     if (!inputValue.trim() || isLoading) return;
 
+    // 1. Create User Message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: inputValue,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // 2. Optimistically update UI
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInputValue("");
     setIsLoading(true);
 
     try {
+      // 3. Send Query + History to Backend
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userMessage.content }),
+        body: JSON.stringify({
+          query: userMessage.content,
+          history: updatedMessages, // ✅ SEND HISTORY
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.error || "Failed to fetch answer");
 
+      // 4. Add AI Response
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -72,7 +80,7 @@ export const ChatWidget: React.FC = () => {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "⚠️ **Connection Error**: I'm having trouble connecting to the database right now.",
+            "⚠️ **Connection Error**: I'm having trouble reaching the server.",
         },
       ]);
     } finally {
