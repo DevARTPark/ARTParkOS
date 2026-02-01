@@ -22,7 +22,7 @@ import {
   FileText,
   X,
   CheckCheck,
-  ShieldCheck, // Added for Locked Status icon
+  ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL } from "../../config";
@@ -90,10 +90,10 @@ export function AIRLAssessment() {
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
   const [founderNotes, setFounderNotes] = useState<Record<string, string>>({});
   const [evidenceLinks, setEvidenceLinks] = useState<Record<string, string>>(
-    {}
+    {},
   );
   const [evidenceFiles, setEvidenceFiles] = useState<Record<string, string>>(
-    {}
+    {},
   );
   const [showInfo, setShowInfo] = useState(false);
 
@@ -103,7 +103,7 @@ export function AIRLAssessment() {
   >("draft");
   const [isLockedByReviewer, setIsLockedByReviewer] = useState(false);
   const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(
-    null
+    null,
   );
 
   const selectedProject =
@@ -118,12 +118,14 @@ export function AIRLAssessment() {
     const checkStatus = async () => {
       try {
         const res = await fetch(
-          `${API_URL}/api/assessment/submission?projectId=${selectedProjectId}&targetLevel=${targetLevel}`
+          `${API_URL}/api/assessment/submission?projectId=${selectedProjectId}&targetLevel=${targetLevel}`,
         );
         if (res.ok) {
           const sub = await res.json();
           if (sub) {
             setCurrentSubmissionId(sub.id);
+
+            // Handle Locked/Status State
             if (sub.status === "IN_REVIEW" || sub.status === "COMPLETED") {
               setIsLockedByReviewer(true);
               setSubmissionStatus("submitted");
@@ -134,7 +136,32 @@ export function AIRLAssessment() {
               setIsLockedByReviewer(false);
               setSubmissionStatus("draft");
             }
+
+            // ✅ NEW: Populate Form with Saved Database Answers
+            if (sub.answers && Array.isArray(sub.answers)) {
+              const dbAnswers: Record<string, string> = {};
+              const dbNotes: Record<string, string> = {};
+              const dbLinks: Record<string, string> = {};
+              const dbFiles: Record<string, string> = {};
+
+              sub.answers.forEach((ans: any) => {
+                if (ans.questionId) {
+                  if (ans.response) dbAnswers[ans.questionId] = ans.response;
+                  if (ans.notes) dbNotes[ans.questionId] = ans.notes;
+                  if (ans.evidenceUrl)
+                    dbLinks[ans.questionId] = ans.evidenceUrl;
+                  if (ans.evidenceFile)
+                    dbFiles[ans.questionId] = ans.evidenceFile;
+                }
+              });
+
+              setAnswers(dbAnswers);
+              setFounderNotes(dbNotes);
+              setEvidenceLinks(dbLinks);
+              setEvidenceFiles(dbFiles);
+            }
           } else {
+            // No submission on server, keep default/local storage
             setSubmissionStatus("draft");
             setIsLockedByReviewer(false);
           }
@@ -143,9 +170,10 @@ export function AIRLAssessment() {
         console.error(err);
       }
     };
+
     checkStatus();
 
-    // Load Local Storage Drafts (Preserving your logic)
+    // Load Local Storage Drafts
     const storageKey = `artpark_assessment_${selectedProjectId}_AIRL${targetLevel}`;
     const savedData = localStorage.getItem(storageKey);
     if (savedData) {
@@ -164,11 +192,44 @@ export function AIRLAssessment() {
     setCurrentQuestionIndex(0);
   }, [selectedProjectId, selectedProject?.currentAIRL]);
 
+  // --- Derived State for Logic ---
+  const currentOfficialLevel = selectedProject?.currentAIRL || 0;
+  const targetLevel = currentOfficialLevel + 1;
+  const relevantQuestions = questions
+    .filter((q: any) => q.airlLevel === targetLevel)
+    .sort((a: any, b: any) => a.airlLevel - b.airlLevel);
+  const currentQuestion = relevantQuestions[currentQuestionIndex];
+  const totalQuestions = relevantQuestions.length;
+  const progress =
+    totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
+
+  // --- NEW: Calculate Completion Logic Automatically (Answer + Link/File) ---
+  useEffect(() => {
+    if (!relevantQuestions.length) return;
+
+    const newCompleted = relevantQuestions
+      .filter((q) => {
+        const hasAnswer = !!answers[q.id];
+        // Evidence is valid if a link exists (and isn't empty) OR a file exists
+        const hasLink =
+          !!evidenceLinks[q.id] && evidenceLinks[q.id].trim() !== "";
+        const hasFile = !!evidenceFiles[q.id];
+
+        // Requirement: Answer AND (Link OR File)
+        return hasAnswer && (hasLink || hasFile);
+      })
+      .map((q) => q.id);
+
+    // Only update state if different to prevent re-renders
+    if (JSON.stringify(newCompleted) !== JSON.stringify(completedQuestions)) {
+      setCompletedQuestions(newCompleted);
+    }
+  }, [answers, evidenceLinks, evidenceFiles, relevantQuestions]);
+
   // --- 4. Handlers ---
 
   const saveToStorage = (status: "draft" | "submitted") => {
     if (!selectedProject) return;
-    const targetLevel = (selectedProject.currentAIRL || 0) + 1;
     const storageKey = `artpark_assessment_${selectedProjectId}_AIRL${targetLevel}`;
     const dataToSave = {
       answers,
@@ -183,10 +244,9 @@ export function AIRLAssessment() {
   };
 
   const handleFinalSubmit = async () => {
-    // API Submit Logic
     const payload = {
       projectId: selectedProjectId,
-      targetLevel: (selectedProject.currentAIRL || 0) + 1,
+      targetLevel,
       answers,
       founderNotes,
       evidenceLinks,
@@ -204,7 +264,7 @@ export function AIRLAssessment() {
         const data = await res.json();
         if (data.submissionId) setCurrentSubmissionId(data.submissionId);
 
-        saveToStorage("submitted"); // Keep local sync
+        saveToStorage("submitted");
         setSubmissionStatus("submitted");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
@@ -220,7 +280,7 @@ export function AIRLAssessment() {
     if (!currentSubmissionId) return;
     if (
       !window.confirm(
-        "Recall submission? This will pull it back from the Reviewer Pool."
+        "Recall submission? This will pull it back from the Reviewer Pool.",
       )
     )
       return;
@@ -234,7 +294,7 @@ export function AIRLAssessment() {
 
       if (res.ok) {
         setSubmissionStatus("draft");
-        saveToStorage("draft"); // Update local state
+        saveToStorage("draft");
       } else {
         alert("Cannot recall. A reviewer might have already accepted it.");
         window.location.reload();
@@ -250,8 +310,7 @@ export function AIRLAssessment() {
     if (!qId) return;
 
     setAnswers({ ...answers, [qId]: val });
-    if (!completedQuestions.includes(qId))
-      setCompletedQuestions([...completedQuestions, qId]);
+    // Note: completedQuestions is now handled by useEffect
   };
 
   const handleFileChange = (e: any) => {
@@ -271,11 +330,6 @@ export function AIRLAssessment() {
     if (qId) delete updated[qId];
     setEvidenceFiles(updated);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleFileClick = () => {
-    if (submissionStatus !== "submitted" && fileInputRef.current)
-      fileInputRef.current.click();
   };
 
   // --- 5. Render Guards ---
@@ -302,17 +356,6 @@ export function AIRLAssessment() {
         <div className="p-8">Select a project</div>
       </DashboardLayout>
     );
-
-  // --- Derived State ---
-  const currentOfficialLevel = selectedProject.currentAIRL || 0;
-  const targetLevel = currentOfficialLevel + 1;
-  const relevantQuestions = questions
-    .filter((q: any) => q.airlLevel === targetLevel)
-    .sort((a: any, b: any) => a.airlLevel - b.airlLevel);
-  const currentQuestion = relevantQuestions[currentQuestionIndex];
-  const totalQuestions = relevantQuestions.length;
-  const progress =
-    totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
 
   return (
     <DashboardLayout role="founder" title="AIRL Assessment">
@@ -358,10 +401,9 @@ export function AIRLAssessment() {
         </div>
       </div>
 
-      {/* --- STATUS VIEW (The nice "Submitted" screen) --- */}
+      {/* --- STATUS VIEW --- */}
       {submissionStatus === "submitted" ? (
         <div className="flex flex-col items-center justify-center h-[60vh] bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center animate-in fade-in zoom-in duration-500">
-          {/* Dynamic Icon based on Review Status */}
           <div
             className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${
               isLockedByReviewer ? "bg-blue-100" : "bg-green-100"
@@ -384,7 +426,6 @@ export function AIRLAssessment() {
               : `Your assessment for AIRL ${targetLevel} has been submitted. It is waiting in the reviewer pool.`}
           </p>
 
-          {/* Recall Button (Only if NOT locked) */}
           {!isLockedByReviewer && (
             <Button
               variant="outline"
@@ -403,7 +444,7 @@ export function AIRLAssessment() {
           )}
         </div>
       ) : (
-        /* --- FORM VIEW (Kept your original 2-column layout) --- */
+        /* --- FORM VIEW --- */
         <div className="flex flex-col lg:flex-row h-auto min-h-[600px] gap-6">
           {/* LEFT: QUESTION CARD */}
           <div className="flex-1 flex flex-col">
@@ -464,7 +505,7 @@ export function AIRLAssessment() {
                                         >
                                           {e}
                                         </li>
-                                      )
+                                      ),
                                     ) || (
                                       <li className="text-sm text-gray-500">
                                         No guidance.
@@ -514,70 +555,121 @@ export function AIRLAssessment() {
                             }
                           />
 
-                          {/* Link */}
-                          <div className="relative">
-                            <Input
-                              label="Evidence Link"
-                              placeholder="https://..."
-                              value={evidenceLinks[currentQuestion.id] || ""}
-                              onChange={(e) =>
-                                setEvidenceLinks({
-                                  ...evidenceLinks,
-                                  [currentQuestion.id]: e.target.value,
-                                })
-                              }
-                            />
-                            <LinkIcon className="absolute right-3 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
-                          </div>
+                          {/* --- EVIDENCE SECTION WITH MUTUAL EXCLUSION --- */}
+                          {(() => {
+                            const currentId = currentQuestion.id;
+                            const hasFile = !!evidenceFiles[currentId];
+                            const hasLink =
+                              !!evidenceLinks[currentId] &&
+                              evidenceLinks[currentId] !== "";
 
-                          {/* File Upload */}
-                          <div>
-                            <label className="text-sm font-medium text-gray-700 block mb-2">
-                              Evidence File
-                            </label>
-                            <div
-                              onClick={handleFileClick}
-                              className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer ${
-                                evidenceFiles[currentQuestion.id]
-                                  ? "border-green-300 bg-green-50 hover:bg-green-100"
-                                  : "border-gray-300 hover:bg-gray-50"
-                              }`}
-                            >
-                              {evidenceFiles[currentQuestion.id] ? (
-                                <>
-                                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                                    <FileText className="w-5 h-5 text-green-600" />
+                            return (
+                              <>
+                                {/* Link Input */}
+                                <div className="relative">
+                                  <Input
+                                    label="Evidence Link"
+                                    placeholder={
+                                      hasFile
+                                        ? "Remove file to add link"
+                                        : "https://..."
+                                    }
+                                    value={evidenceLinks[currentId] || ""}
+                                    disabled={hasFile} // Disable if file exists
+                                    className={
+                                      hasFile
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      setEvidenceLinks({
+                                        ...evidenceLinks,
+                                        [currentId]: e.target.value,
+                                      })
+                                    }
+                                  />
+                                  <LinkIcon
+                                    className={`absolute right-3 top-9 w-4 h-4 ${hasFile ? "text-gray-300" : "text-gray-400"} pointer-events-none`}
+                                  />
+                                </div>
+
+                                {/* File Upload */}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 block mb-2">
+                                    Evidence File{" "}
+                                    {hasLink && (
+                                      <span className="text-xs text-gray-400 font-normal ml-2">
+                                        (Clear link to upload file)
+                                      </span>
+                                    )}
+                                  </label>
+                                  <div
+                                    onClick={() => {
+                                      // Disable click if Submitted OR if Link exists
+                                      if (
+                                        submissionStatus !== "submitted" &&
+                                        !hasLink &&
+                                        fileInputRef.current
+                                      ) {
+                                        fileInputRef.current.click();
+                                      }
+                                    }}
+                                    className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center transition-all ${
+                                      evidenceFiles[currentId]
+                                        ? "border-green-300 bg-green-50 hover:bg-green-100 cursor-pointer"
+                                        : hasLink
+                                          ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed" // Visual disabled state
+                                          : "border-gray-300 hover:bg-gray-50 cursor-pointer"
+                                    }`}
+                                  >
+                                    {evidenceFiles[currentId] ? (
+                                      <>
+                                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                                          <FileText className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900 px-4 break-all">
+                                          {evidenceFiles[currentId]}
+                                        </p>
+                                        <div className="mt-2 flex gap-2">
+                                          <span className="text-xs text-green-600 font-bold uppercase">
+                                            Uploaded
+                                          </span>{" "}
+                                          <button
+                                            onClick={handleRemoveFile}
+                                            className="z-10 p-1 bg-white rounded-full shadow hover:bg-red-50 text-red-500"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div
+                                          className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${hasLink ? "bg-gray-200" : "bg-blue-100"}`}
+                                        >
+                                          <Upload
+                                            className={`w-5 h-5 ${hasLink ? "text-gray-400" : "text-blue-600"}`}
+                                          />
+                                        </div>
+                                        <p
+                                          className={`text-sm font-medium ${hasLink ? "text-gray-400" : "text-gray-900"}`}
+                                        >
+                                          {hasLink
+                                            ? "Link provided (Clear link to upload)"
+                                            : "Click to upload or drag and drop"}
+                                        </p>
+                                        {!hasLink && (
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            PDF, DOCX, JPG up to 10MB
+                                          </p>
+                                        )}
+                                      </>
+                                    )}
                                   </div>
-                                  <p className="text-sm font-medium text-gray-900 px-4 break-all">
-                                    {evidenceFiles[currentQuestion.id]}
-                                  </p>
-                                  <div className="mt-2 flex gap-2">
-                                    <span className="text-xs text-green-600 font-bold uppercase">
-                                      Uploaded
-                                    </span>{" "}
-                                    <button
-                                      onClick={handleRemoveFile}
-                                      className="z-10 p-1 bg-white rounded-full shadow hover:bg-red-50 text-red-500"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                                    <Upload className="w-5 h-5 text-blue-600" />
-                                  </div>
-                                  <p className="text-sm font-medium text-gray-900">
-                                    Click to upload or drag and drop
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    PDF, DOCX, JPG up to 10MB
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                          </div>
+                                </div>
+                              </>
+                            );
+                          })()}
 
                           {/* Navigation */}
                           <div className="flex justify-between pt-6 mt-4 border-t border-gray-100">
@@ -586,7 +678,7 @@ export function AIRLAssessment() {
                               disabled={currentQuestionIndex === 0}
                               onClick={() =>
                                 setCurrentQuestionIndex((i) =>
-                                  Math.max(0, i - 1)
+                                  Math.max(0, i - 1),
                                 )
                               }
                               leftIcon={<ArrowLeft className="w-4 h-4" />}
@@ -600,7 +692,7 @@ export function AIRLAssessment() {
                             <Button
                               onClick={() =>
                                 setCurrentQuestionIndex((i) =>
-                                  Math.min(totalQuestions - 1, i + 1)
+                                  Math.min(totalQuestions - 1, i + 1),
                                 )
                               }
                               disabled={

@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 // Use the public folder image like LoginPage does
-import artparkLogo from "../../../public/artpark_in_logo.jpg";
+const artparkLogo = "/artpark_in_logo.jpg";
 import { useApplicationStore } from "../../store/useApplicationStore";
 import { API_URL } from "../../config";
 

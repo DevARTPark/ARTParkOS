@@ -6,11 +6,47 @@ import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { Resend } from 'resend'; //
+import { Resend } from 'resend';
+import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 dotenv.config();
 
 const app = express();
+
+// --- AI & VECTOR CONFIGURATION ---
+// Ensure these are in your .env file
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || "";
+console.log("---------------------------------------------------");
+console.log("🔍 DEBUGGING SUPABASE KEYS");
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log("SUPABASE_SERVICE_KEY Length:", serviceKey.length);
+console.log("Key Signature (First 10 chars):", serviceKey.substring(0, 10) + "...");
+console.log("Is this the ANON key?", serviceKey === process.env.VITE_SUPABASE_ANON_KEY ? "⚠️ YES! (BAD)" : "✅ No (Good)");
+console.log("---------------------------------------------------");
+
+const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!
+);
+
+// Helper: Generate Embedding
+async function generateEmbedding(text: string) {
+    try {
+        const cleanText = text.replace(/\n/g, ' ').trim();
+        if (!cleanText) return null;
+
+        const result = await embeddingModel.embedContent(cleanText);
+        return result.embedding.values; // Returns array of 768 numbers
+    } catch (e) {
+        console.error("❌ Gemini Embedding Error:", e);
+        return null;
+    }
+}
 
 // --- 1. IMPROVED CORS (Fixes frontend connection issues) ---
 app.use(cors({
@@ -624,10 +660,19 @@ app.delete('/api/assessment/questions/:id', async (req, res) => {
 // ==========================================
 
 // 1. Submit Assessment
+// server/index.ts
+
+// ... [Existing Imports]
+
+// 1. Submit Assessment (FIXED)
 app.post('/api/assessment/submit', async (req, res) => {
     const { projectId, targetLevel, answers, founderNotes, evidenceLinks, evidenceFiles } = req.body;
 
+    console.log(`📝 Submit Request for Project ${projectId} (Level ${targetLevel})`);
+    console.log(`   - Answers count: ${Object.keys(answers || {}).length}`);
+
     try {
+        // 1. Find or Create Submission
         let submission = await prisma.assessmentSubmission.findFirst({
             where: {
                 projectId,
@@ -652,51 +697,59 @@ app.post('/api/assessment/submit', async (req, res) => {
             });
         }
 
-        const answerPromises = Object.keys(answers).map(async (questionId) => {
+        // 2. Save Answers (Explicit Find -> Update/Create)
+        // We use a sequential loop or Promise.all to handle each answer cleanly
+        const answerKeys = Object.keys(answers || {});
+
+        await Promise.all(answerKeys.map(async (questionId) => {
             const response = answers[questionId];
-            return prisma.assessmentAnswer.upsert({
+
+            // Skip if response is invalid/empty to prevent Enum errors
+            if (!response) return;
+
+            // Check if answer exists
+            const existingAnswer = await prisma.assessmentAnswer.findFirst({
                 where: {
-                    id: "temp-ignored"
-                },
-                create: {
                     submissionId: submission!.id,
-                    questionId,
-                    response: response as any,
-                    notes: founderNotes[questionId],
-                    evidenceUrl: evidenceLinks[questionId],
-                    evidenceFile: evidenceFiles[questionId]
-                },
-                update: {
-                    response: response as any,
-                    notes: founderNotes[questionId],
-                    evidenceUrl: evidenceLinks[questionId],
-                    evidenceFile: evidenceFiles[questionId]
+                    questionId: questionId
                 }
-            }).catch(async () => {
-                await prisma.assessmentAnswer.deleteMany({
-                    where: { submissionId: submission!.id, questionId }
+            });
+
+            const answerData = {
+                response: response as any, // Ensure this matches FounderResponse enum
+                notes: founderNotes?.[questionId] || null,
+                evidenceUrl: evidenceLinks?.[questionId] || null,
+                evidenceFile: evidenceFiles?.[questionId] || null
+            };
+
+            if (existingAnswer) {
+                // UPDATE
+                await prisma.assessmentAnswer.update({
+                    where: { id: existingAnswer.id },
+                    data: answerData
                 });
-                return prisma.assessmentAnswer.create({
+            } else {
+                // CREATE
+                await prisma.assessmentAnswer.create({
                     data: {
                         submissionId: submission!.id,
                         questionId,
-                        response: response as any,
-                        notes: founderNotes[questionId],
-                        evidenceUrl: evidenceLinks[questionId],
-                        evidenceFile: evidenceFiles[questionId]
+                        ...answerData
                     }
                 });
-            });
-        });
+            }
+        }));
 
-        await Promise.all(answerPromises);
+        console.log("✅ Assessment answers saved successfully.");
         res.json({ message: "Assessment submitted successfully", submissionId: submission.id });
 
     } catch (err: any) {
-        console.error("Submit Error:", err);
-        res.status(500).json({ error: "Failed to submit assessment" });
+        console.error("❌ Submit Error:", err);
+        res.status(500).json({ error: "Failed to submit assessment", details: err.message });
     }
 });
+
+// ... [Rest of the file]
 
 // 2. Get Task Pool
 app.get('/api/reviewer/pool', async (req, res) => {
@@ -806,19 +859,22 @@ app.post('/api/reviewer/release', async (req, res) => {
 // 6. Get Submission Status
 app.get('/api/assessment/submission', async (req, res) => {
     const { projectId, targetLevel } = req.query;
-    if (!projectId || !targetLevel) return res.status(400).json({ error: "Missing params" });
-
     try {
         const submission = await prisma.assessmentSubmission.findFirst({
             where: {
                 projectId: String(projectId),
                 targetLevel: parseInt(String(targetLevel)),
-                status: { not: 'REJECTED' }
-            }
+                status: { notIn: ['REJECTED'] } // Don't show rejected, start fresh
+            },
+            // ✅ ADD THIS LINE: Include the answers so the frontend can display them
+            include: { answers: true }
         });
+
+        // Return null if not found (frontend handles "draft" state)
         res.json(submission || null);
     } catch (err) {
-        res.status(500).json({ error: "Error fetching submission" });
+        console.error(err);
+        res.status(500).json({ error: "Error checking status" });
     }
 });
 
@@ -1028,6 +1084,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
 });
 
 // 2. Save/Update Application (Holding Tank)
+// 2. Save/Update Application (WITH RAG INDEXING)
 app.post('/api/onboarding/save', async (req, res) => {
     const { userId, data, submit } = req.body;
 
@@ -1037,7 +1094,7 @@ app.post('/api/onboarding/save', async (req, res) => {
         const status = submit ? 'SUBMITTED' : 'DRAFT';
         const submittedAt = submit ? new Date() : null;
 
-        // A. Save the Application Data
+        // A. Save the Application Data (Prisma)
         const application = await prisma.onboardingApplication.upsert({
             where: { userId },
             update: {
@@ -1053,7 +1110,41 @@ app.post('/api/onboarding/save', async (req, res) => {
             }
         });
 
-        // B. CO-FOUNDER INVITE LOGIC (Magic Links)
+        // =========================================================
+        // B. VECTOR INDEXING (NEW AI LOGIC)
+        // =========================================================
+        // We construct a single "story" string about the startup for the AI to search.
+        const venture = data.venture || {};
+        const searchText = `
+            Startup Name: ${venture.organizationName || 'Unknown'}
+            Industry: ${venture.industry || 'General'}
+            One Liner: ${venture.oneLiner || ''}
+            Description: ${venture.solutionDescription || ''}
+            Problem: ${venture.problemStatement || ''}
+            Technology: ${venture.techCategory ? venture.techCategory.join(', ') : ''}
+        `.trim();
+
+        // Only index if we have enough content (>50 chars)
+        if (searchText.length > 50) {
+            // Run in background (no await) so we don't slow down the UI
+            generateEmbedding(searchText).then(async (embedding) => {
+                if (embedding) {
+                    const { error } = await supabase
+                        .from('ApplicationEmbedding') // The table we created in Step 1
+                        .upsert({
+                            applicationId: userId,
+                            content: searchText,
+                            embedding: embedding
+                        }, { onConflict: 'applicationId' });
+
+                    if (error) console.error("❌ Vector Save Error:", error);
+                    else console.log(`✅ Indexed Application for Search: ${userId}`);
+                }
+            });
+        }
+        // =========================================================
+
+        // C. CO-FOUNDER INVITE LOGIC (Magic Links)
         if (submit && data.coFounders && Array.isArray(data.coFounders)) {
             console.log("🚀 Processing Co-founder Invites...");
 
@@ -1087,7 +1178,6 @@ app.post('/api/onboarding/save', async (req, res) => {
                 const tokenString = await createAuthToken(cfUser.id, 'account_activation');
 
                 // 4. Create Magic Link
-                // This points to the AssessmentInvite page we built earlier
                 const magicLink = `${finalFrontendUrl}/assessment-start?token=${tokenString}`;
 
                 const emailHtml = `
@@ -1785,6 +1875,62 @@ app.get('/api/admin/approved-list', async (req, res) => {
     } catch (error) {
         console.error("Admin List Error:", error);
         res.status(500).json({ error: "Failed to fetch list" });
+    }
+});
+
+app.post('/api/chat', async (req, res) => {
+    const { query } = req.body;
+
+    if (!query) return res.status(400).json({ error: "Query is required" });
+
+    try {
+        // 1. Convert User's Question to Vector (768 dims)
+        const queryEmbedding = await generateEmbedding(query);
+
+        if (!queryEmbedding) {
+            return res.status(500).json({ error: "Failed to vectorize query" });
+        }
+
+        // 2. Search Supabase (RPC match_applications)
+        const { data: documents, error } = await supabase.rpc('match_applications', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.4, // Gemini embeddings need slightly lower threshold
+            match_count: 5
+        });
+
+        if (error) {
+            console.error("Supabase Search Error:", error);
+            return res.status(500).json({ error: "Database search failed" });
+        }
+
+        // 3. Construct Context
+        const contextText = documents?.length
+            ? documents.map((doc: any) => doc.content).join('\n---\n')
+            : "No specific startups found.";
+
+        const prompt = `
+            You are an assistant for ARTPark. Use the Context below to answer the User's Question.
+            If the answer isn't in the context, say "I couldn't find matching startups."
+            
+            Context:
+            ${contextText}
+            
+            User Question: ${query}
+        `;
+
+        // 4. Generate Answer using Gemini
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const answer = response.text();
+
+        res.json({
+            answer: answer,
+            sources: documents
+        });
+
+    } catch (err: any) {
+        console.error("Chat API Error:", err);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 

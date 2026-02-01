@@ -23,7 +23,7 @@ import {
   Inbox, // Import X icon for closing mobile menu
 } from "lucide-react";
 import { Role } from "../../types";
-import artparkLogo from "../../../public/artpark_in_logo.jpg";
+const artparkLogo = "/artpark_in_logo.jpg";
 
 interface SidebarProps {
   role: Role;
