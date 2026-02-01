@@ -11,6 +11,8 @@ interface Message {
   content: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 export const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -52,7 +54,7 @@ export const ChatWidget: React.FC = () => {
 
     try {
       // 3. Send Query + History to Backend
-      const response = await fetch("http://localhost:3000/api/chat", {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
