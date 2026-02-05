@@ -9,10 +9,13 @@ import {
   AlertTriangle,
   FileText,
   User,
+  Download,
 } from "lucide-react";
 import { API_URL } from "../../config";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import ApplicationFullView from "../../components/common/ApplicationFullView";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { ApplicationDocument } from "../../components/pdf/ApplicationPDF";
 import {
   Card,
   CardHeader,
@@ -89,6 +92,26 @@ export default function AdminFinalView() {
                 round.
               </p>
             </div>
+          </div>
+          <div>
+            <PDFDownloadLink
+              document={<ApplicationDocument data={data} />}
+              fileName={`ARTPARK_Application_${id}.pdf`}
+            >
+              {({ loading }) => (
+                <button
+                  disabled={loading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                    loading
+                      ? "bg-gray-100 text-gray-400 cursor-wait"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg"
+                  }`}
+                >
+                  <Download className="w-4 h-4" />
+                  {loading ? "Generating..." : "Download Dossier"}
+                </button>
+              )}
+            </PDFDownloadLink>
           </div>
         </div>
 

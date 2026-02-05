@@ -51,7 +51,8 @@ export interface SlideConfig {
         files?: {                     // For 'upload'
             key: string;
             label: string;
-            accept: string
+            accept: string;
+            required?: boolean;
         }[];
         items?: {
             id: string;

@@ -1964,6 +1964,63 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// server/index.ts
+
+// ... [Keep all existing imports and setup] ...
+
+// ---------------------------------------------------------
+// NEW: FILE UPLOAD ENDPOINT
+// ---------------------------------------------------------
+app.post('/api/upload', async (req, res) => {
+    const { fileName, fileType, fileData } = req.body;
+
+    if (!fileData || !fileName) {
+        return res.status(400).json({ error: "Missing file data" });
+    }
+
+    try {
+        // 1. Convert Base64 back to Buffer
+        // Remove the data:image/png;base64, prefix
+        const base64Data = fileData.split(';base64,').pop();
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // 2. Generate Unique Path
+        // Clean filename to avoid issues
+        const cleanName = fileName.replace(/[^a-zA-Z0-9.]/g, '_');
+        const path = `evidence/${Date.now()}_${cleanName}`;
+
+        // 3. Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+            .from('documents') // Ensure this bucket exists!
+            .upload(path, buffer, {
+                contentType: fileType,
+                upsert: true
+            });
+
+        if (error) {
+            console.error("Supabase Upload Error:", error);
+            throw error;
+        }
+
+        // 4. Get Public URL
+        const { data: publicData } = supabase.storage
+            .from('documents')
+            .getPublicUrl(path);
+
+        console.log(`✅ File Uploaded: ${publicData.publicUrl}`);
+
+        // Return the URL to the frontend
+        res.json({
+            url: publicData.publicUrl,
+            name: fileName
+        });
+
+    } catch (err: any) {
+        console.error("Server Upload Error:", err);
+        res.status(500).json({ error: "File upload failed" });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Backend Server running on http://localhost:${PORT}`);

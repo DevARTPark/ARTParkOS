@@ -14,6 +14,7 @@ import {
   Lightbulb,
   Crosshair,
   Target,
+  FileText,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
 import { Badge } from "../ui/Badge";
@@ -371,11 +372,24 @@ export default function ApplicationFullView({
           <CardHeader>
             <CardTitle>Supporting Documents</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <DocButton label="Pitch Deck" url={uploads?.pitchDeck} />
-            <DocButton label="Budget Plan" url={uploads?.budgetDoc} />
-            <DocButton label="Demo Video" url={uploads?.demoVideo} isLink />
-            <DocButton label="Other Documents" url={uploads?.otherDocs} />
+          <CardContent>
+            {uploads && Object.keys(uploads).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(uploads).map(([key, url]: [string, any]) => {
+                  if (!url) return null;
+
+                  // Format label: "pitchDeck" -> "Pitch Deck"
+                  const label = key.replace(/([A-Z])/g, " $1").trim();
+
+                  return <DocButton key={key} label={label} url={url} />;
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <Download className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>No documents uploaded.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -420,15 +434,28 @@ function InfoRow({ label, value }: any) {
     </div>
   ) : null;
 }
-function DocButton({ label, url, isLink }: any) {
-  return url ? (
+function DocButton({ label, url }: { label: string; url: string }) {
+  return (
     <a
       href={url}
       target="_blank"
-      className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 bg-white hover:shadow-md transition-all"
+      rel="noreferrer"
+      className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-md transition-all group"
     >
-      <span className="text-sm font-semibold text-gray-700">{label}</span>
-      <Download className="w-4 h-4 text-gray-400" />
+      <div className="flex items-center gap-3 overflow-hidden">
+        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+          <FileText className="w-5 h-5" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-semibold text-gray-900 capitalize truncate">
+            {label}
+          </span>
+          <span className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">
+            Click to View
+          </span>
+        </div>
+      </div>
+      <Download className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
     </a>
-  ) : null;
+  );
 }

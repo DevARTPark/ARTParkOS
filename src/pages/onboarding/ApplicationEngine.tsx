@@ -159,7 +159,16 @@ export default function ApplicationEngine({
           ) ?? true
         );
       case "upload":
-        return true; // Optional for Innovator for now
+        const files = s.props?.files || [];
+        // ✅ Fix: Cast 'store.uploads' to 'any' or cast 'f.key' to 'keyof Uploads'
+        return files.every((f: any) => {
+          // If not required, it's valid.
+          if (!f.required) return true;
+
+          // Check if the file exists in the store using the key
+          const uploadKey = f.key as keyof typeof store.uploads;
+          return !!store.uploads[uploadKey];
+        });
       case "consent":
         // Check if all checkboxes defined in props are true in the store
         const requiredKeys = s.props?.items?.map((i: any) => i.id) || [];
