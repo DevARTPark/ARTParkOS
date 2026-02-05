@@ -69,6 +69,7 @@ import { ReviewerAssessmentConfig } from "./pages/reviewer/ReviewerAssessmentCon
 import { ReviewerInvitePage } from "./pages/reviewer/ReviewerInvitePage";
 import { ReviewerResources } from "./pages/reviewer/ReviewerResources";
 import { ReviewerTaskPool } from "./pages/reviewer/ReviewerTaskPool";
+import { ReviewerManageFinance } from "./pages/reviewer/ReviewerManageFinance";
 
 // --- SUPPLIER PAGES ---
 import SupplierDashboard from "./pages/supplier/SupplierDashboard";
@@ -416,7 +417,7 @@ export function App() {
           path="/admin/settings"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <UnifiedProfileSettings />
+              <AdminSettings />
             </ProtectedRoute>
           }
         />
@@ -462,6 +463,16 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        {/* --- FIXED: Added Protected Route for Reviewer Finance --- */}
+        <Route
+          path="/reviewer/finance"
+          element={
+            <ProtectedRoute allowedRoles={["reviewer"]}>
+              <ReviewerManageFinance />
+            </ProtectedRoute>
+          }
+        />
+        {/* -------------------------------------------------------- */}
         <Route
           path="/reviewer/portfolio"
           element={
@@ -535,17 +546,9 @@ export function App() {
           }
         />
         <Route
-          path="/reviewer/resources"
-          element={
-            <ProtectedRoute>
-              <ReviewerResources />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/reviewer/pool"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["reviewer"]}>
               <ReviewerTaskPool />
             </ProtectedRoute>
           }

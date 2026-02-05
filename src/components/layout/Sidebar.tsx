@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -20,7 +20,8 @@ import {
   Shield,
   Globe,
   X,
-  Inbox, // Import X icon for closing mobile menu
+  Inbox,
+  CoinsIcon,
 } from "lucide-react";
 import { Role } from "../../types";
 const artparkLogo = "/artpark_in_logo.jpg";
@@ -40,6 +41,8 @@ export function Sidebar({
   isMobileOpen = false,
   setIsMobileOpen,
 }: SidebarProps) {
+  const location = useLocation();
+
   const getNavItems = () => {
     switch (role) {
       case "founder":
@@ -96,6 +99,13 @@ export function Sidebar({
             label: "Task Pool",
             path: "/reviewer/pool",
           },
+          // --- FIX: Changed 'href' to 'path' below ---
+          { 
+            icon: CoinsIcon, 
+            label: "Manage Finances", 
+            path: "/reviewer/finance" 
+          },
+          // ------------------------------------------
           {
             icon: UserPlus,
             label: "Invite Members",
@@ -274,7 +284,7 @@ export function Sidebar({
               <li key={item.path}>
                 <NavLink
                   to={item.path}
-                  onClick={closeMobileMenu} // Close menu on nav click (mobile)
+                  onClick={closeMobileMenu}
                   className={({ isActive }) =>
                     `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
                       isActive
