@@ -1,12 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, 
-  ResponsiveContainer, Tooltip as RechartsTooltip
+  ResponsiveContainer, Tooltip as RechartsTooltip 
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -15,53 +11,65 @@ import {
   Landmark,
   Wallet,
   ArrowRight,
-  Zap,
   Activity,
   ArrowUpRight
 } from 'lucide-react';
 
-// IMPORT MOCK DATA
+// UI Components
+import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { API_URL } from "../../config";
+
+// Mock data for non-finance metrics (AIRL charts & Alerts)
 import { adminStartups } from '../../data/adminMockData';
-import { fundingSourcesDetailed } from '../../data/fundingData';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
 
+  // --- STATE FOR REAL-TIME FINANCE DATA ---
+  const [summary, setSummary] = useState({ 
+    sanctioned: 0, 
+    received: 0, 
+    allocated: 0, 
+    available: 0 
+  });
+  const [loading, setLoading] = useState(true);
+
   // --- STATE FOR DATE PICKERS (Chart 1) ---
-  const [startDate, setStartDate] = useState(new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(
+    new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString().split('T')[0]
+  );
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // --- REAL-TIME CALCULATIONS FROM DETAILED FUNDING DATA ---
-  
-  // 1. Sanctioned
-  const totalSanctioned = fundingSourcesDetailed.reduce((acc, s) => acc + s.totalSanctioned, 0);
-  const totalSanctionedRE = fundingSourcesDetailed.reduce((acc, s) => acc + s.sanctionedRE, 0);
-  const totalSanctionedNRE = fundingSourcesDetailed.reduce((acc, s) => acc + s.sanctionedNRE, 0);
+  // --- FETCH FINANCE SUMMARY FROM BACKEND ---
+  useEffect(() => {
+    const fetchFinanceData = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/finance/summary`);
+        if (res.ok) {
+          const data = await res.json();
+          setSummary(data);
+        }
+      } catch (err) {
+        console.error("Finance Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFinanceData();
+  }, []);
 
-  // 2. Received
-  const allReceivedTx = fundingSourcesDetailed.flatMap(s => s.history.filter(h => h.status === 'Received'));
-  const totalReceived = allReceivedTx.reduce((acc, tx) => acc + tx.amount, 0);
-  const totalReceivedRE = allReceivedTx.reduce((acc, tx) => acc + tx.reAmount, 0);
-  const totalReceivedNRE = allReceivedTx.reduce((acc, tx) => acc + tx.nreAmount, 0);
+  // --- ALERTS & ANALYTICS (Using existing mock logic) ---
+  const criticalStartups = useMemo(() => 
+    adminStartups.filter(s => s.projects.some(p => p.status === 'Red') || s.runwayMonths < 3)
+  , []);
 
-  // 3. Allocated (Startups) - Assuming 70% RE / 30% NRE split for simulation if not in object
-  const totalAllocated = adminStartups.reduce((acc, s) => acc + s.fundsAllocated, 0);
-  const totalAllocatedRE = totalAllocated * 0.7; 
-  const totalAllocatedNRE = totalAllocated * 0.3;
+  const fundingRequests = useMemo(() => 
+    adminStartups.filter(s => s.fundingRequest)
+  , []);
 
-  // 4. Utilized
-  const totalUtilized = adminStartups.reduce((acc, s) => acc + s.fundsUtilized, 0);
-  
-  // 5. Available (Received - Allocated)
-  const bankBalance = totalReceived - totalAllocated;
-  const availableRE = totalReceivedRE - totalAllocatedRE;
-  const availableNRE = totalReceivedNRE - totalAllocatedNRE;
-
-  // --- ALERTS ---
-  const criticalStartups = adminStartups.filter(s => s.projects.some(p => p.status === 'Red') || s.runwayMonths < 3);
-  const fundingRequests = adminStartups.filter(s => s.fundingRequest);
-
-  // --- CHARTS ---
   const comparisonData = useMemo(() => {
     const counts = Array.from({ length: 9 }, (_, i) => ({ name: `${i + 1}`, startCount: 0, endCount: 0 }));
     adminStartups.forEach(s => {
@@ -71,7 +79,7 @@ export function AdminDashboard() {
       });
     });
     return counts;
-  }, [adminStartups]);
+  }, []);
 
   const snapshotData = useMemo(() => {
     return Array.from({ length: 9 }, (_, i) => {
@@ -81,12 +89,18 @@ export function AdminDashboard() {
         count: adminStartups.filter(s => s.projects.some(p => p.currentAIRL === level)).length
       };
     });
-  }, [adminStartups]);
+  }, []);
+
+  // Helper for Currency Formatting
+  const formatINR = (val: number) => 
+    new Intl.NumberFormat('en-IN', { 
+      maximumFractionDigits: 2 
+    }).format(val);
 
   return (
     <DashboardLayout role="admin" title="Executive Overview">
       
-      {/* 1. THE COCKPIT: High-Level Metrics */}
+      {/* 1. THE COCKPIT: High-Level Dynamic Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         
         {/* Total Budget Sanctioned */}
@@ -100,24 +114,11 @@ export function AdminDashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-500 mb-1">Total Budget Sanctioned</p>
                   <div className="flex items-baseline gap-1">
-                    <h3 className="text-3xl font-bold text-slate-900">₹{totalSanctioned}</h3>
+                    <h3 className="text-3xl font-bold text-slate-900">₹{formatINR(summary.sanctioned)}</h3>
                     <span className="text-sm font-medium text-slate-500">Cr</span>
                   </div>
-                  <div className="mt-2 text-[10px] space-y-1">
-                    <div className="flex items-center text-blue-700 font-medium">
-                      <span className="w-6">RE:</span> 
-                      <div className="w-16 h-1.5 bg-blue-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-blue-600" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalSanctionedRE} Cr
-                    </div>
-                    <div className="flex items-center text-slate-600">
-                      <span className="w-6">NRE:</span> 
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-slate-500" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalSanctionedNRE} Cr
-                    </div>
+                  <div className="mt-2 text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+                    Live Database Update
                   </div>
                 </div>
                 <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
@@ -139,24 +140,11 @@ export function AdminDashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-500 mb-1">Funds Received</p>
                   <div className="flex items-baseline gap-1">
-                    <h3 className="text-3xl font-bold text-slate-900">₹{totalReceived}</h3>
+                    <h3 className="text-3xl font-bold text-slate-900">₹{formatINR(summary.received)}</h3>
                     <span className="text-sm font-medium text-slate-500">Cr</span>
                   </div>
-                  <div className="mt-2 text-[10px] space-y-1">
-                    <div className="flex items-center text-emerald-700 font-medium">
-                      <span className="w-6">RE:</span> 
-                      <div className="w-16 h-1.5 bg-emerald-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-emerald-600" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalReceivedRE} Cr
-                    </div>
-                    <div className="flex items-center text-slate-600">
-                      <span className="w-6">NRE:</span> 
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-slate-500" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalReceivedNRE} Cr
-                    </div>
+                  <div className="mt-2 text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                    Actual Cash Inflow
                   </div>
                 </div>
                 <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600">
@@ -167,7 +155,7 @@ export function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Allocated */}
+        {/* Allocated to Startups */}
         <div
           onClick={() => navigate('/admin/funding/allocated')}
           className="cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
@@ -178,24 +166,11 @@ export function AdminDashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-500 mb-1">Allocated to Startups</p>
                   <div className="flex items-baseline gap-1">
-                    <h3 className="text-3xl font-bold text-slate-900">₹{totalAllocated.toFixed(1)}</h3>
+                    <h3 className="text-3xl font-bold text-slate-900">₹{formatINR(summary.allocated)}</h3>
                     <span className="text-sm font-medium text-slate-500">Cr</span>
                   </div>
-                  <div className="mt-2 text-[10px] space-y-1">
-                    <div className="flex items-center text-purple-700 font-medium">
-                      <span className="w-6">RE:</span> 
-                      <div className="w-16 h-1.5 bg-purple-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-purple-600" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalAllocatedRE.toFixed(1)} Cr
-                    </div>
-                    <div className="flex items-center text-slate-600">
-                      <span className="w-6">NRE:</span> 
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-slate-500" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{totalAllocatedNRE.toFixed(1)} Cr
-                    </div>
+                  <div className="mt-2 text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                    Disbursed Funds
                   </div>
                 </div>
                 <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
@@ -217,24 +192,11 @@ export function AdminDashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-500 mb-1">Available (Unallocated)</p>
                   <div className="flex items-baseline gap-1">
-                    <h3 className="text-3xl font-bold text-slate-900">₹{bankBalance.toFixed(1)}</h3>
+                    <h3 className="text-3xl font-bold text-slate-900">₹{formatINR(summary.available)}</h3>
                     <span className="text-sm font-medium text-slate-500">Cr</span>
                   </div>
-                  <div className="mt-2 text-[10px] space-y-1">
-                    <div className="flex items-center text-amber-700 font-medium">
-                      <span className="w-6">RE:</span> 
-                      <div className="w-16 h-1.5 bg-amber-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-amber-600" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{availableRE.toFixed(1)} Cr
-                    </div>
-                    <div className="flex items-center text-slate-600">
-                      <span className="w-6">NRE:</span> 
-                      <div className="w-16 h-1.5 bg-slate-200 rounded-full mx-1 overflow-hidden">
-                        <div className="h-full bg-slate-500" style={{width: '100%'}}></div>
-                      </div>
-                      ₹{availableNRE.toFixed(1)} Cr
-                    </div>
+                  <div className="mt-2 text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                    Current Purse
                   </div>
                 </div>
                 <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
@@ -248,8 +210,6 @@ export function AdminDashboard() {
 
       {/* 2. ALERTS & ACTION ITEMS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        
-        {/* Urgent Funding Requests */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between text-amber-700">
@@ -276,7 +236,6 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Critical Interventions */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center text-red-600">

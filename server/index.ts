@@ -798,6 +798,33 @@ app.post('/api/reviewer/assign', async (req, res) => {
     }
 });
 
+// server/index.ts
+
+app.get('/api/finance/summary', async (req, res) => {
+    try {
+        const records = await prisma.financeRecord.findMany();
+
+        const sanctioned = records
+            .filter(r => r.category === 'SANCTIONED')
+            .reduce((acc, r) => acc + r.amount, 0);
+            
+        const received = records
+            .filter(r => r.category === 'RECEIVED')
+            .reduce((acc, r) => acc + r.amount, 0);
+            
+        const allocated = records
+            .filter(r => r.category === 'ALLOCATED')
+            .reduce((acc, r) => acc + r.amount, 0);
+        
+        // Calculated real-time balance
+        const available = received - allocated;
+
+        res.json({ sanctioned, received, allocated, available });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch summary" });
+    }
+});
+
 // Update My Tasks Route
 app.get('/api/reviewer/my-tasks', async (req, res) => {
     const { userId } = req.query;
