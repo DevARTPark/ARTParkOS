@@ -150,6 +150,9 @@ model Startup {
   foundedYear Int?     @default(2024)
   teamSize    Int?     @default(1)
 
+  monthlyReports   MonthlyReport[]
+  quarterlyReports QuarterlyReport[]
+
   isProfileComplete Boolean @default(false) 
 
   team        UserProfile[]
@@ -337,4 +340,61 @@ model ExpertReview {
   respondedAt     DateTime?
 
   @@map("expert_reviews")
+}
+
+// --- 7. FINANCE MODULE (New) ---
+model FinanceRecord {
+  id          String   @id @default(uuid())
+  category    String   // 'SANCTIONED', 'RECEIVED', 'ALLOCATED'
+  source      String   // e.g., 'DST', 'GoK', 'Private'
+  amount      Float
+  date        DateTime
+  description String?
+  beneficiary String?  // Only for ALLOCATED (e.g., 'Startup Name')
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("finance_records")
+}
+
+// --- 8. REPORTS MODULE (New) ---
+model MonthlyReport {
+  id             String   @id @default(uuid())
+  startupId      String
+  startup        Startup  @relation(fields: [startupId], references: [id])
+  
+  month          String   // e.g. "January 2026"
+  status         String   @default("Submitted") // Submitted, Reviewed
+  
+  data           Json     // Stores the full ReportDetail object
+  
+  reviewerId     String?
+  reviewerFeedback String? @db.Text
+  
+  submittedAt    DateTime @default(now())
+  reviewedAt     DateTime?
+  updatedAt      DateTime @updatedAt
+
+  @@map("monthly_reports")
+}
+
+model QuarterlyReport {
+  id             String   @id @default(uuid())
+  startupId      String
+  startup        Startup  @relation(fields: [startupId], references: [id])
+  
+  quarter        String   // e.g. "Q4 2025"
+  status         String   @default("Submitted")
+  
+  data           Json     // Stores the full QuarterlyReport object
+  
+  reviewerId     String?
+  reviewerFeedback String? @db.Text
+  
+  submittedAt    DateTime @default(now())
+  reviewedAt     DateTime?
+  updatedAt      DateTime @updatedAt
+
+  @@map("quarterly_reports")
 }

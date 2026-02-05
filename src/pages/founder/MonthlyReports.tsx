@@ -686,15 +686,6 @@ export function MonthlyReports({
                             <option value="RE">RE</option>
                           </select>
 
-                          {/* Source Selector (NEW) */}
-                          <select
-                            className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                            value={inputs.newStartupExpenseInput.fundingSource}
-                            onChange={(e) => actions.handleStartupExpenseInputChange("fundingSource", e.target.value)}
-                          >
-                            {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
-                          </select>
-
                           {/* Category Selector */}
                           <select
                             className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none flex-1"
@@ -994,13 +985,6 @@ export function MonthlyReports({
                                       >
                                           <option value="NRE">NRE</option>
                                           <option value="RE">RE</option>
-                                      </select>
-                                      <select 
-                                          className="h-7 text-xs border border-gray-300 rounded px-1 bg-white focus:outline-none w-16"
-                                          value={inputs.newExpenseInput[project.projectId]?.fundingSource || "DST"}
-                                          onChange={(e) => actions.handleExpenseInputChange(project.projectId, "fundingSource", e.target.value)}
-                                      >
-                                          {FUNDING_SOURCES.map(src => <option key={src} value={src}>{src}</option>)}
                                       </select>
                                       <Button 
                                           size="sm" variant="secondary" className="h-7 text-xs px-3"
