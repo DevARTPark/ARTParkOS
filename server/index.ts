@@ -925,27 +925,38 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
     const { id } = req.params;
     const { evaluations, status } = req.body;
 
+    console.log(`⚖️ Review Decision for ${id}: ${status}`);
+
     try {
         const updatePromises = Object.keys(evaluations).map(questionId => {
             const ev = evaluations[questionId];
+
+            // Map frontend values to backend schema
+            // Frontend might send "status" (ACCEPTED/REJECTED), map to schema's "reviewerStatus"
+            // Frontend might send "comment", map to schema's "reviewerComment"
+
             return prisma.assessmentAnswer.updateMany({
                 where: {
                     submissionId: id,
                     questionId: questionId
                 },
                 data: {
-                    rating: ev.rating,
-                    comments: ev.comment
+                    // ✅ FIXED: Use correct schema field names
+                    reviewerStatus: ev.status as any, // "ACCEPTED" | "REJECTED"
+                    reviewerComment: ev.comment || null
                 }
             });
         });
 
         await prisma.$transaction(updatePromises);
 
+        // ... (rest of the logic for updating submission status and auto-upgrade) ...
+
         await prisma.assessmentSubmission.update({
             where: { id },
             data: {
-                status: status || 'COMPLETED',
+                // @ts-ignore
+                status: status,
                 reviewedAt: new Date()
             }
         });
@@ -957,13 +968,15 @@ app.post('/api/reviewer/submission/:id/review', async (req, res) => {
                     where: { id: sub.projectId },
                     data: { currentAIRL: sub.targetLevel }
                 });
+                console.log(`🚀 Project Upgraded to AIRL ${sub.targetLevel}`);
             }
         }
 
         res.json({ message: "Review submitted successfully" });
-    } catch (err) {
+
+    } catch (err: any) {
         console.error("Submit Review Error:", err);
-        res.status(500).json({ error: "Failed to save review" });
+        res.status(500).json({ error: "Failed to save review", details: err.message });
     }
 });
 
