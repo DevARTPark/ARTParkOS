@@ -78,7 +78,7 @@ export function AssessmentReview() {
   // Filter questions that are actually present in the submission answers
   const relevantQuestions = submission?.answers
     ? questions.filter((q) =>
-        submission.answers.some((a: any) => a.questionId === q.id)
+        submission.answers.some((a: any) => a.questionId === q.id),
       )
     : [];
 
@@ -120,7 +120,7 @@ export function AssessmentReview() {
             evaluations,
             status: "COMPLETED",
           }),
-        }
+        },
       );
 
       if (res.ok) {
@@ -234,8 +234,8 @@ export function AssessmentReview() {
                         answerData?.response === "met"
                           ? "bg-green-100 text-green-800"
                           : answerData?.response === "partial"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
                       }`}
                     >
                       {answerData?.response === "met" ? (
@@ -261,14 +261,26 @@ export function AssessmentReview() {
                 {answerData?.evidenceFile || answerData?.evidenceUrl ? (
                   <div className="space-y-2">
                     {answerData?.evidenceFile && (
-                      <div className="flex items-center p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:bg-blue-50 transition-colors group">
                         <FileText className="w-8 h-8 text-blue-500 mr-3" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {answerData.evidenceFile}
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={answerData.evidenceFile}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-medium text-blue-700 hover:underline truncate block"
+                          >
+                            {/* Helper to show clean name */}
+                            {answerData.evidenceFile
+                              .split("/")
+                              .pop()
+                              ?.replace(/^\d+_/, "") || "View Document"}
+                          </a>
+                          <p className="text-xs text-gray-500">
+                            Click to view file
                           </p>
-                          <p className="text-xs text-gray-500">File Upload</p>
                         </div>
+                        <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
                       </div>
                     )}
                     {answerData?.evidenceUrl && (

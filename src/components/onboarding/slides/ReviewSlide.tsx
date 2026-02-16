@@ -316,21 +316,31 @@ export default function ReviewSlide({ data, onEdit }: ReviewSlideProps) {
       <Section title="Documents" stepId="uploads" icon={CheckCircle}>
         <div className="flex gap-4 flex-wrap">
           {Object.entries(data.uploads).map(([key, val]) => {
-            if (!val) return null;
+            if (!val) return null; // Skip if no file
+
+            // Helper to make key readable (e.g. "pitchDeck" -> "Pitch Deck")
+            const label = key.replace(/([A-Z])/g, " $1").trim();
+
             return (
-              <div
+              <a
                 key={key}
-                className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm"
+                href={val} // This is the URL from Supabase
+                target="_blank"
+                rel="noreferrer"
+                title="Click to view uploaded document"
+                className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm hover:bg-green-100 transition-colors group"
               >
                 <CheckCircle className="w-4 h-4" />
-                <span className="capitalize">
-                  {key.replace(/([A-Z])/g, " $1").trim()}
-                </span>
-              </div>
+                <span className="capitalize font-medium">{label}</span>
+                {/* External Link Icon on Hover */}
+                <Globe className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+              </a>
             );
           })}
           {Object.values(data.uploads).every((v) => !v) && (
-            <span className="text-gray-400 italic">No files uploaded</span>
+            <span className="text-gray-400 italic text-sm">
+              No files uploaded yet.
+            </span>
           )}
         </div>
       </Section>

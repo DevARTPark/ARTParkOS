@@ -22,6 +22,7 @@ import {
   FileText,
   X,
   CheckCheck,
+  Loader2,
   ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,6 +37,7 @@ export function AIRLAssessment() {
   const [questions, setQuestions] = useState<any[]>([]); // Dynamic Questions from API
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   const userStr = localStorage.getItem("artpark_user");
   const user = userStr ? JSON.parse(userStr) : null;
@@ -137,7 +139,7 @@ export function AIRLAssessment() {
               setSubmissionStatus("draft");
             }
 
-            // ✅ NEW: Populate Form with Saved Database Answers
+            // Populate Form with Saved Database Answers
             if (sub.answers && Array.isArray(sub.answers)) {
               const dbAnswers: Record<string, string> = {};
               const dbNotes: Record<string, string> = {};
@@ -203,7 +205,7 @@ export function AIRLAssessment() {
   const progress =
     totalQuestions > 0 ? (completedQuestions.length / totalQuestions) * 100 : 0;
 
-  // --- NEW: Calculate Completion Logic Automatically (Answer + Link/File) ---
+  // --- Calculate Completion Logic Automatically (Answer + Link/File) ---
   useEffect(() => {
     if (!relevantQuestions.length) return;
 
@@ -310,17 +312,56 @@ export function AIRLAssessment() {
     if (!qId) return;
 
     setAnswers({ ...answers, [qId]: val });
-    // Note: completedQuestions is now handled by useEffect
   };
 
-  const handleFileChange = (e: any) => {
+  // ✅ UPDATED: Async File Upload Handler
+  const handleFileChange = async (e: any) => {
     const file = e.target.files?.[0];
-    if (file && questions[currentQuestionIndex]) {
-      setEvidenceFiles({
-        ...evidenceFiles,
-        [questions[currentQuestionIndex].id]: file.name,
-      });
+    if (!file || !questions[currentQuestionIndex]) return;
+
+    // 1. Size Limit Check (e.g., 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File is too large. Max 5MB.");
+      return;
     }
+
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      const base64Data = reader.result;
+
+      try {
+        // 2. Upload to Server
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.url) {
+          // 3. Save the URL to state
+          setEvidenceFiles({
+            ...evidenceFiles,
+            [questions[currentQuestionIndex].id]: data.url,
+          });
+        } else {
+          alert("Upload failed: " + (data.error || "Unknown error"));
+        }
+      } catch (err) {
+        console.error("Upload Error:", err);
+        alert("Upload failed due to network error.");
+      } finally {
+        setIsUploading(false);
+      }
+    };
   };
 
   const handleRemoveFile = (e: any) => {
@@ -542,7 +583,7 @@ export function AIRLAssessment() {
                             </div>
                           </div>
 
-                          {/* Notes */}
+                          {/* Founder Notes */}
                           <Textarea
                             label="Founder Notes / Context"
                             rows={3}
@@ -605,10 +646,11 @@ export function AIRLAssessment() {
                                   </label>
                                   <div
                                     onClick={() => {
-                                      // Disable click if Submitted OR if Link exists
+                                      // Disable click if Submitted OR if Link exists OR if currently uploading
                                       if (
                                         submissionStatus !== "submitted" &&
                                         !hasLink &&
+                                        !isUploading &&
                                         fileInputRef.current
                                       ) {
                                         fileInputRef.current.click();
@@ -617,19 +659,43 @@ export function AIRLAssessment() {
                                     className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center transition-all ${
                                       evidenceFiles[currentId]
                                         ? "border-green-300 bg-green-50 hover:bg-green-100 cursor-pointer"
-                                        : hasLink
-                                          ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed" // Visual disabled state
-                                          : "border-gray-300 hover:bg-gray-50 cursor-pointer"
+                                        : isUploading
+                                          ? "border-blue-300 bg-blue-50 cursor-wait"
+                                          : hasLink
+                                            ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                                            : "border-gray-300 hover:bg-gray-50 cursor-pointer"
                                     }`}
                                   >
-                                    {evidenceFiles[currentId] ? (
+                                    {isUploading ? (
+                                      /* Loading State */
+                                      <div className="flex flex-col items-center">
+                                        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+                                        <p className="text-sm text-blue-600 font-medium">
+                                          Uploading...
+                                        </p>
+                                      </div>
+                                    ) : evidenceFiles[currentId] ? (
+                                      /* File Display with Link */
                                       <>
                                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
                                           <FileText className="w-5 h-5 text-green-600" />
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900 px-4 break-all">
-                                          {evidenceFiles[currentId]}
-                                        </p>
+
+                                        <a
+                                          href={evidenceFiles[currentId]}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-sm font-medium text-blue-700 hover:underline px-4 break-all block"
+                                        >
+                                          {/* Helper to clean up the filename from URL */}
+                                          {evidenceFiles[currentId]
+                                            .split("/")
+                                            .pop()
+                                            ?.replace(/^\d+_/, "") ||
+                                            "View File"}
+                                        </a>
+
                                         <div className="mt-2 flex gap-2">
                                           <span className="text-xs text-green-600 font-bold uppercase">
                                             Uploaded
@@ -643,6 +709,7 @@ export function AIRLAssessment() {
                                         </div>
                                       </>
                                     ) : (
+                                      /* Default State */
                                       <>
                                         <div
                                           className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 ${hasLink ? "bg-gray-200" : "bg-blue-100"}`}
@@ -660,7 +727,7 @@ export function AIRLAssessment() {
                                         </p>
                                         {!hasLink && (
                                           <p className="text-xs text-gray-500 mt-1">
-                                            PDF, DOCX, JPG up to 10MB
+                                            PDF, DOCX, JPG up to 5MB
                                           </p>
                                         )}
                                       </>

@@ -36,6 +36,8 @@ enum AssessmentStatus {
   DRAFT
   SUBMITTED
   IN_REVIEW
+  CHANGES_REQUESTED // <--- NEW
+  RESUBMITTED       // <--- NEW
   COMPLETED
   REJECTED
 }
@@ -52,10 +54,10 @@ enum FounderResponse {
   not_met
 }
 
-enum ReviewerRating {
-  yes
-  no
-  partial
+enum ReviewerStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 // --- 1. CORE IDENTITY ---
@@ -271,8 +273,8 @@ model AssessmentAnswer {
   evidenceFile String?          // Added to store filename if uploaded
   
   // Reviewer Evaluation (Updated to Enum)
-  rating       ReviewerRating?  
-  comments     String?          @db.Text
+  reviewerStatus  ReviewerStatus   @default(PENDING) 
+  reviewerComment String?          @db.Text
   
   updatedAt    DateTime         @updatedAt
 

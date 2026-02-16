@@ -342,11 +342,11 @@ export const APPLICATION_FLOW: SlideConfig[] = [
         subtitle: 'Upload your supporting documents.',
         props: {
             files: [
-                { key: 'pitchDeck', label: 'Pitch Deck (PDF)', accept: '.pdf' },
-                { key: 'budgetDoc', label: '1-Year Budget Plan', accept: '.pdf,.xlsx' },
-                { key: 'demoVideo', label: 'Demo Video (Link/MP4)', accept: 'video/*' },
+                { key: 'pitchDeck', label: 'Pitch Deck (PDF)', accept: '.pdf', required: true },
+                { key: 'budgetDoc', label: '1-Year Budget Plan', accept: '.pdf,.xlsx', required: true },
+                { key: 'demoVideo', label: 'Demo Video (Link/MP4)', accept: 'video/*', required: false },
                 // NEW: Added Supporting Material (PDF Section H.25)
-                { key: 'otherDocs', label: 'Supporting Material (Zip/PDF)', accept: '.zip,.pdf,.rar' },
+                { key: 'otherDocs', label: 'Supporting Material (Zip/PDF)', accept: '.zip,.pdf,.rar', required: false },
             ]
         }
     },
